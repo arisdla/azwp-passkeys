@@ -1,0 +1,108 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch all tags
+        run: git fetch --tags --force
+
+      - name: Set up variables
+        env:
+          TAG_VERSION: ${{ github.ref_name }}
+        run: |
+          PLUGIN_FILE="azwp-passkeys.php"
+          VERSION=$(grep -oP 'Version:\s*\K[\d.]+' "$PLUGIN_FILE")
+          CONSTANT=$(grep -oP "define\('AZWP_PASSKEYS_VERSION', '\K[\d.]+" "$PLUGIN_FILE")
+          NAME=$(grep -oP 'Plugin Name:\s*\K.+' "$PLUGIN_FILE")
+          SHORT_DESC=$(grep -oP 'Description:\s*\K.+' "$PLUGIN_FILE")
+          AUTHOR=$(grep -oP 'Author:\s*\K.+' "$PLUGIN_FILE")
+          VERSION_FROM_TAG="${TAG_VERSION#v}"
+
+          if [ "$VERSION_FROM_TAG" != "$VERSION" ] || [ "$CONSTANT" != "$VERSION" ]; then
+            echo "Tag $TAG_VERSION, header Version $VERSION and AZWP_PASSKEYS_VERSION $CONSTANT must all match"
+            exit 1
+          fi
+
+          # The annotated tag's message becomes the changelog.
+          TAG_MESSAGE=$(git cat-file tag "$TAG_VERSION" | sed -n '/^$/,$p' | tail -n +2)
+          TAG_MESSAGE=$(echo "$TAG_MESSAGE" | sed 's/^[-–*]\s*/- /')
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "NAME=$NAME" >> $GITHUB_ENV
+          echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
+
+          echo "SHORT_DESC<<EOF" >> $GITHUB_ENV
+          echo "$SHORT_DESC" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$TAG_MESSAGE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Prepare JSON-safe description and changelog
+        run: |
+          HTML_DESCRIPTION=$(echo "${SHORT_DESC}" | python3 -c 'import sys, html; print("".join(f"<p>{html.escape(line)}</p>" for line in sys.stdin.read().strip().splitlines() if line))')
+          HTML_CHANGELOG=$(echo "${CHANGELOG}" | python3 -c 'import sys, html; print("".join(f"<p>{html.escape(line)}</p>" for line in sys.stdin.read().strip().splitlines() if line))')
+
+          ESCAPED_DESCRIPTION=$(echo "$HTML_DESCRIPTION" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])')
+          ESCAPED_CHANGELOG=$(echo "$HTML_CHANGELOG" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])')
+
+          echo "DESCRIPTION=$ESCAPED_DESCRIPTION" >> $GITHUB_ENV
+          echo "CHANGELOG=$ESCAPED_CHANGELOG" >> $GITHUB_ENV
+
+      - name: Zip plugin
+        run: |
+          sh bin/dist.sh
+          mkdir -p build
+          mv dist/azwp-passkeys.zip build/azwp-passkeys-${VERSION}.zip
+
+      - name: Generate final JSON from template
+        run: |
+          export LAST_UPDATED=$(date -u +"%Y-%m-%d %H:%M:%S")
+          export DOWNLOAD_URL="https://github.com/arisdla/azwp-passkeys/releases/download/v${VERSION}/azwp-passkeys-${VERSION}.zip"
+
+          envsubst < .github/templates/azwp-passkeys.json.tpl > build/azwp-passkeys-${VERSION}.json
+          python3 -m json.tool build/azwp-passkeys-${VERSION}.json > /dev/null
+
+      - name: Copy and rename files for latest release
+        run: |
+          cp build/azwp-passkeys-${VERSION}.zip build/azwp-passkeys.zip
+          cp build/azwp-passkeys-${VERSION}.json build/azwp-passkeys.json
+
+      - name: Force update 'latest' tag to current commit
+        run: |
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Upload versioned release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
+          files: |
+            build/azwp-passkeys-${{ env.VERSION }}.zip
+            build/azwp-passkeys-${{ env.VERSION }}.json
+
+      - name: Upload to 'latest' release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest
+          files: |
+            build/azwp-passkeys.zip
+            build/azwp-passkeys.json
