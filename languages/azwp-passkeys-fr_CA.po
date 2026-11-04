@@ -1,0 +1,597 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: AZWP Passkeys 0.0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-04T21:46:16+00:00\n"
+"PO-Revision-Date: 2026-11-04T21:46:16+00:00\n"
+"Language: fr_CA\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: src/class-passkeys.php:242
+#, php-format
+msgid "[%s] A passkey was added to your account"
+msgstr "[%s] Une clé d’accès a été ajoutée à votre compte"
+
+#: src/class-passkeys.php:237
+#, php-format
+msgid "A passkey named “%1$s” was added to your account on %2$s."
+msgstr "Une clé d’accès nommée « %1$s » a été ajoutée à votre compte sur %2$s."
+
+#: views/credential-list.php:3
+#: assets/js/client.js:65
+msgid "Actions"
+msgstr "Actions"
+
+#: src/class-lifecycle.php:50
+msgid "Activate AZ's WP Passkeys for the network."
+msgstr "Activez AZ's WP Passkeys pour le réseau."
+
+#: src/class-ajax.php:114
+msgid "Add another usable passkey or restore another sign-in method before removing this passkey."
+msgstr "Ajoutez une autre clé d’accès utilisable ou rétablissez une autre méthode de connexion avant de supprimer cette clé d’accès."
+
+#: src/class-screens.php:103
+#: views/frontend-register.php:5
+#: views/profile.php:8
+#: assets/js/blocks.js:7
+msgid "Add passkey"
+msgstr "Ajouter une clé d’accès"
+
+#: views/credential-list.php:3
+#: assets/js/client.js:65
+msgid "Added"
+msgstr "Ajoutée"
+
+#: src/class-screens.php:193
+msgid "After registration"
+msgstr "Après l’inscription"
+
+#: assets/js/blocks.js:17
+msgid "After sign-in, go to"
+msgstr "Après la connexion, ouvrir"
+
+#. Plugin Name of the plugin
+#: azwp-passkeys.php
+#: src/class-screens.php:29
+#: src/class-screens.php:33
+#: views/settings-network.php:2
+#: views/settings-site.php:2
+msgid "AZ's WP Passkeys"
+msgstr "AZ's WP Passkeys"
+
+#: views/diagnostics.php:4
+msgid "Back to settings"
+msgstr "Retour aux réglages"
+
+#: src/class-screens.php:192
+msgid "Block password resets"
+msgstr "Bloquer la réinitialisation des mots de passe"
+
+#: src/class-screens.php:192
+msgid "Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles."
+msgstr "Les deux options de blocage ferment les pages publiques de réinitialisation, y compris pour les administrateurs. L’exception permet les opérations de réinitialisation autorisées aux administrateurs. Les mots de passe restent modifiables dans les profils WordPress."
+
+#: src/class-ajax.php:109
+msgid "Check the fields and try again."
+msgstr "Vérifiez les champs et réessayez."
+
+#: src/class-screens.php:180
+msgid "Check this field and save again."
+msgstr "Vérifiez ce champ et enregistrez à nouveau."
+
+#: src/class-screens.php:153
+msgid "Check Website name and Passkey domain in settings. The passkey domain must match this site."
+msgstr "Vérifiez le nom du site et le domaine des clés d’accès dans les réglages. Le domaine des clés d’accès doit correspondre à ce site."
+
+#: views/diagnostics.php:4
+msgid "Clear logs"
+msgstr "Effacer les journaux"
+
+#: views/frontend-register.php:5
+#: views/frontend-test.php:4
+#: views/login.php:4
+msgid "Confirm with your fingerprint, face, or device PIN. This is required to continue."
+msgstr "Confirmez avec votre empreinte digitale, votre visage ou le code de votre appareil. Cette vérification est obligatoire pour continuer."
+
+#: assets/js/client.js:34
+msgid "Could not connect. Check your connection and try again."
+msgstr "Connexion impossible. Vérifiez votre connexion et réessayez."
+
+#: assets/js/settings.js:16
+msgid "Could not load logs."
+msgstr "Impossible de charger les journaux."
+
+#: assets/js/client.js:86
+msgid "Could not load passkeys. Refresh the page."
+msgstr "Impossible de charger les clés d’accès. Actualisez la page."
+
+#: src/class-screens.php:202
+msgid "Disable"
+msgstr "Désactiver"
+
+#: src/class-screens.php:199
+msgid "Disabled"
+msgstr "Désactivé"
+
+#: src/class-screens.php:202
+msgid "Enable"
+msgstr "Activer"
+
+#: src/class-screens.php:199
+msgid "Enabled"
+msgstr "Activé"
+
+#: assets/js/client.js:126
+msgid "Enter a name for this passkey."
+msgstr "Saisissez un nom pour cette clé d’accès."
+
+#: views/settings-site.php:9
+msgid "Enter the website name and passkey domain before adding passkeys."
+msgstr "Saisissez le nom du site et le domaine des clés d’accès avant d’en ajouter."
+
+#: views/diagnostics.php:4
+msgid "entries"
+msgstr "entrées"
+
+#: src/class-screens.php:192
+msgid "Except for administrators"
+msgstr "Sauf pour les administrateurs"
+
+#: assets/js/client.js:103
+msgid "Follow your browser's instructions"
+msgstr "Suivez les instructions de votre navigateur"
+
+#: src/class-screens.php:192
+msgid "For everyone"
+msgstr "Pour tout le monde"
+
+#: assets/js/blocks.js:17
+msgid "Hide when signed in"
+msgstr "Masquer après la connexion"
+
+#: src/class-passkeys.php:239
+msgid "If you did not expect this, remove the passkey and change your password:"
+msgstr "Si vous ne vous y attendiez pas, supprimez cette clé d’accès et changez votre mot de passe :"
+
+#: assets/js/blocks.js:17
+msgid "Include password sign-in form"
+msgstr "Inclure le formulaire de connexion par mot de passe"
+
+#: src/class-passkeys.php:238
+#, php-format
+msgid "It was added by %s."
+msgstr "Elle a été ajoutée par %s."
+
+#: src/class-passkeys.php:238
+msgid "It was added while you were signed in."
+msgstr "Elle a été ajoutée pendant que vous étiez connecté."
+
+#: views/credential-list.php:3
+#: assets/js/client.js:65
+msgid "Last used"
+msgstr "Dernière utilisation"
+
+#: views/credential-list.php:3
+#: views/diagnostics.php:4
+msgid "Loading…"
+msgstr "Chargement…"
+
+#: src/class-screens.php:194
+msgid "Logging"
+msgstr "Journalisation"
+
+#: assets/js/settings.js:20
+msgid "Logs cleared."
+msgstr "Journaux effacés."
+
+#: views/diagnostics.php:4
+msgid "Logs remain until cleared. Passwords and passkey responses are not logged."
+msgstr "Les journaux sont conservés jusqu’à leur suppression. Les mots de passe et les réponses des clés d’accès ne sont pas enregistrés."
+
+#: views/settings-site.php:13
+msgid "Manage your passkeys"
+msgstr "Gérer vos clés d’accès"
+
+#: views/credential-list.php:3
+#: assets/js/client.js:65
+msgid "Name"
+msgstr "Nom"
+
+#: src/class-screens.php:199
+msgid "Network settings"
+msgstr "Réglages du réseau"
+
+#: src/class-screens.php:193
+msgid "New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in."
+msgstr "Les nouveaux comptes sont connectés dès l’inscription et invités à ajouter une clé d’accès. WordPress envoie quand même son courriel de bienvenue, mais l’adresse courriel n’est pas vérifiée avant la connexion."
+
+#: src/class-screens.php:192
+msgid "No"
+msgstr "Non"
+
+#: assets/js/settings.js:13
+msgid "No log entries."
+msgstr "Aucune entrée dans les journaux."
+
+#: src/class-ajax.php:116
+msgid "No passkey is available for this account."
+msgstr "Aucune clé d’accès n’est disponible pour ce compte."
+
+#: assets/js/client.js:71
+msgid "No passkeys added."
+msgstr "Aucune clé d’accès ajoutée."
+
+#: assets/js/blocks.js:13
+msgid "passkey"
+msgstr "clé d’accès"
+
+#: assets/js/blocks.js:18
+msgid "Passkey actions are unavailable in the editor."
+msgstr "Les actions sur les clés d’accès ne sont pas disponibles dans l’éditeur."
+
+#: assets/js/client.js:108
+msgid "Passkey added."
+msgstr "Clé d’accès ajoutée."
+
+#: assets/js/client.js:129
+msgid "Passkey already removed. List refreshed."
+msgstr "Clé d’accès déjà supprimée. Liste actualisée."
+
+#: src/class-lifecycle.php:138
+msgid "Passkey data could not be completely removed. Try deleting the plugin again."
+msgstr "Certaines données des clés d’accès n’ont pas pu être supprimées. Réessayez de supprimer l’extension."
+
+#: src/class-screens.php:30
+#: views/diagnostics.php:2
+#: views/settings-site.php:13
+msgid "Passkey diagnostics"
+msgstr "Diagnostic des clés d’accès"
+
+#: views/settings-site.php:8
+msgid "Passkey domain"
+msgstr "Domaine des clés d’accès"
+
+#: assets/js/blocks.js:7
+msgid "Passkey list"
+msgstr "Liste des clés d’accès"
+
+#: src/class-screens.php:190
+#: views/profile.php:5
+msgid "Passkey only mode"
+msgstr "Mode clé d’accès uniquement"
+
+#: views/profile.php:6
+msgid "Passkey only mode is required by the site or network settings."
+msgstr "Le mode clé d’accès uniquement est imposé par les réglages du site ou du réseau."
+
+#: src/class-screens.php:190
+msgid "Passkey only mode turns off password sign-in. Make sure each account has a working passkey first."
+msgstr "Le mode clé d’accès uniquement désactive la connexion par mot de passe. Assurez-vous d’abord que chaque compte dispose d’une clé d’accès fonctionnelle."
+
+#: assets/js/client.js:114
+msgid "Passkey prompt cancelled. Try again or use a password."
+msgstr "Demande de clé d’accès annulée. Réessayez ou utilisez un mot de passe."
+
+#: assets/js/client.js:114
+msgid "Passkey prompt cancelled. Try again."
+msgstr "Demande de clé d’accès annulée. Réessayez."
+
+#: assets/js/client.js:129
+msgid "Passkey removed."
+msgstr "Clé d’accès supprimée."
+
+#: assets/js/client.js:129
+msgid "Passkey renamed."
+msgstr "Clé d’accès renommée."
+
+#: src/class-lifecycle.php:57
+#: src/class-lifecycle.php:63
+#: src/class-lifecycle.php:68
+msgid "Passkey settings could not be initialized."
+msgstr "Les réglages des clés d’accès n’ont pas pu être initialisés."
+
+#: assets/js/blocks.js:7
+msgid "Passkey sign-in"
+msgstr "Connexion avec une clé d’accès"
+
+#: src/class-lifecycle.php:53
+msgid "Passkey storage could not be initialized. Transactional database storage is required."
+msgstr "Le stockage des clés d’accès n’a pas pu être initialisé. La base de données doit prendre en charge les transactions."
+
+#: src/class-authentication.php:368
+#: assets/js/client.js:108
+msgid "Passkey verified."
+msgstr "Clé d’accès vérifiée."
+
+#: views/profile.php:2
+msgid "Passkeys"
+msgstr "Clés d’accès"
+
+#: src/class-screens.php:109
+msgid "Passkeys are unavailable. Check that this site uses HTTPS and that the server supports OpenSSL, P-256 and SHA-256. HTTP is supported only on localhost."
+msgstr "Les clés d’accès sont indisponibles. Vérifiez que le site utilise HTTPS et que le serveur prend en charge OpenSSL, P-256 et SHA-256. HTTP est pris en charge uniquement sur localhost."
+
+#: src/class-ajax.php:118
+msgid "Passkeys are unavailable. Contact the site administrator."
+msgstr "Les clés d’accès sont indisponibles. Contactez l’administrateur du site."
+
+#: assets/js/client.js:92
+#: assets/js/client.js:138
+#: assets/js/frontend.js:22
+#: assets/js/login.js:23
+msgid "Passkeys are unavailable. Use a supported browser and a secure connection."
+msgstr "Les clés d’accès ne sont pas disponibles. Utilisez un navigateur compatible et une connexion sécurisée."
+
+#: views/profile.php:4
+#, php-format
+msgid "Passkeys for %s"
+msgstr "Clés d’accès de %s"
+
+#: src/class-screens.php:104
+msgid "Passkeys from other sites in this network may still work."
+msgstr "Les clés d’accès d’autres sites de ce réseau peuvent encore fonctionner."
+
+#: src/class-screens.php:103
+#, php-format
+msgid "Password sign-in is disabled for %s and no passkey has been added on this site."
+msgstr "La connexion par mot de passe est désactivée pour %s et aucune clé d’accès n’a été ajoutée sur ce site."
+
+#: src/class-screens.php:190
+msgid "Prefer passkey"
+msgstr "Préférer la clé d’accès"
+
+#: src/class-screens.php:190
+msgid "Prefer password"
+msgstr "Préférer le mot de passe"
+
+#: src/class-screens.php:190
+msgid "Default sign-in method"
+msgstr "Méthode de connexion par défaut"
+
+#: assets/js/blocks.js:17
+msgid "Prefilled username or email"
+msgstr "Identifiant ou courriel prérempli"
+
+#: assets/js/client.js:97
+msgid "Preparing…"
+msgstr "Préparation…"
+
+#: src/class-screens.php:191
+#: views/login.php:5
+msgid "Remember me"
+msgstr "Se souvenir de moi"
+
+#: assets/js/client.js:81
+msgid "Remove"
+msgstr "Supprimer"
+
+#: assets/js/client.js:127
+#, js-format
+msgid "Remove “%s”? This removes the passkey from this website. It does not delete it from your device or password manager."
+msgstr "Supprimer « %s » ? Cette action supprime la clé d’accès de ce site, mais pas de votre appareil ni de votre gestionnaire de mots de passe."
+
+#: assets/js/client.js:74
+msgid "Rename"
+msgstr "Renommer"
+
+#: assets/js/client.js:126
+msgid "Rename passkey"
+msgstr "Renommer la clé d’accès"
+
+#: views/diagnostics.php:3
+#: views/settings-network.php:4
+#: views/settings-site.php:12
+msgid "Save changes"
+msgstr "Enregistrer les modifications"
+
+#: src/class-screens.php:194
+msgid "Save diagnostic entries for troubleshooting. Entries remain until you clear them."
+msgstr "Enregistrez les données de diagnostic pour le dépannage. Elles restent conservées jusqu’à leur suppression."
+
+#: assets/js/client.js:105
+msgid "Saving…"
+msgstr "Enregistrement…"
+
+#: src/class-screens.php:199
+msgid "Set in network settings:"
+msgstr "Défini dans les réglages du réseau :"
+
+#: src/class-screens.php:37
+msgid "Settings"
+msgstr "Réglages"
+
+#: src/class-screens.php:186
+msgid "Settings could not be saved."
+msgstr "Impossible d’enregistrer les réglages."
+
+#: src/class-screens.php:185
+msgid "Settings saved"
+msgstr "Réglages enregistrés"
+
+#: assets/js/blocks.js:17
+msgid "Show a message when signed out"
+msgstr "Afficher un message hors connexion"
+
+#: src/class-screens.php:191
+msgid "Show a Remember me checkbox on the passkey sign-in form. It starts unchecked."
+msgstr "Afficher une case Se souvenir de moi sur le formulaire de connexion par clé d’accès. Elle est décochée par défaut."
+
+#: src/class-screens.php:193
+msgid "Sign in and add a passkey"
+msgstr "Se connecter et ajouter une clé d’accès"
+
+#: views/credential-list.php:3
+#: views/frontend-register.php:3
+#: views/frontend-test.php:3
+msgid "Sign in to manage your passkeys."
+msgstr "Connectez-vous pour gérer vos clés d’accès."
+
+#: views/login.php:6
+msgid "Sign in with a passkey"
+msgstr "Se connecter avec une clé d’accès"
+
+#: views/settings-network.php:4
+#: views/settings-site.php:10
+msgid "Sign-in"
+msgstr "Connexion"
+
+#: src/class-authentication.php:381
+#: src/class-authentication.php:387
+msgid "Sign-in failed. Please try again."
+msgstr "La connexion a échoué. Veuillez réessayer."
+
+#: views/frontend-test.php:4
+#: views/profile.php:8
+#: assets/js/blocks.js:7
+msgid "Test passkey"
+msgstr "Tester une clé d’accès"
+
+#: src/class-ajax.php:120
+#: src/class-screens.php:116
+msgid "The change could not be saved. Try again."
+msgstr "La modification n’a pas pu être enregistrée. Réessayez."
+
+#: views/settings-site.php:9
+msgid "The name shown when you use a passkey."
+msgstr "Le nom affiché lorsque vous utilisez une clé d’accès."
+
+#: assets/js/client.js:30
+msgid "The operation could not be completed."
+msgstr "L’opération n’a pas pu être effectuée."
+
+#: src/class-ajax.php:121
+#: assets/js/client.js:114
+msgid "The passkey could not be verified. Try again."
+msgstr "La clé d’accès n’a pas pu être vérifiée. Réessayez."
+
+#: assets/js/client.js:115
+msgid "The passkey request could not be started. Try again."
+msgstr "La demande de clé d’accès n’a pas pu démarrer. Réessayez."
+
+#: src/class-ajax.php:111
+msgid "The request could not be accepted. Refresh the page and try again."
+msgstr "La demande n’a pas pu être acceptée. Actualisez la page et réessayez."
+
+#: src/class-ajax.php:119
+#: assets/js/client.js:34
+msgid "The result could not be confirmed. Refresh to check."
+msgstr "Le résultat n’a pas pu être confirmé. Actualisez la page pour vérifier."
+
+#: src/class-screens.php:210
+msgid "This has no effect until Anyone can register is turned on in General settings."
+msgstr "Ce réglage n’a aucun effet tant que l’option « Tout le monde peut s’inscrire » n’est pas activée dans les réglages généraux."
+
+#: src/class-ajax.php:113
+msgid "This passkey has already been added. Nothing was replaced."
+msgstr "Cette clé d’accès a déjà été ajoutée. Rien n’a été remplacé."
+
+#: src/class-passkeys.php:337
+msgid "This passkey is unavailable under the current site settings."
+msgstr "Cette clé d’accès n’est pas disponible avec les réglages actuels du site."
+
+#: src/class-ajax.php:112
+msgid "This passkey request expired or was already used. Start again."
+msgstr "Cette demande a expiré ou a déjà été utilisée. Recommencez."
+
+#: src/class-ajax.php:117
+msgid "Too many sign-in attempts. Wait a minute and try again."
+msgstr "Trop de tentatives de connexion. Patientez une minute, puis réessayez."
+
+#: views/profile.php:5
+msgid "Turn off password sign-in for this account. Make sure you have a working passkey first."
+msgstr "Désactivez la connexion par mot de passe pour ce compte. Assurez-vous d’abord de disposer d’une clé d’accès fonctionnelle."
+
+#: assets/js/frontend.js:10
+#: assets/js/login.js:18
+msgid "Use a passkey instead"
+msgstr "Utiliser plutôt une clé d’accès"
+
+#: views/login.php:7
+#: assets/js/frontend.js:10
+#: assets/js/login.js:18
+msgid "Use a password instead"
+msgstr "Utiliser plutôt un mot de passe"
+
+#: views/settings-site.php:9
+msgid "Use the site's domain or a valid parent domain, without https://, a path or a port."
+msgstr "Utilisez le domaine du site ou un domaine parent valide, sans https://, chemin ni port."
+
+#: assets/js/client.js:105
+msgid "Verifying…"
+msgstr "Vérification…"
+
+#: views/settings-site.php:7
+msgid "Website"
+msgstr "Site web"
+
+#: views/settings-site.php:8
+msgid "Website name"
+msgstr "Nom du site web"
+
+#: src/class-screens.php:193
+msgid "WordPress default"
+msgstr "Comportement par défaut de WordPress"
+
+#: src/class-ajax.php:110
+msgid "You do not have permission to do this."
+msgstr "Vous n’avez pas l’autorisation d’effectuer cette action."
+
+#: views/credential-list.php:3
+#: views/frontend-register.php:3
+#: views/frontend-test.php:3
+msgid "You do not have permission to manage these passkeys."
+msgstr "Vous n’avez pas l’autorisation de gérer ces clés d’accès."
+
+#: src/class-screens.php:144
+#: src/class-screens.php:158
+msgid "You do not have permission to manage these settings."
+msgstr "Vous n’avez pas l’autorisation de gérer ces réglages."
+
+#: src/class-screens.php:151
+msgid "You do not have permission to view diagnostics."
+msgstr "Vous n’avez pas l’autorisation de consulter le diagnostic."
+
+#: views/profile.php:3
+msgid "Your account is ready. Add a passkey so you can sign in next time."
+msgstr "Votre compte est prêt. Ajoutez une clé d’accès pour vous connecter la prochaine fois."
+
+#: src/class-ajax.php:115
+msgid "Your sign-in session or site settings changed. Start again."
+msgstr "Votre session ou les réglages du site ont changé. Recommencez."
+
+#. Description of the plugin
+#: azwp-passkeys.php
+msgid "Passkey sign-in and management for WordPress."
+msgstr "Connexion et gestion des clés d’accès pour WordPress."
+
+#: src/class-screens.php:116
+msgid "Add a working passkey before turning on Passkey only mode for this account."
+msgstr "Ajoutez une clé d’accès fonctionnelle avant d’activer le mode clé d’accès uniquement pour ce compte."
+
+#: src/class-screens.php:180
+msgid "Add a working passkey to your own account before turning on Passkey only mode."
+msgstr "Ajoutez une clé d’accès fonctionnelle à votre propre compte avant d’activer le mode clé d’accès uniquement."
+
+#: views/credential-list.php:3
+#: assets/js/client.js:65
+msgid "Authenticator"
+msgstr "Authentificateur"
+
+#: views/frontend-register.php:4
+#, php-format
+msgid "Add a passkey for %s. You can add more than one and rename them later."
+msgstr "Ajoutez une clé d’accès pour %s. Vous pouvez en ajouter plusieurs et les renommer plus tard."
+
+#: assets/js/client.js:79
+msgid "Synced"
+msgstr "Synchronisée"
+
+#: assets/js/client.js:108
+#, js-format
+msgid "Passkey test passed for “%s”."
+msgstr "Test réussi pour la clé d’accès « %s »."

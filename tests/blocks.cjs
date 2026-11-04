@@ -1,0 +1,11 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+const blocks={};const context={wp:{i18n:{__:s=>s},element:{createElement:(type,props,...children)=>({type,props,children}),RawHTML:'RAW',Fragment:'FRAGMENT'},blockEditor:{},components:{},blocks:{registerBlockType:(name,definition)=>blocks[name]=definition}}};
+vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../assets/js/blocks.js'),'utf8'),context);
+assert.equal(Object.keys(blocks).length,4);
+const login=blocks['azwp-passkeys/login'];
+assert.equal(login.attributes.traditional.default,true);assert.equal(login.attributes.auto_hide.default,true);
+let result=login.save({attributes:{traditional:false,username:'a"&[]',auto_hide:false,to:'/page/?x=1&y="z"'}});
+assert.equal(result.type,'RAW');
+assert.equal(result.children[0],'[azwp_pk_login traditional="false" username="a&quot;&amp;&#91;&#93;" auto_hide="false" to="/page/?x=1&amp;y=&quot;z&quot;"]');
+for(const kind of ['register','test','list'])assert.equal(blocks['azwp-passkeys/'+kind].save({attributes:{display:true}}).children[0],'[azwp_pk_'+kind+' display="true"]');
+console.log('4 block registrations; defaults; hostile attribute escaping; all shortcode outputs PASS');

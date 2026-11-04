@@ -1,0 +1,23 @@
+{
+	"name": "azwp-passkeys",
+	"private": true,
+	"scripts": {
+		"start": "wp-env start",
+		"stop": "wp-env stop",
+		"reset": "wp-env clean all",
+		"reset:tests": "wp-env clean tests",
+		"logs": "wp-env logs",
+		"wp": "wp-env run cli wp",
+		"i18n": "sh bin/i18n.sh",
+		"dist": "sh bin/dist.sh",
+		"test": "pnpm reset:tests && pnpm test:js && pnpm test:php && pnpm test:http && pnpm test:browser",
+		"test:js": "node tests/client.cjs && node tests/blocks.cjs",
+		"test:php": "sh bin/test-php.sh",
+		"test:http": "AZWP_PASSKEYS_TESTS=1 TEST_URL=http://localhost:18766 node tests/http.cjs",
+		"test:browser": "sh bin/test-browser.sh"
+	},
+	"devDependencies": {
+		"@wordpress/env": "^10.0.0"
+	},
+	"packageManager": "pnpm@10.0.0"
+}

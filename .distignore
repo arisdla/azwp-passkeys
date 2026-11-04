@@ -1,0 +1,13 @@
+/.git
+/.gitignore
+/.distignore
+/.claude
+/.wp-env.json
+.DS_Store
+/node_modules
+/package.json
+/pnpm-lock.yaml
+/bin
+/tests
+/wireframes
+/dist

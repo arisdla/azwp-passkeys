@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AZ's WP Passkeys wireframes</title>
+<style>
+:root{--ink:#222;--mute:#777;--line:#999;--soft:#f2f2f2;--mid:#ddd;--bg:#fafafa;--ok:#2e7d32;--warn:#b26a00;--err:#b3261e;--accent:#333}
+@media (prefers-color-scheme:dark){:root{--ink:#e8e8e8;--mute:#999;--line:#666;--soft:#2a2a2a;--mid:#3a3a3a;--bg:#181818;--ok:#6fbf73;--warn:#e0a040;--err:#ef7b73;--accent:#ddd}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+nav.side{border-right:2px solid var(--line);padding:16px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+nav.side h1{font-size:16px;margin:0 0 4px}nav.side p{font-size:12px;color:var(--mute);margin:0 0 14px}
+nav.side a{display:block;padding:6px 8px;border:1px solid transparent;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px}
+nav.side a.on{border:1px dashed var(--line);background:var(--soft);font-weight:700}
+nav.side small{display:block;margin:14px 8px 4px;color:var(--mute);text-transform:uppercase;font-size:11px;letter-spacing:.06em}
+main{padding:24px 28px;min-width:0}
+section.screen{display:none}section.screen.on{display:block}
+h2{margin:0 0 4px}h3{margin:22px 0 8px;font-size:15px}
+.lead{color:var(--mute);margin:0 0 14px;max-width:70ch}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chips button{font:inherit;font-size:13px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:3px 11px;cursor:pointer}
+.chips button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stage{border:2px dashed var(--line);border-radius:10px;padding:18px;background:var(--bg);overflow:auto}
+.stage>[data-v]{display:none}.stage>[data-v].on{display:block}
+.note{font-size:12.5px;color:var(--mute);border-left:3px solid var(--line);padding:2px 10px;margin:10px 0}
+.row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+/* wp chrome */
+.wp{border:2px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg)}
+.bar{background:var(--mid);padding:6px 12px;font-size:12px;display:flex;justify-content:space-between;border-bottom:2px solid var(--line)}
+.wpbody{display:grid;grid-template-columns:120px 1fr}
+.menu{border-right:2px solid var(--line);padding:10px;font-size:12px;color:var(--mute)}
+.menu div{padding:3px 0}.menu .cur{color:var(--ink);font-weight:700}
+.content{padding:16px 20px;min-width:0}
+.content h1{font-size:20px;margin:0 0 10px;font-weight:600}
+.url{font-size:12px;color:var(--mute);font-family:ui-monospace,monospace;margin:0 0 6px}
+/* login */
+.loginbg{background:var(--soft);padding:26px 12px;border-radius:8px;display:flex;justify-content:center}
+.login{width:320px}
+.logo{text-align:center;font-weight:700;font-size:22px;margin-bottom:12px;border:2px solid var(--line);border-radius:50%;width:64px;height:64px;line-height:60px;margin-inline:auto}
+.card{border:2px solid var(--line);background:var(--bg);padding:18px;border-radius:6px}
+.card p{margin:0 0 10px}
+label{display:block;font-size:13px;margin:0 0 3px}
+input[type=text],input[type=password],select{width:100%;font:inherit;padding:6px 8px;border:1.5px solid var(--line);border-radius:4px;background:transparent;color:var(--ink)}
+.btn{font:inherit;font-size:13px;padding:5px 12px;border:1.5px solid var(--line);border-radius:4px;background:var(--soft);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.full{width:100%;padding:9px}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-size:13px;color:var(--ink);text-decoration:underline;cursor:pointer}
+.status{min-height:20px;margin-top:10px;font-size:13px}
+.status.err{color:var(--err)}.status.okk{color:var(--ok)}
+.fp{display:inline-block;width:22px;height:22px;border:2px solid currentColor;border-radius:50% 50% 45% 45%;vertical-align:middle;margin-right:6px}
+/* notices */
+.notice{border-left:4px solid var(--line);background:var(--soft);padding:8px 12px;margin:0 0 12px;font-size:13px}
+.notice.warn{border-color:var(--warn)}.notice.err{border-color:var(--err)}.notice.ok{border-color:var(--ok)}
+.notice p{margin:2px 0}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+.desc{font-size:12px;color:var(--mute);margin:2px 0 0}
+.form td,.form th{border:0;border-bottom:1px dashed var(--mid)}
+.form th{background:none;width:190px;font-weight:600}
+.radio label{display:inline-block;margin-right:14px}
+.pk{border:1.5px solid var(--mid);border-radius:6px;padding:12px;margin:10px 0}
+.pk h4{margin:0 0 6px;font-size:14px}
+.panel{border:1.5px dashed var(--line);border-radius:6px;padding:12px;margin:10px 0}
+.modal{border:2px solid var(--ink);background:var(--bg);border-radius:6px;padding:14px;max-width:380px;box-shadow:6px 6px 0 var(--mid)}
+.modal .t{font-size:12px;color:var(--mute);margin-bottom:6px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:12px;overflow:auto;max-height:200px;margin:0}
+.flow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.flow span{border:1.5px solid var(--line);border-radius:6px;padding:4px 9px}.flow i{font-style:normal;color:var(--mute)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.email{border:1.5px solid var(--line);max-width:520px;padding:14px;font-family:ui-monospace,monospace;font-size:12.5px;white-space:pre-wrap}
+.browserprompt{border:2px solid var(--ink);border-radius:10px;max-width:300px;padding:12px;background:var(--bg);box-shadow:5px 5px 0 var(--mid);font-size:13px}
+.badge{display:inline-block;margin-top:4px;padding:0 8px;border:1px solid currentColor;border-radius:999px;font-size:.8em}
+.legend{font-size:12px;color:var(--mute)}
+@media(max-width:760px){.app{grid-template-columns:1fr}nav.side{position:static;height:auto;border-right:0;border-bottom:2px solid var(--line)}.wpbody{grid-template-columns:1fr}.menu{display:none}main{padding:16px}}
+</style>
+</head>
+<body>
+<div class="app">
+<nav class="side" id="nav"></nav>
+<main>
+
+<!-- ============ OVERVIEW ============ -->
+<section class="screen" id="overview" data-title="Overview">
+<h2>AZ's WP Passkeys: UX wireframes</h2>
+<p class="lead">Low-fidelity, clickable wireframes of every interface the plugin currently ships. Pick a screen on the left, then use the state chips above each frame to see the variants. Copy matches the plugin's strings. Nothing here talks to a server.</p>
+<h3>Where each surface lives</h3>
+<table>
+<tr><th>Surface</th><th>Where</th><th>Who</th></tr>
+<tr><td>Passkey sign-in</td><td>wp-login.php, and the login shortcode or block on any page</td><td>Anyone signed out</td></tr>
+<tr><td>Registration continuation</td><td>wp-login.php?action=register, then own profile</td><td>New user, single-site only</td></tr>
+<tr><td>Passkeys section</td><td>Profile and Edit User</td><td>Owner, or users who can edit that user</td></tr>
+<tr><td>Frontend components</td><td>Shortcodes and four blocks</td><td>Signed in or out, by component</td></tr>
+<tr><td>Site settings</td><td>Settings, AZ's WP Passkeys</td><td>manage_options</td></tr>
+<tr><td>Network settings</td><td>Network Admin, Settings</td><td>manage_network_options</td></tr>
+<tr><td>Diagnostics</td><td>Tools, Passkey diagnostics</td><td>manage_options</td></tr>
+<tr><td>Notices and email</td><td>Admin notices, "passkey added" email</td><td>Account owners, admins</td></tr>
+</table>
+<h3>Core journeys</h3>
+<div class="flow"><span>Open login</span><i>→</i><span>Sign in with a passkey</span><i>→</i><span>Browser prompt (biometric / PIN)</span><i>→</i><span>Verifying</span><i>→</i><span>Redirect</span></div>
+<p></p>
+<div class="flow"><span>Profile</span><i>→</i><span>Add passkey</span><i>→</i><span>Browser prompt</span><i>→</i><span>Saved as passkey_N, list refreshes, owner emailed</span></div>
+<p></p>
+<div class="flow"><span>Register (optional mode)</span><i>→</i><span>Signed in at once</span><i>→</i><span>Profile, Add passkey focused</span><i>→</i><span>Add passkey</span></div>
+<p class="note">Sign-in is always usernameless. The browser picks the account, so there is no username field on the passkey form.</p>
+</section>
+
+<!-- ============ LOGIN ============ -->
+<section class="screen" id="login" data-title="Login page" data-group="Sign-in">
+<h2>Login page</h2>
+<p class="lead">wp-login.php with the passkey form added inside the native login form. Preferred method decides which side shows first.</p>
+<div class="demo">
+<div class="chips"></div>
+<div class="stage">
+
+<div data-v="Prefer passkey" class="on">
+<p class="url">/wp-login.php</p>
+<div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card pk-root">
+<p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p>
+<p><label><input type="checkbox"> Remember me</label></p>
+<button class="btn primary full" data-sim="login"><span class="fp"></span>Sign in with a passkey</button>
+<p style="margin:12px 0 0"><button class="linkbtn" data-swap="Prefer password">Use a password instead</button></p>
+<div class="status" role="status"></div>
+</div></div></div>
+<p class="note">Click the button to play the ceremony states. "Remember me" appears only when enabled in settings and starts unchecked.</p>
+</div>
+
+<div data-v="Prefer password">
+<p class="url">/wp-login.php (after "Use a password instead", or preferred = password)</p>
+<div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card">
+<p><label>Username or Email Address</label><input type="text"></p>
+<p><label>Password</label><input type="password"></p>
+<p><label><input type="checkbox"> Remember Me</label></p>
+<button class="btn primary">Log In</button>
+<p style="margin:12px 0 0"><button class="linkbtn" data-swap="Prefer passkey">Use a passkey instead</button></p>
+</div><p style="text-align:center;font-size:13px">Register | Lost your password?</p></div></div>
+<p class="note">Lost-password link disappears when password resets are blocked.</p>
+</div>
+
+<div data-v="Passkey only">
+<p class="url">/wp-login.php (site in Passkey only mode)</p>
+<div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card">
+<p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p>
+<button class="btn primary full"><span class="fp"></span>Sign in with a passkey</button>
+<div class="status"></div></div></div></div>
+<p class="note">No username or password fields, no switch link. Accounts with no passkey cannot sign in here.</p>
+</div>
+
+<div data-v="Browser unsupported">
+<p class="url">/wp-login.php (no WebAuthn, or not HTTPS)</p>
+<div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card">
+<p><label>Username or Email Address</label><input type="text"></p>
+<p><label>Password</label><input type="password"></p>
+<button class="btn primary">Log In</button>
+<div class="status err">Passkeys are unavailable. Use a supported browser and a secure connection.</div>
+</div></div></div>
+<p class="note">Falls back to the password form unless the site is passkey only, in which case the error shows on the passkey form.</p>
+</div>
+
+<div data-v="Failure messages">
+<div class="grid2">
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Passkey prompt cancelled. Try again or use a password.</div><p class="desc">User dismissed the browser picker. Passkey-only drops "or use a password".</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Too many sign-in attempts. Wait a minute and try again.</div><p class="desc">Rate limit: 30 requests a minute per address.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Sign-in failed. Please try again.</div><p class="desc">Any verification failure. The reason is never shown.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Your sign-in session or site settings changed. Start again.</div><p class="desc">Configuration changed mid-attempt.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Passkeys are unavailable. Contact the site administrator.</div><p class="desc">Site domain or name not configured.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">The result could not be confirmed. Refresh to check.</div><p class="desc">Network drop after the request was sent.</p></div>
+</div></div>
+
+<div data-v="Browser prompt">
+<div class="row">
+<div class="browserprompt"><b>Use your passkey for example.com?</b><p>Choose an account to sign in with.</p><div style="border:1px solid var(--line);padding:6px;margin:6px 0">alice  <span class="legend">(iCloud Keychain)</span></div><div style="border:1px solid var(--line);padding:6px;margin:6px 0">alice-work  <span class="legend">(Security key)</span></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn">Cancel</button><button class="btn primary">Continue</button></div></div>
+<div class="browserprompt"><b>Verify it's you</b><p>Touch ID or enter your device PIN.</p><div style="text-align:center;font-size:30px">( · )</div></div>
+</div>
+<p class="note">The browser, not the plugin, draws these. Shown here to place the plugin's "Follow your browser's instructions" status.</p>
+</div>
+
+</div></div>
+</section>
+
+<!-- ============ REGISTRATION ============ -->
+<section class="screen" id="register" data-title="Registration" data-group="Sign-in">
+<h2>Registration continuation</h2>
+<p class="lead">Only with "After registration: Sign in and add a passkey" on a single-site install. WordPress still sends its welcome email.</p>
+<div class="demo"><div class="chips"></div><div class="stage">
+<div data-v="1 Register form" class="on">
+<p class="url">/wp-login.php?action=register</p>
+<div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card"><p><label>Username</label><input type="text"></p><p><label>Email</label><input type="text"></p><p class="desc">Registration confirmation will be emailed to you.</p><button class="btn primary">Register</button></div></div></div>
+<p class="note">The passkey form is hidden on this screen. The plugin only changes what happens after submit.</p>
+</div>
+<div data-v="2 Signed in on profile">
+<p class="url">/wp-admin/profile.php?azwp_passkeys_registered=1#azwp-passkeys</p>
+<div class="notice ok"><p>Your account is ready. Add a passkey so you can sign in next time.</p></div>
+<div class="pk pk-root"><h4>Passkeys</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody></table><p><button class="btn primary" data-sim="register" style="outline:3px solid var(--warn);outline-offset:2px">Add passkey</button> <button class="btn">Test passkey</button></p><div class="status"></div></div>
+<p class="note">The Add passkey button gets focus (outlined here). One click opens the browser prompt; there is no name to type. If the account leaves without a passkey, it keeps only the sign-in method it had.</p>
+</div>
+<div data-v="Fallback">
+<p class="url">Cross-origin post, cookies blocked, or approval plugin denies</p>
+<div class="notice"><p>WordPress's normal "Registration complete. Please check your email" continuation shows instead. The reason is logged as registration_sign_in with a result such as cross_origin, denied or cookies_suppressed.</p></div>
+</div>
+</div></div>
+</section>
+
+<!-- ============ PROFILE ============ -->
+<section class="screen" id="profile" data-title="Profile section" data-group="Account">
+<h2>Passkeys on Profile and Edit User</h2>
+<p class="lead">Management section added to the profile page. The Passkey only mode checkbox is saved with the normal Update Profile button. Add and Test run immediately.</p>
+<div class="demo"><div class="chips"></div><div class="stage">
+
+<div data-v="List loaded" class="on">
+<div class="pk pk-root"><h4>Passkeys</h4>
+<label><input type="checkbox"> Passkey only mode</label><p class="desc">Turn off password sign-in for this account. Make sure you have a working passkey first.</p>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody>
+<tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn" data-modal="Remove">Remove</button></td></tr>
+<tr><td>YubiKey 5<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div><p class="desc">This passkey is unavailable under the current site settings.</p></td><td>YubiKey 5 NFC</td><td>2026-07-11 16:02</td><td>—</td><td><button class="btn" data-modal="Remove">Remove</button></td></tr>
+</tbody></table>
+<p><button class="btn" data-sim="register">Add passkey</button> <button class="btn" data-sim="test">Test passkey</button></p>
+<div class="status"></div></div>
+<p class="note">Add passkey and Test passkey both go straight to the browser prompt and share one status line; click either to play the states. The "After adding" and "After testing" chips show the results. Remove and Rename open the browser's own prompt and confirm dialogs, see the Dialogs chip.</p>
+</div>
+
+<div data-v="After adding">
+<div class="pk"><h4>Passkeys</h4>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn">Remove</button></td></tr><tr style="background:var(--soft)"><td>passkey_1<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>YubiKey 5 NFC</td><td>2026-11-04 15:42</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody></table>
+<p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
+<div class="status okk">Passkey added.</div></div>
+<p class="note">The new passkey appears in the list with a default name: the lowest passkey_N the account is not using, here passkey_1 because "MacBook (iCloud)" was renamed. Use Rename to give it a clearer name. The owner is emailed about the new passkey.</p>
+</div>
+
+<div data-v="After testing">
+<div class="pk"><h4>Passkeys</h4>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td style="background:var(--soft)">2026-11-04 16:05</td><td><button class="btn">Remove</button></td></tr></tbody></table>
+<p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
+<div class="status okk">Passkey test passed for “MacBook (iCloud)”.</div></div>
+<p class="note">Test checks a stored passkey end to end and refreshes "Last used" (highlighted). It does not sign anyone in. There is no Test panel any more.</p>
+</div>
+
+<div data-v="Empty / loading / error">
+<div class="grid2">
+<div class="pk"><h4>Empty</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody></table></div>
+<div class="pk"><h4>Loading</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">Loading…</td></tr></tbody></table></div>
+<div class="pk"><h4>Load failed</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">Could not load passkeys. Refresh the page.</td></tr></tbody></table></div>
+<div class="pk"><h4>No permission</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">You do not have permission to manage these passkeys.</td></tr></tbody></table></div>
+</div></div>
+
+<div data-v="Dialogs">
+<div class="grid2">
+<div class="modal"><div class="t">Browser prompt: Rename passkey</div><input type="text" value="MacBook (iCloud)"><div class="acts"><button class="btn">Cancel</button><button class="btn primary">OK</button></div><p class="desc">Empty name shows "Enter a name for this passkey." Cancel or unchanged does nothing.</p></div>
+<div class="modal"><div class="t">Browser confirm</div>Remove “YubiKey 5”? This removes the passkey from this website. It does not delete it from your device or password manager.<div class="acts"><button class="btn">Cancel</button><button class="btn primary">OK</button></div></div>
+</div>
+<h3>Result messages</h3>
+<div class="grid2">
+<div class="notice ok"><p>Passkey renamed.</p></div>
+<div class="notice ok"><p>Passkey added.</p></div>
+<div class="notice ok"><p>Passkey test passed for “passkey_1”.</p></div>
+<div class="notice err"><p>This passkey has already been added. Nothing was replaced.</p></div>
+<div class="notice err"><p>Add another usable passkey or restore another sign-in method before removing this passkey.</p></div>
+<div class="notice err"><p>The change could not be saved. Try again.</p></div>
+</div></div>
+
+<div data-v="Passkey only mode">
+<div class="pk"><h4>Passkeys</h4>
+<label><input type="checkbox" checked disabled> Passkey only mode</label><p class="desc">Turn off password sign-in for this account. Make sure you have a working passkey first.</p>
+<p class="desc">Passkey only mode is required by the site or network settings.</p>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn">Remove</button></td></tr></tbody></table></div>
+<p class="note">Checkbox is forced on and disabled when the site or network requires it.</p>
+</div>
+
+<div data-v="Checkbox guard error">
+<div class="notice err"><p>Add a working passkey before turning on Passkey only mode for this account.</p></div>
+<div class="pk"><h4>Passkeys</h4><label><input type="checkbox" checked> Passkey only mode</label><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody></table></div>
+<p class="note">New guard: shown as a profile error after Update Profile. Nothing is saved.</p>
+</div>
+
+<div data-v="Editing another user">
+<p class="url">/wp-admin/user-edit.php?user_id=7</p>
+<div class="pk"><h4>Passkeys</h4><p>Passkeys for Bob Jones</p><label><input type="checkbox"> Passkey only mode</label>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>Bob's phone<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Google Password Manager</td><td>2026-10-01 09:00</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody></table>
+<p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p></div>
+<p class="note">Shown to users with edit_users. Adding a passkey for someone else emails that owner and names the actor.</p>
+</div>
+
+<div data-v="Environment unavailable">
+<div class="notice err"><p>Passkeys are unavailable. Check that this site uses HTTPS and that the server supports OpenSSL, P-256 and SHA-256. HTTP is supported only on localhost.</p></div>
+<div class="pk"><h4>Passkeys</h4><label><input type="checkbox" disabled> Passkey only mode</label><p><button class="btn" disabled>Add passkey</button> <button class="btn">Test passkey</button></p></div>
+<p class="note">Add is disabled. Test stays enabled so clicking it shows the capability message.</p>
+</div>
+
+</div></div>
+</section>
+
+<!-- ============ FRONTEND ============ -->
+<section class="screen" id="frontend" data-title="Frontend shortcodes" data-group="Site content">
+<h2>Frontend components</h2>
+<p class="lead">Four shortcodes, each also available as a block. They look like the plugin's own admin pieces but sit inside the theme.</p>
+<div class="demo"><div class="chips"></div><div class="stage">
+
+<div data-v="[azwp_pk_login]" class="on">
+<div class="pk pk-root" style="max-width:360px">
+<p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p>
+<p><label><input type="checkbox"> Remember me</label></p>
+<button class="btn primary" data-sim="login">Sign in with a passkey</button>
+<p><button class="linkbtn" data-swap="login password">Use a password instead</button></p><div class="status"></div></div>
+<p class="note">Attributes: traditional (password form, default on), username (prefill), auto_hide (hide when signed in, default on), to (redirect). Signed-in visitors see nothing while auto_hide is on.</p>
+</div>
+
+<div data-v="login password">
+<div class="pk" style="max-width:360px"><p><label>Username or Email Address</label><input type="text"></p><p><label>Password</label><input type="password"></p><p><label><input type="checkbox"> Remember Me</label></p><button class="btn primary">Log In</button>
+<p><button class="linkbtn" data-swap="[azwp_pk_login]">Use a passkey instead</button></p></div>
+<p class="note">Embedded password form uses wp_login_form. Not rendered when traditional=false or in Passkey only mode.</p>
+</div>
+
+<div data-v="[azwp_pk_register]">
+<div class="grid2">
+<div class="pk"><h4>Signed in</h4><p>Add a passkey for Alice Smith. You can add more than one and rename them later.</p><p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p><button class="btn primary">Add passkey</button></div>
+<div class="pk"><h4>Signed out (display on)</h4><p>Sign in to manage your passkeys.</p><p class="desc">With display=false nothing renders for signed-out visitors.</p></div>
+</div></div>
+
+<div data-v="[azwp_pk_test]">
+<div class="grid2">
+<div class="pk"><h4>Signed in</h4><p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p><button class="btn">Test passkey</button><div class="status okk">Passkey test passed for “MacBook (iCloud)”.</div></div>
+<div class="pk"><h4>Signed out</h4><p>Sign in to manage your passkeys.</p></div>
+</div></div>
+
+<div data-v="[azwp_pk_list]">
+<div class="pk"><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn">Remove</button></td></tr></tbody></table></div>
+<p class="note">Same table and dialogs as the profile section. Signed-out visitors see "Sign in to manage your passkeys."</p>
+</div>
+
+</div></div>
+</section>
+
+<!-- ============ BLOCKS ============ -->
+<section class="screen" id="blocks" data-title="Editor blocks" data-group="Site content">
+<h2>Block editor</h2>
+<p class="lead">Four blocks in the Widgets category. The editor shows a placeholder only. Passkey actions never run in the editor.</p>
+<div class="demo"><div class="chips"></div><div class="stage">
+<div data-v="Inserter" class="on"><div class="grid2">
+<div class="pk"><b>Passkey sign-in</b><div class="desc">block, keyword: passkey</div></div>
+<div class="pk"><b>Add passkey</b></div><div class="pk"><b>Test passkey</b></div><div class="pk"><b>Passkey list</b></div></div></div>
+<div data-v="Sign-in block + settings">
+<div class="row"><div class="pk" style="flex:2;min-width:240px"><b>Passkey sign-in</b><p>Passkey actions are unavailable in the editor.</p></div>
+<div class="pk" style="flex:1;min-width:240px"><b>Passkey sign-in</b><p><label><input type="checkbox" checked> Include password sign-in form</label></p><p><label>Prefilled username or email</label><input type="text"></p><p><label><input type="checkbox" checked> Hide when signed in</label></p><p><label>After sign-in, go to</label><input type="text"></p></div></div></div>
+<div data-v="Other blocks + settings">
+<div class="pk" style="max-width:320px"><b>Add passkey / Test passkey / Passkey list</b><p><label><input type="checkbox" checked> Show a message when signed out</label></p></div></div>
+</div></div>
+</section>
+
+<!-- ============ SITE SETTINGS ============ -->
+<section class="screen" id="site" data-title="Site settings" data-group="Admin">
+<h2>Settings: AZ's WP Passkeys</h2>
+<p class="lead">/wp-admin/options-general.php?page=azwp-passkeys</p>
+<div class="demo"><div class="chips"></div><div class="stage">
+<div data-v="Default" class="on">
+<div class="wp"><div class="bar"><span>My Site</span><span>Howdy, admin</span></div><div class="wpbody"><div class="menu"><div>Dashboard</div><div>Settings</div><div class="cur">&nbsp;AZ's WP Passkeys</div></div><div class="content">
+<h1>AZ's WP Passkeys</h1>
+<h3>Website</h3>
+<table class="form"><tr><th>Website name</th><td><input type="text" value="My Site"><p class="desc">The name shown when you use a passkey.</p></td></tr>
+<tr><th>Passkey domain</th><td><input type="text" value="example.com"><p class="desc">Use the site's domain or a valid parent domain, without https://, a path or a port.</p></td></tr></table>
+<h3>Sign-in</h3>
+<table class="form">
+<tr><th>Default sign-in method</th><td><select><option>Prefer passkey</option><option>Prefer password</option><option>Passkey only mode</option></select><p class="desc">Passkey only mode turns off password sign-in. Make sure each account has a working passkey first.</p></td></tr>
+<tr><th>Remember me</th><td class="radio"><label><input type="radio" name="r1"> Enable</label><label><input type="radio" name="r1" checked> Disable</label><p class="desc">Show a Remember me checkbox on the passkey sign-in form. It starts unchecked.</p></td></tr>
+<tr><th>Block password resets</th><td><select><option>No</option><option>Except for administrators</option><option>For everyone</option></select><p class="desc">Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles.</p></td></tr>
+<tr><th>After registration</th><td><select><option>WordPress default</option><option>Sign in and add a passkey</option></select><p class="desc">New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in.</p><p class="desc">This has no effect until Anyone can register is turned on in General settings.</p></td></tr>
+</table>
+<p><button class="btn primary">Save changes</button></p>
+<p><a href="#">Manage your passkeys</a> | <a href="#">Passkey diagnostics</a></p>
+</div></div></div></div>
+
+<div data-v="Saved / failed / errors">
+<div class="notice ok"><p>Settings saved</p></div>
+<div class="notice err"><p>Settings could not be saved.</p></div>
+<table class="form"><tr><th>Passkey domain</th><td><input type="text" value="127.0.0.1"><p class="desc azwp-err" style="color:var(--err)">Check this field and save again.</p></td></tr>
+<tr><th>Default sign-in method</th><td><select><option>Passkey only mode</option></select><p class="desc" style="color:var(--err)">Add a working passkey to your own account before turning on Passkey only mode.</p></td></tr></table>
+<p class="note">The domain error now also covers IP addresses. The second message is the new lockout guard. Both come back via redirect with status and invalid query args.</p>
+</div>
+
+<div data-v="Not configured">
+<div class="notice err"><p>Passkeys are unavailable. Check that this site uses HTTPS and that the server supports OpenSSL, P-256 and SHA-256. HTTP is supported only on localhost.</p></div>
+<table class="form"><tr><th>Website name</th><td><input type="text"><p>Enter the website name and passkey domain before adding passkeys.</p></td></tr>
+<tr><th>Default sign-in method</th><td><select><option>Prefer passkey</option><option>Prefer password</option><option disabled>Passkey only mode (disabled)</option></select></td></tr></table>
+</div>
+
+<div data-v="Multisite site screen">
+<table class="form"><tr><th>Default sign-in method</th><td><p>Set in network settings: Prefer passkey</p><a href="#">Network settings</a></td></tr>
+<tr><th>Remember me</th><td>Enable / Disable radios</td></tr><tr><th>Block password resets</th><td>select</td></tr></table>
+<p class="note">On multisite the preferred method is network-owned and shown read-only, and After registration is hidden.</p>
+</div>
+</div></div>
+</section>
+
+<!-- ============ NETWORK ============ -->
+<section class="screen" id="network" data-title="Network settings" data-group="Admin">
+<h2>Network settings</h2>
+<p class="lead">/wp-admin/network/settings.php?page=azwp-passkeys</p>
+<div class="stage" style="border-style:solid">
+<h3 style="margin-top:0">Sign-in</h3>
+<table class="form"><tr><th>Default sign-in method</th><td><select><option>Prefer passkey</option><option>Prefer password</option><option>Passkey only mode</option></select><p class="desc">Passkey only mode turns off password sign-in. Make sure each account has a working passkey first.</p></td></tr></table>
+<p><button class="btn primary">Save changes</button></p>
+<p class="note">Only one network-owned control is visible. Saving "only" requires the saving super admin to hold a working passkey.</p>
+</div>
+</section>
+
+<!-- ============ DIAGNOSTICS ============ -->
+<section class="screen" id="diag" data-title="Diagnostics" data-group="Admin">
+<h2>Passkey diagnostics</h2>
+<p class="lead">/wp-admin/tools.php?page=azwp-passkeys-diagnostics. Log view polls every 5 seconds while logging is on.</p>
+<div class="demo"><div class="chips"></div><div class="stage">
+<div data-v="Logging on" class="on">
+<h3 style="margin-top:0">Passkey diagnostics</h3>
+<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l1" checked> Enable</label><label><input type="radio" name="l1"> Disable</label><p class="desc">Save diagnostic entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
+<p><button class="btn primary">Save changes</button></p>
+<p><b>4</b> entries</p>
+<pre>{"event":"authentication","result":"ok","actor_id":null,"target_id":3,"correlation_id":"9f2c…"}
+{"event":"credential_test","result":"ok","actor_id":3,"target_id":3}
+{"event":"registration","result":"credential_exists","actor_id":3,"target_id":3}
+{"event":"settings_saved","detail":{"setting":"preferred_login","previous":"passkey","value":"only"}}</pre>
+<p><button class="btn">Clear logs</button></p><div class="status okk">Logs cleared.</div>
+<p class="desc">Logs remain until cleared. Passwords and passkey responses are not logged.</p><p><a href="#">Back to settings</a></p>
+</div>
+<div data-v="Logging off / empty">
+<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l2"> Enable</label><label><input type="radio" name="l2" checked> Disable</label></td></tr></table>
+<p><b>0</b> entries</p><pre>No log entries.</pre><p><button class="btn" disabled>Clear logs</button></p>
+</div>
+<div data-v="Errors">
+<div class="notice err"><p>Check Website name and Passkey domain in settings. The passkey domain must match this site.</p></div>
+<pre>Could not load logs.</pre>
+</div>
+</div></div>
+</section>
+
+<!-- ============ NOTICES ============ -->
+<section class="screen" id="notices" data-title="Notices and email" data-group="Account">
+<h2>Admin notices and email</h2>
+<div class="demo"><div class="chips"></div><div class="stage">
+<div data-v="Account warning" class="on">
+<div class="notice warn"><p>Password sign-in is disabled for Alice Smith and no passkey has been added on this site. <a href="#">Add passkey</a></p><p>Passkeys from other sites in this network may still work.</p></div>
+<p class="note">Shown on every admin screen to the owner, and to editors on that user's Edit screen. The second line only appears on path-based multisite.</p>
+</div>
+<div data-v="Passkey added email">
+<div class="email">Subject: [My Site] A passkey was added to your account
+
+A passkey named “Work phone” was added to your account on My Site.
+
+It was added while you were signed in.
+(or: It was added by Carol Admin.)
+
+If you did not expect this, remove the passkey and change your password:
+
+https://example.com/wp-admin/profile.php#azwp-passkeys</div>
+<p class="note">Sent in the owner's locale after every confirmed registration. A mail failure never affects the result.</p>
+</div>
+<div data-v="Plugin list links">
+<table><tr><td>AZ's WP Passkeys</td><td><a href="#">Settings</a> | Deactivate</td></tr></table>
+</div>
+</div></div>
+</section>
+
+</main></div>
+
+<script>
+(function(){
+var screens=[].slice.call(document.querySelectorAll('section.screen')),nav=document.getElementById('nav');
+var html='<h1>Passkeys wireframes</h1><p>Plugin UI map</p>',groups=[],byGroup={};
+screens.forEach(function(s){var g=s.dataset.group||'Start';if(!byGroup[g]){byGroup[g]=[];groups.push(g)}byGroup[g].push(s)});
+groups.forEach(function(g){html+='<small>'+g+'</small>';byGroup[g].forEach(function(s){html+='<a href="#'+s.id+'" data-id="'+s.id+'">'+s.dataset.title+'</a>'})});
+nav.innerHTML=html;
+nav.addEventListener('click',function(e){var a=e.target.closest('a');if(a){e.preventDefault();history.replaceState(null,'','#'+a.dataset.id);show(a.dataset.id)}});
+function show(id){if(!document.getElementById(id))id='overview';screens.forEach(function(s){s.classList.toggle('on',s.id===id)});[].forEach.call(nav.querySelectorAll('a'),function(a){a.classList.toggle('on',a.dataset.id===id)});window.scrollTo(0,0)}
+window.addEventListener('hashchange',function(){show(location.hash.slice(1))});
+show(location.hash.slice(1)||'overview');
+function setVariant(demo,name){var vs=demo.querySelectorAll(':scope>.stage>[data-v]');vs.forEach(function(v){v.classList.toggle('on',v.dataset.v===name)});demo.querySelectorAll(':scope>.chips button').forEach(function(b){b.classList.toggle('on',b.textContent===name)})}
+document.querySelectorAll('.demo').forEach(function(d){
+var chips=d.querySelector(':scope>.chips'),vs=d.querySelectorAll(':scope>.stage>[data-v]');
+vs.forEach(function(v){var b=document.createElement('button');b.textContent=v.dataset.v;b.onclick=function(){setVariant(d,v.dataset.v)};chips.appendChild(b)});
+setVariant(d,vs[0].dataset.v)});
+document.addEventListener('click',function(e){
+var sw=e.target.closest('[data-swap]');if(sw){var d=sw.closest('.demo');var target=sw.dataset.swap;if(d.querySelector(':scope>.stage>[data-v="'+target+'"]'))setVariant(d,target)}
+var m=e.target.closest('[data-modal]');if(m){e.preventDefault();var d2=m.closest('.demo');setVariant(d2,'Dialogs')}
+var sim=e.target.closest('[data-sim]');if(sim){var root=sim.closest('.pk-root')||sim.closest('.stage');var st=root.querySelector('.status');if(!st||sim.disabled)return;var kind=sim.dataset.sim;
+var steps=['Preparing…',"Follow your browser's instructions",kind==='login'?'Verifying…':'Saving…'];if(kind==='test')steps[2]='Verifying…';
+var done=kind==='login'?'Passkey verified.':kind==='register'?'Passkey added.':'Passkey test passed for “MacBook (iCloud)”.';
+st.className='status';var i=0;sim.disabled=true;(function tick(){if(i<steps.length){st.textContent=steps[i++];setTimeout(tick,700)}else{st.textContent=done;st.className='status okk';sim.disabled=false}})()}
+});
+})();
+</script>
+</body>
+</html>

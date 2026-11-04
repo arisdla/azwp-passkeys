@@ -1,0 +1,9 @@
+<?php defined('ABSPATH') || exit; ?>
+<section class="azwp-passkeys" id="azwp-passkeys"<?php echo $registered?' data-open="add"':''; ?>><h2><?php esc_html_e('Passkeys','azwp-passkeys'); ?></h2>
+<?php if ($registered): ?><p role="status"><?php esc_html_e('Your account is ready. Add a passkey so you can sign in next time.','azwp-passkeys'); ?></p><?php endif; ?>
+<?php if ($target_id!==get_current_user_id()): ?><p><?php printf(esc_html__('Passkeys for %s','azwp-passkeys'),esc_html($user->display_name)); ?></p><?php endif; ?>
+<input type="hidden" name="azwp_passkeys_profile_present" value="1"><label><input type="checkbox" name="azwp_passkeys_password_disabled" value="1" <?php checked($password_disabled||$policy['preferred_login']==='only'); disabled(!$ready||$policy['preferred_login']==='only'); ?>> <?php esc_html_e('Passkey only mode','azwp-passkeys'); ?></label><p><?php esc_html_e('Turn off password sign-in for this account. Make sure you have a working passkey first.','azwp-passkeys'); ?></p>
+<?php if ($policy['preferred_login']==='only'): ?><p><?php esc_html_e('Passkey only mode is required by the site or network settings.','azwp-passkeys'); ?></p><?php endif; ?>
+<?php echo $this->view('credential-list',compact('policy','target_id','can_manage','nonce','instance','ready')); ?>
+<div data-azwp-passkeys="register" data-target="<?php echo esc_attr($target_id); ?>" data-nonce="<?php echo esc_attr($nonce); ?>"><p><button type="button" class="button" data-action="register" <?php disabled(!$ready); ?>><?php esc_html_e('Add passkey','azwp-passkeys'); ?></button> <button type="button" class="button" data-action="test"><?php esc_html_e('Test passkey','azwp-passkeys'); ?></button></p><div data-azwp-passkeys="status" role="status" aria-live="polite"></div></div>
+</section>

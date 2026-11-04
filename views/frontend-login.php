@@ -1,0 +1,3 @@
+<?php defined('ABSPATH') || exit; ?>
+<div class="azwp-passkeys azwp-passkeys-login-wrapper"><?php echo $this->view('login',compact('policy','target_id','can_manage','nonce','instance','ready','native','redirect_to','traditional')); ?>
+<?php if ($traditional&&$policy['preferred_login']!=='only'): ?><div data-password-form hidden><?php echo wp_login_form(['echo'=>false,'redirect'=>$redirect_to,'value_username'=>$username,'form_id'=>wp_unique_id('azwp-passkeys-password-'),'id_username'=>wp_unique_id('azwp-passkeys-user-'),'id_password'=>wp_unique_id('azwp-passkeys-password-input-'),'id_remember'=>wp_unique_id('azwp-passkeys-remember-'),'id_submit'=>wp_unique_id('azwp-passkeys-submit-')]); ?></div><?php endif; ?></div>
