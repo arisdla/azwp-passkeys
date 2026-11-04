@@ -492,11 +492,9 @@ vendor/
   yahnis-elsts/plugin-update-checker/
 LICENSE
 README.md
-docs/specification.md
-docs/authenticator-metadata.md
 ```
 
-`LICENSE` contains GPL-3.0-or-later licensing material; the dependency retains its MIT notice. Translation JSON filenames follow WordPress's locale and script-path conventions. The tree describes the source files and distribution contents. Browser files are directly enqueued JavaScript using native browser and WordPress APIs; `blocks.js` uses WordPress editor packages without a separate frontend framework. Distribution exclusions remain in section 26.
+`LICENSE` contains GPL-3.0-or-later licensing material; the dependency retains its MIT notice. Translation JSON filenames follow WordPress's locale and script-path conventions. The tree describes the source files and distribution contents. `docs/` stays in the repository and is left out of the release zip. Browser files are directly enqueued JavaScript using native browser and WordPress APIs; `blocks.js` uses WordPress editor packages without a separate frontend framework. Distribution exclusions remain in section 26.
 
 | Class / file | Owned responsibility and internal public methods |
 | --- | --- |
