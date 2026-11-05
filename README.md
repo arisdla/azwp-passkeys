@@ -1,6 +1,8 @@
 # AZ's WP Passkeys
 
-Passkey sign-in and management for WordPress, with login integration, shortcodes, blocks and multisite support. It is in beta.
+Passkey sign-in and management for WordPress, with login integration, shortcodes, blocks and multisite support.
+
+![Passkeys section of a user profile](docs/profile-passkeys.jpg)
 
 The [UX demo](https://raw.githack.com/arisdla/azwp-passkeys/main/wireframes/index.html) is a clickable wireframe of every screen. Its source is [wireframes/index.html](wireframes/index.html).
 
