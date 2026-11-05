@@ -11,6 +11,10 @@ final class Authentication
     private ?int $proven_user_id = null;
     /** @var array<int, true> */
     private array $application_password_users = [];
+    /** @var array<int, string> How the session being created right now for each account was earned. */
+    private array $session_origin = [];
+    /** @var array<int, string> The session token of the auth cookie that identified each account in this request. */
+    private array $cookie_tokens = [];
 
     public function __construct(
         private Settings $settings,
@@ -24,6 +28,10 @@ final class Authentication
         add_filter('wp_authenticate_user', [$this, 'check_password_login'], PHP_INT_MAX, 2);
         add_filter('authenticate', [$this, 'check_password_result'], PHP_INT_MAX, 3);
         add_action('application_password_did_authenticate', [$this, 'mark_application_password'], 10, 1);
+        add_filter('attach_session_information', [$this, 'tag_session'], 10, 2);
+        add_action('auth_cookie_valid', [$this, 'record_cookie_session'], 10, 2);
+        // After core cookie (10, 20) and Application Password (20) resolution.
+        add_filter('determine_current_user', [$this, 'enforce_passkey_session'], 30);
         add_filter('allow_password_reset', [$this, 'allow_password_reset'], PHP_INT_MAX, 2);
         foreach (['lostpassword', 'retrievepassword', 'resetpass', 'rp'] as $action) {
             add_action('login_form_' . $action, [$this, 'redirect_reset']);
@@ -90,9 +98,11 @@ final class Authentication
         };
         add_action('set_auth_cookie', $observe_cookie, PHP_INT_MAX, 6);
         add_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX, 6);
+        $this->session_origin[$user_id] = 'registration';
         try {
             wp_set_auth_cookie($user_id, false);
         } finally {
+            unset($this->session_origin[$user_id]);
             remove_action('set_auth_cookie', $observe_cookie, PHP_INT_MAX);
             remove_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX);
         }
@@ -226,6 +236,7 @@ final class Authentication
         add_action('set_auth_cookie', $observe_cookie, PHP_INT_MAX, 6);
         add_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX, 6);
         add_action('wp_login', $before_login, PHP_INT_MIN, 2);
+        $this->session_origin[(int) $user->ID] = 'passkey';
         try {
             $signed_in = wp_signon([
                 'user_login' => $user->user_login,
@@ -252,8 +263,42 @@ final class Authentication
             remove_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX);
             remove_action('wp_login', $before_login, PHP_INT_MIN);
             remove_filter('two_factor_is_required_for_user', $two_factor, PHP_INT_MAX);
+            unset($this->session_origin[(int) $user->ID]);
             $this->proven_user_id = null;
         }
+    }
+
+    public function tag_session($session, $user_id)
+    {
+        if (is_array($session) && isset($this->session_origin[(int) $user_id])) {
+            $session['azwp_passkeys'] = $this->session_origin[(int) $user_id];
+        }
+        return $session;
+    }
+
+    public function record_cookie_session($cookie_elements, $user): void
+    {
+        if ($user instanceof \WP_User && is_string($cookie_elements['token'] ?? null)) {
+            $this->cookie_tokens[(int) $user->ID] = $cookie_elements['token'];
+        }
+    }
+
+    /** Under Passkey only mode a cookie session counts only if a passkey sign-in, or the first-passkey registration sign-in, opened it. */
+    public function enforce_passkey_session($user_id)
+    {
+        $id = (int) $user_id;
+        $token = $this->cookie_tokens[$id] ?? null;
+        unset($this->cookie_tokens[$id]);
+        if ($id <= 0 || $token === null || !$this->password_disabled($id)) {
+            return $user_id;
+        }
+        $sessions = \WP_Session_Tokens::get_instance($id);
+        $session = $sessions->get($token);
+        if (in_array($session['azwp_passkeys'] ?? null, ['passkey', 'registration'], true)) {
+            return $user_id;
+        }
+        $sessions->destroy($token);
+        return false;
     }
 
     public function check_password_login($user, $password)

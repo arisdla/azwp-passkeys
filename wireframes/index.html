@@ -148,7 +148,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p>
 <button class="btn primary full"><span class="fp"></span>Sign in with a passkey</button>
 <div class="status"></div></div></div></div>
-<p class="note">No username or password fields, no switch link. Accounts with no passkey cannot sign in here.</p>
+<p class="note">No username or password fields, no switch link. Accounts with no passkey cannot sign in here. Turning the mode on also signs out any session a passkey did not open, on its next page load.</p>
 </div>
 
 <div data-v="Browser unsupported">
@@ -166,7 +166,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="grid2">
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Passkey prompt cancelled. Try again or use a password.</div><p class="desc">User dismissed the browser picker. Passkey-only drops "or use a password".</p></div>
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Too many sign-in attempts. Wait a minute and try again.</div><p class="desc">Rate limit: 30 requests a minute per address.</p></div>
-<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Sign-in failed. Please try again.</div><p class="desc">Any verification failure. The reason is never shown.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">The passkey could not be verified. Try again.</div><p class="desc">Any verification failure. The reason is never shown.</p></div>
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Your sign-in session or site settings changed. Start again.</div><p class="desc">Configuration changed mid-attempt.</p></div>
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Passkeys are unavailable. Contact the site administrator.</div><p class="desc">Site domain or name not configured.</p></div>
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">The result could not be confirmed. Refresh to check.</div><p class="desc">Network drop after the request was sent.</p></div>
@@ -237,7 +237,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td style="background:var(--soft)">2026-11-04 16:05</td><td><button class="btn">Remove</button></td></tr></tbody></table>
 <p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
 <div class="status okk">Passkey test passed for “MacBook (iCloud)”.</div></div>
-<p class="note">Test checks a stored passkey end to end and refreshes "Last used" (highlighted). It does not sign anyone in. There is no Test panel any more.</p>
+<p class="note">Test checks a stored passkey end to end and refreshes "Last used" (highlighted). It does not sign anyone in.</p>
 </div>
 
 <div data-v="Empty / loading / error">
@@ -274,7 +274,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div data-v="Checkbox guard error">
 <div class="notice err"><p>Add a working passkey before turning on Passkey only mode for this account.</p></div>
 <div class="pk"><h4>Passkeys</h4><label><input type="checkbox" checked> Passkey only mode</label><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody></table></div>
-<p class="note">New guard: shown as a profile error after Update Profile. Nothing is saved.</p>
+<p class="note">Shown as a profile error after Update Profile when the account has no working passkey. Nothing is saved.</p>
 </div>
 
 <div data-v="Editing another user">
@@ -378,7 +378,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="notice err"><p>Settings could not be saved.</p></div>
 <table class="form"><tr><th>Passkey domain</th><td><input type="text" value="127.0.0.1"><p class="desc azwp-err" style="color:var(--err)">Check this field and save again.</p></td></tr>
 <tr><th>Default sign-in method</th><td><select><option>Passkey only mode</option></select><p class="desc" style="color:var(--err)">Add a working passkey to your own account before turning on Passkey only mode.</p></td></tr></table>
-<p class="note">The domain error now also covers IP addresses. The second message is the new lockout guard. Both come back via redirect with status and invalid query args.</p>
+<p class="note">The domain error also covers IP addresses. The second message appears when the saving administrator has no working passkey. Both come back via redirect with status and invalid query args.</p>
 </div>
 
 <div data-v="Not configured">
@@ -441,7 +441,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="demo"><div class="chips"></div><div class="stage">
 <div data-v="Account warning" class="on">
 <div class="notice warn"><p>Password sign-in is disabled for Alice Smith and no passkey has been added on this site. <a href="#">Add passkey</a></p><p>Passkeys from other sites in this network may still work.</p></div>
-<p class="note">Shown on every admin screen to the owner, and to editors on that user's Edit screen. The second line only appears on path-based multisite.</p>
+<p class="note">Shown on every admin screen to the owner, and to users with edit_users on that user's Edit screen. The second line only appears on path-based multisite.</p>
 </div>
 <div data-v="Passkey added email">
 <div class="email">Subject: [My Site] A passkey was added to your account

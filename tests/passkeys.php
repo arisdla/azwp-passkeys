@@ -136,6 +136,26 @@ try {
         check('real WordPress sign-on accepts verified passkey', $signed_in['ok'] && $signed_in['data']['session_changed'] && get_current_user_id()===$alice);
         check('login subject is private verified owner context', $signed_in['subject_id']===$alice && !array_key_exists('subject_id',$signed_in['data']) && !array_key_exists('proof',$signed_in['data']));
         check('real WordPress session cookie created for owner', count($cookies)===1 && $cookies[0]['user_id']===$alice && $cookies[0]['token']!=='');
+        $resolve = static function (int $user, string $token): int {
+            $_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user, time() + 3600, 'logged_in', $token);
+            return (int) apply_filters('determine_current_user', false);
+        };
+        $other_token = WP_Session_Tokens::get_instance($alice)->create(time() + 3600);
+        check('password sign-in allowed before session checks', $storage->save_password_policy($alice,false)['ok']);
+        check('a session not opened by a passkey works while passwords are allowed', $resolve($alice,$other_token)===$alice);
+        $_REQUEST['action'] = 'register'; $GLOBALS['pagenow'] = 'wp-login.php'; $_SERVER['HTTP_ORIGIN'] = $passkeys->configuration($site)['data']['origins'][0];
+        $storage->save_settings('site',$site,['after_registration'=>'add_passkey']);
+        wp_set_current_user(0); unset($_COOKIE[LOGGED_IN_COOKIE]);
+        try { $authentication->registration_sign_in($alice); }
+        finally { unset($_REQUEST['action'], $GLOBALS['pagenow'], $_SERVER['HTTP_ORIGIN']); $storage->save_settings('site',$site,['after_registration'=>'default']); }
+        check('registration sign-in opened one session', count($cookies)===2 && $cookies[1]['user_id']===$alice);
+        check('Passkey only mode turned on for the account', $storage->save_password_policy($alice,true)['ok']);
+        check('Passkey only mode ends a session not opened by a passkey', $resolve($alice,$other_token)===0 && WP_Session_Tokens::get_instance($alice)->get($other_token)===null);
+        check('Passkey only mode keeps a passkey session', $resolve($alice,$cookies[0]['token'])===$alice);
+        check('Passkey only mode keeps the session that adds a first passkey after registration', $resolve($alice,$cookies[1]['token'])===$alice);
+        unset($_COOKIE[LOGGED_IN_COOKIE]);
+        WP_Session_Tokens::get_instance($alice)->destroy($cookies[1]['token']);
+        array_splice($cookies, 1);
         WP_Session_Tokens::get_instance($alice)->destroy($cookies[0]['token']);
         $logged_context = $become($bob); $logged_context['purpose']='login';
         $login = $passkeys->assertion_options($logged_context,$login_input);
@@ -194,6 +214,29 @@ try {
     }
     if ($original_address === null) { unset($_SERVER['REMOTE_ADDR']); } else { $_SERVER['REMOTE_ADDR'] = $original_address; }
     check('anonymous sign-in requests are limited per address', !$limited['ok'] && $limited['code']==='rate_limited' && count(array_unique($attempt_ids))===count($attempt_ids));
+    $flood_ids = [];
+    try {
+        for ($address = 1; count($flood_ids) < 1000 && $address < 100; $address++) {
+            $_SERVER['REMOTE_ADDR'] = '198.51.100.'.$address;
+            for ($i = 0; $i < Passkeys::ANONYMOUS_ATTEMPTS_PER_MINUTE; $i++) {
+                $flooded = $passkeys->assertion_options($anonymous,$login_input);
+                if (!$flooded['ok']) { break; }
+                $flood_ids[] = $flooded['data']['attempt_id'];
+            }
+        }
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.'.random_int(1,254);
+        $bystander = $passkeys->assertion_options($anonymous,$login_input);
+        if ($bystander['ok']) { $flood_ids[] = $bystander['data']['attempt_id']; }
+        check('other addresses cannot use up sign-in for a new visitor', count($flood_ids) >= 1000 && $bystander['ok']);
+    } finally {
+        foreach ($flood_ids as $flood_id) { $storage->delete_attempt($flood_id); }
+        if ($original_address === null) { unset($_SERVER['REMOTE_ADDR']); } else { $_SERVER['REMOTE_ADDR'] = $original_address; }
+    }
+    $expired = random_bytes(32);
+    $storage->create_attempt(['id'=>$expired,'site_id'=>$site,'purpose'=>'login','actor_id'=>null,'target_id'=>null,'browser_hash'=>$browser,'session_hash'=>null,'challenge'=>random_bytes(32),'issued'=>[],'created_at'=>time()-200,'expires_at'=>time()-100]);
+    $fresh = $passkeys->assertion_options($anonymous,$login_input);
+    if ($fresh['ok']) { $storage->delete_attempt($fresh['data']['attempt_id']); }
+    check('new anonymous sign-in removes expired attempts', $fresh['ok'] && $storage->read_attempt(WebAuthn::encode($expired))['data']['attempt'] === null);
     echo "Passkeys integration checks complete.\n";
 } finally {
     if ($owns_authentication_hooks && $authentication) {

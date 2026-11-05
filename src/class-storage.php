@@ -4,7 +4,6 @@ namespace AZWP\Passkeys;
 
 final class Storage {
     public const LOCK_WAIT_SECONDS = 5;
-    public const MAX_ANONYMOUS_ATTEMPTS = 1000;
     private \wpdb $db;
     private array $tables;
     private ?int $locked_owner = null;
@@ -276,9 +275,8 @@ final class Storage {
             if ($this->in_transaction) { return $write(); }
             if (empty($attempt['actor_id'])) {
                 // Anonymous attempts change no owner state, so they skip the installation-wide lock.
-                // A per-site cap bounds the table between cleanups.
-                $pending = $this->row($this->db->prepare("SELECT COUNT(*) AS pending FROM `{$this->tables['attempts']}` WHERE site_id=%d AND actor_id IS NULL AND expires_at>%d", $attempt['site_id'], time()));
-                if ((int) ($pending['pending'] ?? 0) >= self::MAX_ANONYMOUS_ATTEMPTS) { return self::error('rate_limited'); }
+                // A shared cap would let a few addresses lock everyone out, so the table holds only unexpired attempts instead.
+                $this->query($this->db->prepare("DELETE FROM `{$this->tables['attempts']}` WHERE expires_at<=%d LIMIT 100", time()));
                 return $write();
             }
             $owner = (int) ($attempt['target_id'] ?? $attempt['actor_id'] ?? 0);
