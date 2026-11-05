@@ -100,6 +100,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <tr><td>Site settings</td><td>Settings, AZ's WP Passkeys</td><td>manage_options</td></tr>
 <tr><td>Network settings</td><td>Network Admin, Settings</td><td>manage_network_options</td></tr>
 <tr><td>Diagnostics</td><td>Tools, Passkey diagnostics</td><td>manage_options</td></tr>
+<tr><td>Activation errors</td><td>Plugins screen, on activate or delete</td><td>Admins</td></tr>
 <tr><td>Notices and email</td><td>Admin notices, "passkey added" and "add a passkey" setup emails</td><td>Account owners, admins</td></tr>
 </table>
 <h3>Core journeys</h3>
@@ -163,6 +164,11 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Your sign-in session or site settings changed. Start again.</div><p class="desc">Configuration changed mid-attempt.</p></div>
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Passkeys are unavailable. Contact the site administrator.</div><p class="desc">Site domain or name not configured.</p></div>
 <div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">The result could not be confirmed. Refresh to check.</div><p class="desc">Network drop after the request was sent.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">Could not connect. Check your connection and try again.</div><p class="desc">Network drop before the request was sent.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">The passkey request could not be started. Try again.</div><p class="desc">The reply that starts the browser prompt was unusable.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">This passkey request expired or was already used. Start again.</div><p class="desc">The attempt expired or was already used.</p></div>
+<div class="card"><button class="btn primary full">Sign in with a passkey</button><div class="status err">The request could not be accepted. Refresh the page and try again.</div><p class="desc">The page's security token is stale.</p></div>
+<div class="card"><p><label>Password</label><input type="password"></p><button class="btn primary">Log In</button><div class="status err">Sign-in failed. Please try again.</div><p class="desc">Password sign-in for an account in Passkey only mode while the site-wide mode is off. The form stays, but the password is refused.</p></div>
 </div></div>
 
 <div data-v="Browser prompt">
@@ -189,7 +195,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div data-v="2 Signed in on profile">
 <p class="url">/wp-admin/profile.php?azwp_passkeys_registered=1#azwp-passkeys</p>
 <div class="notice ok"><p>Your account is ready. Add a passkey so you can sign in next time.</p></div>
-<div class="pk pk-root"><h4>Passkeys</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody></table><p><button class="btn primary" data-sim="register" style="outline:3px solid var(--warn);outline-offset:2px">Add passkey</button> <button class="btn">Test passkey</button></p><div class="status"></div></div>
+<div class="pk pk-root"><h4>Passkeys</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table><p><button class="btn primary" data-sim="register" style="outline:3px solid var(--warn);outline-offset:2px">Add passkey</button> <button class="btn">Test passkey</button></p><div class="status"></div></div>
 <p class="note">The Add passkey button gets focus (outlined here). One click opens the browser prompt; there is no name to type. If the account leaves without a passkey, it keeps only the sign-in method it had.</p>
 </div>
 <div data-v="Fallback">
@@ -209,9 +215,9 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="pk pk-root"><h4>Passkeys</h4>
 <label><input type="checkbox"> Passkey only mode</label><p class="desc">Turn off password sign-in for this account. Make sure you have a working passkey first.</p>
 <table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody>
-<tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn" data-modal="Remove">Remove</button></td></tr>
-<tr><td>YubiKey 5<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div><p class="desc">This passkey is unavailable under the current site settings.</p></td><td>YubiKey 5 NFC</td><td>2026-07-11 16:02</td><td>—</td><td><button class="btn" data-modal="Remove">Remove</button></td></tr>
-</tbody></table>
+<tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td><td><button class="btn" data-modal="Remove">Remove</button></td></tr>
+<tr><td>YubiKey 5<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div><p class="desc">This passkey is unavailable under the current site settings.</p></td><td>YubiKey 5 NFC</td><td>2026-07-11 16:02:13</td><td>—</td><td><button class="btn" data-modal="Remove">Remove</button></td></tr>
+</tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table>
 <p><button class="btn" data-sim="register">Add passkey</button> <button class="btn" data-sim="test">Test passkey</button></p>
 <div class="status"></div></div>
 <p class="note">Add passkey and Test passkey both go straight to the browser prompt and share one status line; click either to play the states. The "After adding" and "After testing" chips show the results. Remove and Rename open the browser's own prompt and confirm dialogs, see the Dialogs chip.</p>
@@ -219,7 +225,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="After adding">
 <div class="pk"><h4>Passkeys</h4>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn">Remove</button></td></tr><tr style="background:var(--soft)"><td>passkey_1<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>YubiKey 5 NFC</td><td>2026-11-04 15:42</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody></table>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td><td><button class="btn">Remove</button></td></tr><tr style="background:var(--soft)"><td>passkey_1<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>YubiKey 5 NFC</td><td>2026-11-04 15:42:57</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table>
 <p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
 <div class="status okk">Passkey added.</div></div>
 <p class="note">The new passkey appears in the list with a default name: the lowest passkey_N the account is not using, here passkey_1 because "MacBook (iCloud)" was renamed. Use Rename to give it a clearer name. The owner is emailed about the new passkey.</p>
@@ -227,7 +233,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="After testing">
 <div class="pk"><h4>Passkeys</h4>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td style="background:var(--soft)">2026-11-04 16:05</td><td><button class="btn">Remove</button></td></tr></tbody></table>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td style="background:var(--soft)">2026-11-04 16:05:24</td><td><button class="btn">Remove</button></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table>
 <p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
 <div class="status okk">Passkey test passed for “MacBook (iCloud)”.</div></div>
 <p class="note">Test checks a stored passkey end to end and refreshes "Last used" (highlighted). It does not sign anyone in.</p>
@@ -235,10 +241,10 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="Empty / loading / error">
 <div class="grid2">
-<div class="pk"><h4>Empty</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody></table></div>
-<div class="pk"><h4>Loading</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">Loading…</td></tr></tbody></table></div>
-<div class="pk"><h4>Load failed</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">Could not load passkeys. Refresh the page.</td></tr></tbody></table></div>
-<div class="pk"><h4>No permission</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">You do not have permission to manage these passkeys.</td></tr></tbody></table></div>
+<div class="pk"><h4>Empty</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table></div>
+<div class="pk"><h4>Loading</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">Loading…</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table></div>
+<div class="pk"><h4>Load failed</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">Could not load passkeys. Refresh the page.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table></div>
+<div class="pk"><h4>No permission</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">You do not have permission to manage these passkeys.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table></div>
 </div></div>
 
 <div data-v="Dialogs">
@@ -253,27 +259,33 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="notice ok"><p>Passkey test passed for “passkey_1”.</p></div>
 <div class="notice err"><p>This passkey has already been added. Nothing was replaced.</p></div>
 <div class="notice err"><p>Add another usable passkey or restore another sign-in method before removing this passkey.</p></div>
+<div class="notice ok"><p>Passkey removed.</p></div>
+<div class="notice ok"><p>Passkey already removed. List refreshed.</p></div>
 <div class="notice err"><p>The change could not be saved. Try again.</p></div>
+<div class="notice err"><p>No passkey is available for this account.</p><p class="desc">Test passkey with no usable passkey.</p></div>
+<div class="notice err"><p>The email could not be sent. Try again.</p><p class="desc">Send passkey setup link when mail fails.</p></div>
+<div class="notice err"><p>You do not have permission to do this.</p></div>
+<div class="notice err"><p>The operation could not be completed.</p><p class="desc">Any other server error.</p></div>
 </div></div>
 
 <div data-v="Passkey only mode">
 <div class="pk"><h4>Passkeys</h4>
 <label><input type="checkbox" checked disabled> Passkey only mode</label><p class="desc">Turn off password sign-in for this account. Make sure you have a working passkey first.</p>
 <p class="desc">Passkey only mode is required by the site or network settings.</p>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn">Remove</button></td></tr></tbody></table></div>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td><td><button class="btn">Remove</button></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table></div>
 <p class="note">Checkbox is forced on and disabled when the site or network requires it.</p>
 </div>
 
 <div data-v="Checkbox guard error">
 <div class="notice err"><p>Add a working passkey before turning on Passkey only mode for this account.</p></div>
-<div class="pk"><h4>Passkeys</h4><label><input type="checkbox" checked> Passkey only mode</label><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody></table></div>
+<div class="pk"><h4>Passkeys</h4><label><input type="checkbox" checked> Passkey only mode</label><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td colspan="5">No passkeys added.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table></div>
 <p class="note">Shown as a profile error after Update Profile when the account has no working passkey. Nothing is saved.</p>
 </div>
 
 <div data-v="Editing another user">
 <p class="url">/wp-admin/user-edit.php?user_id=7</p>
 <div class="pk"><h4>Passkeys</h4><p>Passkeys for Bob Jones</p><label><input type="checkbox"> Passkey only mode</label>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>Bob's phone<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Google Password Manager</td><td>2026-10-01 09:00</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody></table>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>Bob's phone<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Google Password Manager</td><td>2026-10-01 09:00:32</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table>
 <p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button> <button class="btn">Send passkey setup link</button></p><div class="status">Setup link sent to the account email address. It expires in one hour.</div></div>
 <p class="note">Shown to users with edit_users. Adding a passkey for someone else emails that owner and names the actor. "Send passkey setup link" emails the owner a one-time link; the admin never sees it.</p>
 </div>
@@ -314,7 +326,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 </div></div>
 
 <div data-v="[azwp_pk_list]">
-<div class="pk"><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>iCloud Keychain<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14</td><td>2026-11-03 08:50</td><td><button class="btn">Remove</button></td></tr></tbody></table></div>
+<div class="pk"><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td><td><button class="btn">Remove</button></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table></div>
 <p class="note">Same table and dialogs as the profile section. Signed-out visitors see "Sign in to manage your passkeys."</p>
 </div>
 
@@ -366,7 +378,15 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" checked> Enable</label><label><input type="radio"> Disable</label><p class="desc" style="color:var(--err)">Add a working passkey to your own account before turning on Passkey only mode.</p><p class="desc" style="color:var(--err)">Confirm that the accounts listed above will not be able to sign in, then save again.</p></td></tr>
 <tr><th>Passkey domain</th><td><input type="text" value="example.org"><p class="desc" style="color:var(--err)">Passkey only mode is on, and changing this would stop every passkey from working. Turn Passkey only mode off first.</p></td></tr></table>
 <div class="email">Browser confirm: 3 accounts have no working passkey and will not be able to sign in. Turn on Passkey only mode anyway?   Cancel   OK</div>
+<p><label><input type="checkbox"> I understand these accounts cannot sign in.</label></p>
+<p class="desc">Without JavaScript this checkbox, inside the readiness notice, replaces the browser confirm.</p>
 <p class="note">The domain error also covers IP addresses. The first Passkey only message appears when the saving administrator has no working passkey. The second appears when the confirmation was skipped or the listed accounts changed since the page loaded. The domain message appears when a save would change the Passkey domain or empty the Website name while the mode stays on. Both come back via redirect with status and invalid query args. Cancel in the browser dialog keeps the mode off without saving.</p>
+</div>
+
+<div data-v="Passkey only on">
+<table class="form"><tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="po2" checked> Enable</label><label><input type="radio" name="po2"> Disable</label></td></tr>
+<tr><th>Block password resets</th><td><select><option>No</option><option>Except for administrators</option><option>For everyone</option></select><p class="desc">Passkey only mode is on, so password resets are blocked for everyone.</p></td></tr></table>
+<p class="note">The select keeps its saved value, but Passkey only mode closes resets for everyone while it is on.</p>
 </div>
 
 <div data-v="Not configured">
@@ -419,6 +439,33 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div data-v="Errors">
 <div class="notice err"><p>Check Website name and Passkey domain in settings. The passkey domain must match this site.</p></div>
 <pre>Could not load logs.</pre>
+</div>
+</div></div>
+</section>
+
+<!-- ============ ACTIVATION ============ -->
+<section class="screen" id="activation" data-title="Activation errors" data-group="Admin">
+<h2>Activation and uninstall errors</h2>
+<p class="lead">WordPress error pages shown when the plugin cannot set itself up or clean up. Each one stops the action.</p>
+<div class="demo"><div class="chips"></div><div class="stage">
+<div data-v="InnoDB required" class="on">
+<p class="url">/wp-admin/plugins.php?action=activate</p>
+<div class="card" style="max-width:520px">Passkey storage could not be initialized. The database tables must use the InnoDB storage engine.</div>
+<p class="note">Shown when a WordPress table uses MyISAM. The plugin saves data in transactions, so it needs InnoDB.</p>
+</div>
+<div data-v="Other storage failure">
+<p class="url">/wp-admin/plugins.php?action=activate</p>
+<div class="card" style="max-width:520px">Passkey storage could not be initialized.</div>
+<p class="desc">Or, when the settings cannot be written: Passkey settings could not be initialized.</p>
+</div>
+<div data-v="Multisite, single site">
+<p class="url">/wp-admin/plugins.php?action=activate (on one site of a network)</p>
+<div class="card" style="max-width:520px">Activate AZ's WP Passkeys for the network.</div>
+<p class="note">On multisite the plugin only network-activates.</p>
+</div>
+<div data-v="Uninstall failed">
+<p class="url">/wp-admin/plugins.php?action=delete-selected</p>
+<div class="card" style="max-width:520px">Passkey data could not be completely removed. Try deleting the plugin again.</div>
 </div>
 </div></div>
 </section>
@@ -494,7 +541,7 @@ vs.forEach(function(v){var b=document.createElement('button');b.textContent=v.da
 setVariant(d,vs[0].dataset.v)});
 document.addEventListener('click',function(e){
 var sw=e.target.closest('[data-swap]');if(sw){var d=sw.closest('.demo');var target=sw.dataset.swap;if(d.querySelector(':scope>.stage>[data-v="'+target+'"]'))setVariant(d,target)}
-var m=e.target.closest('[data-modal]');if(m){e.preventDefault();var d2=m.closest('.demo');setVariant(d2,'Dialogs')}
+var m=e.target.closest('[data-modal]');if(m){e.preventDefault();var d2=m.closest('.demo');if(d2&&d2.querySelector(':scope>.stage>[data-v="Dialogs"]'))setVariant(d2,'Dialogs')}
 var sim=e.target.closest('[data-sim]');if(sim){var root=sim.closest('.pk-root')||sim.closest('.stage');var st=root.querySelector('.status');if(!st||sim.disabled)return;var kind=sim.dataset.sim;
 var steps=['Preparing…',"Follow your browser's instructions",kind==='login'?'Verifying…':'Saving…'];if(kind==='test')steps[2]='Verifying…';
 var done=kind==='login'?'Passkey verified.':kind==='register'?'Passkey added.':'Passkey test passed for “MacBook (iCloud)”.';
