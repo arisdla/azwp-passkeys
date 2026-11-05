@@ -43,20 +43,19 @@ $read_issued = static function (string $id) use ($storage): array {
 };
 try {
     foreach (['subscriber','subscriber','administrator'] as $role) {
-        $user = wp_insert_user(['user_login'=>'azwp_ceremony_'.bin2hex(random_bytes(6)), 'user_pass'=>wp_generate_password(), 'role'=>$role]);
+        $login = 'azwp_ceremony_'.bin2hex(random_bytes(6)); $user = wp_insert_user(['user_login'=>$login, 'user_email'=>$login.'@example.test', 'user_pass'=>wp_generate_password(), 'role'=>$role]);
         if (is_wp_error($user)) { throw new RuntimeException('Disposable account creation failed'); }
         $users[] = (int) $user;
     }
     [$alice,$bob,$admin] = $users;
     $origin = WebAuthn::canonical_origin(get_site_url($site), true);
     $rp = (string) parse_url($origin, PHP_URL_HOST);
-    check('service configuration saved', $storage->save_settings('site',$site,['rp_id'=>$rp,'rp_name'=>'Protocol integration','preferred_login'=>'passkey','remember_login'=>true,'reset_restriction'=>'off'])['ok']);
-    if (is_multisite()) { check('network ceremony policy saved', $storage->save_settings('network',(int)get_current_network_id(),['preferred_login'=>'passkey'])['ok']); }
+    check('service configuration saved', $storage->save_settings('site',$site,['rp_id'=>$rp,'rp_name'=>'Protocol integration','passkey_only'=>false,'remember_login'=>true,'reset_restriction'=>'off'])['ok']);
+    if (is_multisite()) { check('network ceremony policy saved', $storage->save_settings('network',(int)get_current_network_id(),['passkey_only'=>false])['ok']); }
     $context = $become($alice);
     $key = openssl_pkey_new(['private_key_type'=>OPENSSL_KEYTYPE_EC,'curve_name'=>'prime256v1']);
     if (!$key) { throw new RuntimeException('Fixture key generation unavailable'); }
-    $details = openssl_pkey_get_details($key);
-    $cose = cose_fixture([1=>2,3=>-7,-1=>1,-2=>$details['ec']['x'],-3=>$details['ec']['y']]);
+    $cose = es256_cose($key);
     $id = random_bytes(32); $aaguid = random_bytes(16);
     $options = $passkeys->registration_options($context,[]);
     check('real enrollment options issued', $options['ok']);
@@ -172,6 +171,37 @@ try {
         $admin_context = $become($admin);
     }
     check('authorized administrator can inspect selected account', $passkeys->list_credentials($admin_context,$alice)['ok']);
+    $mails = [];
+    $capture_mail = static function ($short, array $mail) use (&$mails) { $mails[] = $mail; return true; };
+    add_filter('pre_wp_mail', $capture_mail, 10, 2);
+    try {
+        $setup_token = static function () use (&$mails): string { preg_match('/[?&]token=([A-Za-z0-9_-]+)/', end($mails)['message'] ?? '', $match); return $match[1] ?? ''; };
+        check('an account cannot send itself a setup link', $passkeys->send_setup_link($admin_context,$admin)['code']==='forbidden');
+        check('administrator sends a setup link', $passkeys->send_setup_link($admin_context,$bob)['ok'] && count($mails)===1 && $setup_token()!=='');
+        $replaced = $setup_token();
+        check('a new setup link replaces the old one', $passkeys->send_setup_link($admin_context,$bob)['ok'] && !$passkeys->setup_link_valid($bob,$replaced,$site));
+        $token = $setup_token();
+        check('opening a setup link does not use it up', $passkeys->setup_link_valid($bob,$token,$site) && $passkeys->setup_link_valid($bob,$token,$site));
+        check('a setup link only works on the site that sent it', !$passkeys->setup_link_valid($bob,$token,$site+1000));
+        wp_set_current_user(0); unset($_COOKIE[LOGGED_IN_COOKIE]);
+        $setup_context = ['site_id'=>$site,'network_id'=>is_multisite()?(int)get_current_network_id():0,'actor_id'=>0,'browser_hash'=>$browser,'session_hash'=>null,'purpose'=>'setup'];
+        check('a wrong token gets no setup options', $passkeys->setup_options($setup_context,['user_id'=>(string)$bob,'token'=>WebAuthn::encode(random_bytes(32))])['code']==='attempt_unavailable');
+        $setup = $passkeys->setup_options($setup_context,['user_id'=>(string)$bob,'token'=>$token]);
+        check('a valid setup link issues options for its account', $setup['ok']);
+        $attempt_ids[] = $setup_id = $setup['data']['attempt_id'];
+        $setup_key = openssl_pkey_new(['private_key_type'=>OPENSSL_KEYTYPE_EC,'curve_name'=>'prime256v1']);
+        $setup_cose = es256_cose($setup_key);
+        $added = $passkeys->complete_setup($setup_context,['attempt_id'=>$setup_id,'token'=>$token,'credential'=>registration_fixture($read_issued($setup_id),random_bytes(32),$setup_cose,random_bytes(16))]);
+        check('a setup link adds exactly one passkey', $added['ok'] && $added['subject_id']===$bob && count($storage->get_credentials($bob)['data']['credentials'])===1);
+        check('a used setup link stops working', !$passkeys->setup_link_valid($bob,$token,$site) && $passkeys->setup_options($setup_context,['user_id'=>(string)$bob,'token'=>$token])['code']==='attempt_unavailable');
+        check('the owner is told a setup link added a passkey', str_contains(end($mails)['message'] ?? '','setup link'));
+        $storage->save_setup_link($bob,['hash'=>hash('sha256','expired'),'expires_at'=>time()-1,'issued_by'=>$admin,'site_id'=>$site]);
+        check('an expired setup link does not work', !$passkeys->setup_link_valid($bob,WebAuthn::encode('expired'),$site));
+    } finally {
+        remove_filter('pre_wp_mail', $capture_mail, 10);
+        $storage->cleanup_user($bob,$site);
+        $admin_context = $become($admin);
+    }
     $admin_test_context = array_replace($admin_context,['purpose'=>'test']);
     $admin_test = $passkeys->assertion_options($admin_test_context,['target_id'=>(string)$alice]);
     check('administrator ordinary target test options issued', $admin_test['ok']);
@@ -197,6 +227,8 @@ try {
     check('authenticator catalog names a known model and ignores unknown ones', \AZWP\Passkeys\Authenticators::name(hex2bin('08987058cadc4b81b6e130de50dcbe96')) === 'Windows Hello hardware authenticator' && \AZWP\Passkeys\Authenticators::name(str_repeat("\0", 16)) === null && \AZWP\Passkeys\Authenticators::name('short') === null);
     $listed = $passkeys->list_credentials($context,$alice);
     check('list marks a passkey that is not backed up as not synced', $listed['ok'] && $listed['data']['credentials'] !== [] && $listed['data']['credentials'][0]['synced'] === false);
+    $missing = $passkeys->members_without_passkey($site);
+    check('readiness lists a member without a passkey and skips one with a passkey', is_array($missing) && in_array($bob,$missing,true) && !in_array($alice,$missing,true));
     check('account switch accepted with a working passkey', $passkeys->set_password_disabled($alice,true)['ok'] && $storage->password_disabled($alice) && $passkeys->set_password_disabled($alice,false)['ok']);
     check('account switch refused without a working passkey', $passkeys->set_password_disabled($bob,true)['code']==='access_required' && !$storage->password_disabled($bob));
     check('account already switched stays saveable without a passkey', $storage->save_password_policy($bob,true)['ok'] && $passkeys->set_password_disabled($bob,true)['ok'] && $storage->save_password_policy($bob,false)['ok']);

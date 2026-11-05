@@ -2,8 +2,8 @@
 	"core": "WordPress/WordPress#6.9",
 	"phpVersion": "8.3",
 	"plugins": ["."],
-	"port": 18765,
-	"testsPort": 18766,
+	"port": 8080,
+	"testsPort": 8090,
 	"config": {
 		"WP_DEBUG": true,
 		"WP_DEBUG_LOG": true,

@@ -61,7 +61,7 @@ try {
     $diag = $settings->save_diagnostics(['logging'=>'1']);
     $assert($diag['ok'], 'Diagnostics save accepts declared form representation');
     $before = $settings->get_effective($site_id);
-    $form = ['rp_name'=>'Test site','rp_id'=>'example.test','preferred_login'=>'passkey','remember_login'=>'1','reset_restriction'=>'off','after_registration'=>'add_passkey'];
+    $form = ['rp_name'=>'Test site','rp_id'=>'example.test','passkey_only'=>'0','remember_login'=>'1','reset_restriction'=>'off','after_registration'=>'add_passkey'];
     $settings_result = $settings->save_site($form);
     $assert($settings_result['ok'] && $settings->get_effective($site_id)['after_registration'] === (is_multisite() ? 'default' : 'add_passkey'), 'After registration saves only on single-site');
     if (!is_multisite()) {

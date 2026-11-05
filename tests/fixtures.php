@@ -11,6 +11,11 @@ function cbor_head(int $major, int $number): string {
 }
 function cbor_bytes(string $value): string { return cbor_head(2, strlen($value)) . $value; }
 function cbor_text(string $value): string { return cbor_head(3, strlen($value)) . $value; }
+/** OpenSSL drops leading zero bytes from P-256 coordinates; COSE requires each to be exactly 32 bytes. */
+function es256_cose(OpenSSLAsymmetricKey $key): string {
+	$ec = openssl_pkey_get_details($key)['ec'];
+	return cose_fixture([1 => 2, 3 => -7, -1 => 1, -2 => str_pad($ec['x'], 32, "\0", STR_PAD_LEFT), -3 => str_pad($ec['y'], 32, "\0", STR_PAD_LEFT)]);
+}
 function cose_fixture(array $fields): string {
 	$encoded = cbor_head(5, count($fields));
 	foreach ($fields as $key => $value) {

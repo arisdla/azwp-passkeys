@@ -55,16 +55,15 @@ try {
     }
     [$alice,$bob] = $users;
     $origin = WebAuthn::canonical_origin(get_site_url($site), true);
-    check('test site policy saved', $storage->save_settings('site',$site,['rp_id'=>parse_url($origin,PHP_URL_HOST),'rp_name'=>'Two-Factor integration','preferred_login'=>'passkey','remember_login'=>false,'reset_restriction'=>'off'])['ok']);
-    if (is_multisite()) { check('test network policy saved', $storage->save_settings('network',(int)get_current_network_id(),['preferred_login'=>'passkey'])['ok']); }
+    check('test site policy saved', $storage->save_settings('site',$site,['rp_id'=>parse_url($origin,PHP_URL_HOST),'rp_name'=>'Two-Factor integration','passkey_only'=>false,'remember_login'=>false,'reset_restriction'=>'off'])['ok']);
+    if (is_multisite()) { check('test network policy saved', $storage->save_settings('network',(int)get_current_network_id(),['passkey_only'=>false])['ok']); }
     wp_set_current_user($alice);
     $token = WP_Session_Tokens::get_instance($alice)->create(time()+3600);
     $_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($alice,time()+3600,'logged_in',$token);
     $browser = hash('sha256',random_bytes(32),true);
     $context = ['site_id'=>$site,'network_id'=>is_multisite()?(int)get_current_network_id():0,'actor_id'=>$alice,'browser_hash'=>$browser,'session_hash'=>hash('sha256',wp_get_session_token(),true),'purpose'=>'register'];
     $key = openssl_pkey_new(['private_key_type'=>OPENSSL_KEYTYPE_EC,'curve_name'=>'prime256v1']);
-    $details = openssl_pkey_get_details($key);
-    $cose = cose_fixture([1=>2,3=>-7,-1=>1,-2=>$details['ec']['x'],-3=>$details['ec']['y']]);
+    $cose = es256_cose($key);
     $credential_id = random_bytes(32);
     $options = $passkeys->registration_options($context,[]);
     check('real enrollment issued', $options['ok']);

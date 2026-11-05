@@ -4,6 +4,7 @@ namespace AZWP\Passkeys;
 
 final class Storage {
     public const LOCK_WAIT_SECONDS = 5;
+    private const SETUP_LINK_KEY = 'azwp_passkeys_setup_link';
     private \wpdb $db;
     private array $tables;
     private ?int $locked_owner = null;
@@ -365,6 +366,37 @@ final class Storage {
         $value = $row ? maybe_unserialize($row['meta_value']) : [];
         return is_array($value) ? $value : [];
     }
+    /** One pending setup link per account: {hash, expires_at, issued_by, site_id}. Issuing a new link replaces the old one. */
+    public function save_setup_link(int $user_id, array $link): array {
+        return $this->with_owner_lock($user_id, function () use ($user_id, $link): array {
+            $this->invalidate[] = ['user', $user_id];
+            $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, self::SETUP_LINK_KEY));
+            if ($this->db->insert($this->db->usermeta, ['user_id' => $user_id, 'meta_key' => self::SETUP_LINK_KEY, 'meta_value' => json_encode($link, JSON_THROW_ON_ERROR)]) === false) { return self::error(); }
+            return self::ok();
+        });
+    }
+    public function get_setup_link(int $user_id): ?array {
+        $row = $this->row($this->db->prepare("SELECT meta_value FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s ORDER BY umeta_id DESC LIMIT 1", $user_id, self::SETUP_LINK_KEY));
+        $link = $row ? json_decode((string) $row['meta_value'], true) : null;
+        return is_array($link) && is_string($link['hash'] ?? null) && is_int($link['expires_at'] ?? null) && is_int($link['site_id'] ?? null) && is_int($link['issued_by'] ?? null) ? $link : null;
+    }
+    /** Under the owner lock, removes and returns the link only if the token hash, site and expiry all match. */
+    public function consume_setup_link(int $user_id, string $hash, int $site_id): ?array {
+        $this->owner($user_id);
+        $link = $this->get_setup_link($user_id);
+        if (!$link || !hash_equals($link['hash'], $hash) || $link['site_id'] !== $site_id || $link['expires_at'] <= time()) { return null; }
+        $this->invalidate[] = ['user', $user_id];
+        $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, self::SETUP_LINK_KEY));
+        return $link;
+    }
+    /** Members of a site with no stored passkey for the given passkey domain. Single-site counts every account, as the Users screen does. */
+    public function members_without_passkey(int $site_id, string $rp_id): array {
+        $missing = $this->db->prepare("NOT EXISTS (SELECT 1 FROM `{$this->tables['credentials']}` c WHERE c.user_id=u.ID AND c.rp_id=%s)", $rp_id);
+        $sql = is_multisite()
+            ? $this->db->prepare("SELECT DISTINCT u.ID FROM `{$this->db->users}` u INNER JOIN `{$this->db->usermeta}` m ON m.user_id=u.ID AND m.meta_key=%s WHERE $missing ORDER BY u.ID", $this->db->get_blog_prefix($site_id) . 'capabilities')
+            : "SELECT u.ID FROM `{$this->db->users}` u WHERE $missing ORDER BY u.ID";
+        return array_map('intval', array_column($this->rows($sql), 'ID'));
+    }
     public function password_disabled(int $user_id): bool {
         $rows = $this->rows($this->db->prepare("SELECT meta_value FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, 'azwp_passkeys_password_disabled'));
         foreach ($rows as $row) { if ((int) $row['meta_value'] === 1) { return true; } }
@@ -421,11 +453,11 @@ final class Storage {
         if ($this->in_transaction) { return self::error(); }
         try {
             if (empty($this->read_site_settings($site_id)['logging'])) { return self::ok(['logged' => false]); }
-            $events = ['log_initialized','settings_saved','registration','authentication','credential_test','credential_renamed','credential_removed','registration_sign_in','storage_error','configuration_error','account_cleanup','membership_cleanup'];
+            $events = ['log_initialized','settings_saved','registration','setup_link_sent','passkey_setup','authentication','credential_test','credential_renamed','credential_removed','registration_sign_in','storage_error','configuration_error','account_cleanup','membership_cleanup'];
             if (!in_array($entry['event'] ?? null, $events, true)) { return self::error('invalid_request'); }
             $detail = [];
             // Only known non-secret configuration and status fields can reach logs.
-            $allowed = ['plugin_version','php_version','wordpress_version','library_version','rp_name','rp_id','preferred_login','remember_login','reset_restriction','logging','setting','previous','value','code','count','initialization'];
+            $allowed = ['plugin_version','php_version','wordpress_version','library_version','rp_name','rp_id','passkey_only','remember_login','reset_restriction','logging','setting','previous','value','code','count','initialization'];
             foreach (($entry['detail'] ?? []) as $key => $value) {
                 if (!in_array($key, $allowed, true)) { continue; }
                 if (is_bool($value) || is_int($value) || $value === null) { $detail[$key] = $value; }
@@ -485,7 +517,7 @@ final class Storage {
             if ($site_id === null) {
                 $this->query($this->db->prepare("DELETE FROM `{$this->tables['identities']}` WHERE user_id=%d", $user_id));
                 $this->query($this->db->prepare("DELETE FROM `{$this->tables['attempts']}` WHERE actor_id=%d OR target_id=%d", $user_id, $user_id));
-                $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, 'azwp_passkeys_password_disabled'));
+                $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key IN (%s,%s)", $user_id, 'azwp_passkeys_password_disabled', self::SETUP_LINK_KEY));
                 $this->invalidate[] = ['user', $user_id];
             } elseif (!$this->account_exists($user_id)) {
                 // Missing users must not retain a provisional identity from cleanup.
@@ -504,9 +536,9 @@ final class Storage {
     public function uninstall(): array {
         if ($this->in_transaction) { return self::error(); }
         try {
-            $users = $this->rows($this->db->prepare("SELECT DISTINCT user_id FROM `{$this->db->usermeta}` WHERE meta_key=%s", 'azwp_passkeys_password_disabled'));
+            $users = $this->rows($this->db->prepare("SELECT DISTINCT user_id FROM `{$this->db->usermeta}` WHERE meta_key IN (%s,%s)", 'azwp_passkeys_password_disabled', self::SETUP_LINK_KEY));
             foreach ($this->tables as $table) { $this->query("DROP TABLE IF EXISTS `$table`"); }
-            $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE meta_key=%s", 'azwp_passkeys_password_disabled'));
+            $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE meta_key IN (%s,%s)", 'azwp_passkeys_password_disabled', self::SETUP_LINK_KEY));
             foreach ($users as $user) { wp_cache_delete((int) $user['user_id'], 'user_meta'); }
             // Lifecycle deletes per-site/network options using WordPress cache-aware APIs.
             return self::ok();

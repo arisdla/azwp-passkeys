@@ -12,6 +12,9 @@ final class Screens {
         add_action('admin_enqueue_scripts', [$this, 'admin_assets']);
         add_action('login_enqueue_scripts', fn() => $this->enqueue('login'));
         add_action('login_form', [$this, 'render_login']);
+        add_action('login_form_azwp_passkeys_setup', [$this, 'render_setup']);
+        add_filter('login_message', fn($message) => ($_GET['azwp_passkeys_setup']??'')==='done' ? $message.'<p class="message">'.esc_html__('Passkey added. Sign in with it now.','azwp-passkeys').'</p>' : $message);
+        add_filter('login_body_class', fn(array $classes): array => empty($this->settings->get_effective(get_current_blog_id())['passkey_only']) ? $classes : [...$classes, 'azwp-passkeys-only']);
         add_action('show_user_profile', [$this, 'render_profile']);
         add_action('edit_user_profile', function(\WP_User $user): void { if (current_user_can('edit_users')) $this->render_profile($user); });
         add_action('admin_notices', [$this, 'account_notice']);
@@ -22,6 +25,7 @@ final class Screens {
         add_action('admin_post_azwp_passkeys_save_site', fn() => $this->save_form('site'));
         add_action('network_admin_edit_azwp_passkeys_save_network', fn() => $this->save_form('network'));
         add_action('admin_post_azwp_passkeys_save_diagnostics', fn() => $this->save_form('diagnostics'));
+        add_filter('users_list_table_query_args', [$this, 'filter_missing_passkey_users']);
         add_filter('plugin_action_links_'.plugin_basename(AZWP_PASSKEYS_FILE), [$this, 'plugin_links']);
         add_filter('network_admin_plugin_action_links_'.plugin_basename(AZWP_PASSKEYS_FILE), [$this, 'plugin_links']);
     }
@@ -31,6 +35,42 @@ final class Screens {
     }
     public function register_network_menu(): void {
         $this->page_hooks[] = add_submenu_page('settings.php', __("AZ's WP Passkeys",'azwp-passkeys'), __("AZ's WP Passkeys",'azwp-passkeys'), 'manage_network_options', 'azwp-passkeys', [$this,'render_network_settings']);
+    }
+    public function filter_missing_passkey_users(array $args): array {
+        if (($_GET['azwp_passkeys_missing']??'')!=='1'||!current_user_can('list_users')) return $args;
+        $args['include']=$this->passkeys->members_without_passkey(get_current_blog_id())?:[0];
+        return $args;
+    }
+    /** Members without a working passkey, keyed by site, for every site the Passkey only switch on this page affects. */
+    private function readiness(bool $network): array {
+        $sites=$network?array_map('intval',get_sites(['fields'=>'ids','network_id'=>get_current_network_id(),'number'=>0])):[get_current_blog_id()];
+        $readiness=[];
+        foreach ($sites as $site_id) { $ids=$this->passkeys->members_without_passkey($site_id); if ($ids) $readiness[$site_id]=$ids; }
+        return $readiness;
+    }
+    private static function readiness_total(array $readiness): int {
+        return count(array_unique(array_merge([],...array_values($readiness))));
+    }
+    /** Identifies the exact set of accounts, so a confirmation cannot approve a different set with the same size. */
+    private static function readiness_token(array $readiness): string {
+        $ids=array_unique(array_merge([],...array_values($readiness))); sort($ids);
+        return $ids?substr(hash('sha256',implode(',',$ids)),0,32):'';
+    }
+    private function readiness_notice(bool $network,bool $editable,bool $on): void {
+        $readiness=$this->readiness($network); if (!$readiness) return;
+        $total=self::readiness_total($readiness);
+        $text=$network
+            ?sprintf(_n('%d account has no working passkey on at least one site and cannot sign in there while Passkey only mode is on.','%d accounts have no working passkey on at least one site and cannot sign in there while Passkey only mode is on.',$total,'azwp-passkeys'),$total)
+            :sprintf(_n('%d member has no working passkey for this site and cannot sign in while Passkey only mode is on.','%d members have no working passkey for this site and cannot sign in while Passkey only mode is on.',$total,'azwp-passkeys'),$total);
+        $token=self::readiness_token($readiness);
+        echo '<div class="notice notice-warning inline" data-passkey-only-readiness="'.esc_attr((string)$total).'" data-passkey-only-token="'.esc_attr($token).'"><p>'.esc_html($text).'</p><ul>';
+        foreach ($readiness as $site_id=>$ids) {
+            $label=$network?sprintf(__('%1$s: %2$d','azwp-passkeys'),get_blog_option($site_id,'blogname'),count($ids)):__('View these members','azwp-passkeys');
+            echo '<li><a href="'.esc_url(get_admin_url($site_id,'users.php?azwp_passkeys_missing=1')).'">'.esc_html($label).'</a></li>';
+        }
+        echo '</ul>';
+        if ($editable&&!$on) echo '<input type="hidden" name="passkey_only_confirmed" value=""><noscript><label><input type="checkbox" name="passkey_only_confirmed" value="'.esc_attr($token).'"> '.esc_html__('I understand these accounts cannot sign in.','azwp-passkeys').'</label></noscript>';
+        echo '</div>';
     }
     public function plugin_links(array $links): array {
         $url = is_network_admin() ? network_admin_url('settings.php?page=azwp-passkeys') : admin_url('options-general.php?page=azwp-passkeys');
@@ -53,7 +93,7 @@ final class Screens {
         $style=in_array($page,['profile','settings'],true)?'admin':$page;
         wp_enqueue_style('azwp-passkeys-'.$style,$base.'css/'.$style.'.css',[],$this->asset_version('css/'.$style.'.css'));
         $config=$this->settings->get_effective(get_current_blog_id());
-        $public=array_intersect_key($config,array_flip(['preferred_login','remember_login']));
+        $public=array_intersect_key($config,array_flip(['passkey_only','remember_login']));
         wp_localize_script('azwp-passkeys-client','azwpPasskeysConfig',[
             'ajax_url'=>admin_url('admin-ajax.php'), 'policy'=>$public,'log_poll_interval_ms'=>self::LOG_POLL_INTERVAL_MS,
             'server_ready'=>$this->server_ready(), 'logged_in'=>is_user_logged_in(),
@@ -95,7 +135,7 @@ final class Screens {
         }
         $policy=$this->settings->get_effective(get_current_blog_id());
         foreach ($targets as $target_id) {
-            if ($policy['preferred_login']!=='only'&&!get_user_meta($target_id,'azwp_passkeys_password_disabled',true)) continue;
+            if (empty($policy['passkey_only'])&&!get_user_meta($target_id,'azwp_passkeys_password_disabled',true)) continue;
             $rows=$this->storage->get_credentials($target_id,get_current_blog_id());
             if (!$rows['ok']||!empty($rows['data']['credentials'])) continue;
             $user=get_userdata($target_id); if (!$user) continue;
@@ -111,9 +151,18 @@ final class Screens {
     public function save_profile(int $target_id, ?\WP_Error $errors=null): void {
         if (($target_id!==get_current_user_id()&&!current_user_can('edit_users'))||!current_user_can('edit_user',$target_id)||!isset($_POST['_wpnonce'])||!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])),'update-user_'.$target_id)) return;
         $policy=$this->settings->get_effective(get_current_blog_id());
-        if (!$this->server_ready()||$policy['preferred_login']==='only'||!isset($_POST['azwp_passkeys_profile_present'])) return;
+        if (!$this->server_ready()||!empty($policy['passkey_only'])||!isset($_POST['azwp_passkeys_profile_present'])) return;
         $result=$this->passkeys->set_password_disabled($target_id,isset($_POST['azwp_passkeys_password_disabled']));
         if (!$result['ok'] && $errors) $errors->add('azwp_passkeys_save_failed',$result['code']==='access_required'?__('Add a working passkey before turning on Passkey only mode for this account.','azwp-passkeys'):__('The change could not be saved. Try again.','azwp-passkeys'));
+    }
+    public function render_setup(): void {
+        $user_id=absint($_GET['user']??0);
+        $token=is_string($_GET['token']??null)?sanitize_text_field(wp_unslash($_GET['token'])):'';
+        $valid=$user_id&&$this->passkeys->setup_link_valid($user_id,$token,get_current_blog_id());
+        login_header(__('Add a passkey','azwp-passkeys'));
+        echo $this->view('setup',['valid'=>$valid,'user_id'=>$user_id,'token'=>$token,'user'=>$valid?get_userdata($user_id):null,'instance'=>wp_unique_id('azwp-passkeys-component-')]);
+        login_footer();
+        exit;
     }
     public function render_login(): void {
         if (isset($_REQUEST['action'])&&!in_array($_REQUEST['action'],['login'],true)) return;
@@ -159,16 +208,26 @@ final class Screens {
         check_admin_referer('azwp_passkeys_save_'.$scope.'_'.$id);
         $input=wp_unslash($_POST); $method='save_'.$scope;
         $url=$network?network_admin_url('settings.php?page=azwp-passkeys'):admin_url($scope==='diagnostics'?'tools.php?page=azwp-passkeys-diagnostics':'options-general.php?page=azwp-passkeys');
+        $effective=$this->settings->get_effective(get_current_blog_id());
         // Passkey only mode removes the password form, so the saving administrator must be able to get back in.
-        $sets_only=$scope!=='diagnostics'&&($network||!is_multisite())&&($input['preferred_login']??null)==='only'
-            &&$this->settings->get_effective(get_current_blog_id())['preferred_login']!=='only';
-        if ($sets_only&&!$this->passkeys->has_usable_credential(get_current_user_id(),get_current_blog_id())) {
-            $result=['ok'=>false,'data'=>['invalid'=>['preferred_login']]];
+        $sets_only=$scope!=='diagnostics'&&($network||!is_multisite())&&($input['passkey_only']??null)==='1'&&empty($effective['passkey_only']);
+        // The checks below use the stored passkey domain, so a save that leaves the mode on must keep that domain and a usable configuration.
+        $only_after=$scope==='site'&&(is_multisite()?!empty($effective['passkey_only']):($input['passkey_only']??null)==='1');
+        $locked=$only_after?array_keys(array_filter([
+            'rp_id'=>strtolower(trim((string)($input['rp_id']??'')))!==$effective['rp_id'],
+            'rp_name'=>trim((string)($input['rp_name']??''))==='',
+        ])):[];
+        if ($locked) {
+            $result=['ok'=>false,'data'=>['invalid'=>[...$locked,'passkey_only_locked']]];
+        } elseif ($sets_only&&!$this->passkeys->has_usable_credential(get_current_user_id(),get_current_blog_id())) {
+            $result=['ok'=>false,'data'=>['invalid'=>['passkey_only']]];
+        } elseif ($sets_only&&($token=self::readiness_token($this->readiness($network)))!==''&&!hash_equals($token,(string)($input['passkey_only_confirmed']??''))) {
+            $result=['ok'=>false,'data'=>['invalid'=>['passkey_only_confirm']]];
         } else {
             $result=$this->settings->$method($input);
         }
         $query=['status'=>!empty($result['ok'])?'settings_saved':'settings_failed'];
-        if (empty($result['ok']) && !empty($result['data']['invalid'])) $query['invalid']=implode(',',array_intersect($result['data']['invalid'],array_keys($this->settings->definitions())));
+        if (empty($result['ok']) && !empty($result['data']['invalid'])) $query['invalid']=implode(',',array_intersect($result['data']['invalid'],[...array_keys($this->settings->definitions()),'passkey_only_confirm','passkey_only_locked']));
         wp_safe_redirect(add_query_arg($query,$url)); exit;
     }
     private function field_invalid(string $key): bool {
@@ -177,7 +236,7 @@ final class Screens {
     }
     private function invalid_field_notice(string $key): void {
         if (!$this->field_invalid($key)) return;
-        $message=$key==='preferred_login'?__('Add a working passkey to your own account before turning on Passkey only mode.','azwp-passkeys'):__('Check this field and save again.','azwp-passkeys');
+        $message=in_array($key,['rp_id','rp_name'],true)&&$this->field_invalid('passkey_only_locked')?__('Passkey only mode is on, and changing this would stop every passkey from working. Turn Passkey only mode off first.','azwp-passkeys'):($key==='passkey_only_confirm'?__('Confirm that the accounts listed above will not be able to sign in, then save again.','azwp-passkeys'):($key==='passkey_only'?__('Add a working passkey to your own account before turning on Passkey only mode.','azwp-passkeys'):__('Check this field and save again.','azwp-passkeys')));
         echo '<p class="description azwp-passkeys-error">'.esc_html($message).'</p>';
     }
     private function status_notice(): void {
@@ -187,26 +246,28 @@ final class Screens {
     }
     private function setting_control(string $key,array $values,bool $network,bool $ready): void {
         $definitions=[
-            'preferred_login'=>[__('Default sign-in method','azwp-passkeys'),['passkey'=>__('Prefer passkey','azwp-passkeys'),'password'=>__('Prefer password','azwp-passkeys'),'only'=>__('Passkey only mode','azwp-passkeys')],__('Passkey only mode turns off password sign-in. Make sure each account has a working passkey first.','azwp-passkeys')],
-            'remember_login'=>[__('Remember me','azwp-passkeys'),null,__('Show a Remember me checkbox on the passkey sign-in form. It starts unchecked.','azwp-passkeys')],
+            'passkey_only'=>[__('Passkey only mode','azwp-passkeys'),null,__('Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.','azwp-passkeys')],
+            'remember_login'=>[__('Remember me','azwp-passkeys'),null,__('Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked.','azwp-passkeys')],
             'reset_restriction'=>[__('Block password resets','azwp-passkeys'),['off'=>__('No','azwp-passkeys'),'except_admin'=>__('Except for administrators','azwp-passkeys'),'everyone'=>__('For everyone','azwp-passkeys')],__('Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles.','azwp-passkeys')],
             'after_registration'=>[__('After registration','azwp-passkeys'),['default'=>__('WordPress default','azwp-passkeys'),'add_passkey'=>__('Sign in and add a passkey','azwp-passkeys')],__('New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in.','azwp-passkeys')],
             'logging'=>[__('Logging','azwp-passkeys'),null,__('Save diagnostic entries for troubleshooting. Entries remain until you clear them.','azwp-passkeys')],
         ];
         [$label,$choices,$help]=$definitions[$key]; $value=$values[$key];
         echo '<tr><th scope="row"><label for="azwp-passkeys-'.$key.'">'.esc_html($label).'</label></th><td>';
-        if (!$network&&is_multisite()&&$key==='preferred_login') {
-            echo '<p>'.esc_html__('Set in network settings:','azwp-passkeys').' '.esc_html($choices[$value]??($value?__('Enabled','azwp-passkeys'):__('Disabled','azwp-passkeys'))).'</p><a href="'.esc_url(network_admin_url('settings.php?page=azwp-passkeys')).'">'.esc_html__('Network settings','azwp-passkeys').'</a>';
+        if (!$network&&is_multisite()&&$key==='passkey_only') {
+            echo '<p>'.esc_html__('Set in network settings:','azwp-passkeys').' '.esc_html($value?__('Enabled','azwp-passkeys'):__('Disabled','azwp-passkeys')).'</p><a href="'.esc_url(network_admin_url('settings.php?page=azwp-passkeys')).'">'.esc_html__('Network settings','azwp-passkeys').'</a>';
         } elseif ($choices===null) {
             echo '<fieldset><legend class="screen-reader-text">'.esc_html($label).'</legend>';
-            foreach (['1'=>__('Enable','azwp-passkeys'),'0'=>__('Disable','azwp-passkeys')] as $option=>$text) echo '<label class="azwp-passkeys-choice"><input type="radio" name="'.esc_attr($key).'" value="'.esc_attr($option).'" '.checked((string)(int)(bool)$value,(string)$option,false).'> '.esc_html($text).'</label>';
+            foreach (['1'=>__('Enable','azwp-passkeys'),'0'=>__('Disable','azwp-passkeys')] as $option=>$text) echo '<label class="azwp-passkeys-choice"><input type="radio" name="'.esc_attr($key).'" value="'.esc_attr($option).'" '.checked((string)(int)(bool)$value,(string)$option,false).' '.disabled($key==='passkey_only'&&$option==='1'&&!$ready&&!$value,true,false).'> '.esc_html($text).'</label>';
             echo '</fieldset>';
         } else {
             echo '<select id="azwp-passkeys-'.esc_attr($key).'" name="'.esc_attr($key).'">';
-            foreach ($choices as $option=>$text) echo '<option value="'.esc_attr($option).'" '.selected($value,$option,false).' '.disabled($key==='preferred_login'&&$option==='only'&&!$ready&&$value!=='only',true,false).'>'.esc_html($text).'</option>';
+            foreach ($choices as $option=>$text) echo '<option value="'.esc_attr($option).'" '.selected($value,$option,false).'>'.esc_html($text).'</option>';
             echo '</select>';
         }
         echo '<p class="description">'.esc_html($help).'</p>';
+        if ($key==='passkey_only') { $this->readiness_notice($network,$network||!is_multisite(),(bool)$value); $this->invalid_field_notice('passkey_only_confirm'); }
+        if ($key==='reset_restriction'&&!empty($values['passkey_only'])) echo '<p class="description">'.esc_html__('Passkey only mode is on, so password resets are blocked for everyone.','azwp-passkeys').'</p>';
         if ($key==='after_registration'&&!get_option('users_can_register')) echo '<p class="description">'.esc_html__('This has no effect until Anyone can register is turned on in General settings.','azwp-passkeys').'</p>';
         $this->invalid_field_notice($key);
         echo '</td></tr>';

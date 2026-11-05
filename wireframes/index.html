@@ -93,18 +93,21 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <table>
 <tr><th>Surface</th><th>Where</th><th>Who</th></tr>
 <tr><td>Passkey sign-in</td><td>wp-login.php, and the login shortcode or block on any page</td><td>Anyone signed out</td></tr>
+<tr><td>Passkey setup page</td><td>wp-login.php?action=azwp_passkeys_setup, from an emailed setup link</td><td>The account owner, signed out</td></tr>
 <tr><td>Registration continuation</td><td>wp-login.php?action=register, then own profile</td><td>New user, single-site only</td></tr>
 <tr><td>Passkeys section</td><td>Profile and Edit User</td><td>Owner, or users who can edit that user</td></tr>
 <tr><td>Frontend components</td><td>Shortcodes and four blocks</td><td>Signed in or out, by component</td></tr>
 <tr><td>Site settings</td><td>Settings, AZ's WP Passkeys</td><td>manage_options</td></tr>
 <tr><td>Network settings</td><td>Network Admin, Settings</td><td>manage_network_options</td></tr>
 <tr><td>Diagnostics</td><td>Tools, Passkey diagnostics</td><td>manage_options</td></tr>
-<tr><td>Notices and email</td><td>Admin notices, "passkey added" email</td><td>Account owners, admins</td></tr>
+<tr><td>Notices and email</td><td>Admin notices, "passkey added" and "add a passkey" setup emails</td><td>Account owners, admins</td></tr>
 </table>
 <h3>Core journeys</h3>
 <div class="flow"><span>Open login</span><i>→</i><span>Sign in with a passkey</span><i>→</i><span>Browser prompt (biometric / PIN)</span><i>→</i><span>Verifying</span><i>→</i><span>Redirect</span></div>
 <p></p>
 <div class="flow"><span>Profile</span><i>→</i><span>Add passkey</span><i>→</i><span>Browser prompt</span><i>→</i><span>Saved as passkey_N, list refreshes, owner emailed</span></div>
+<p></p>
+<div class="flow"><span>Admin: Send passkey setup link</span><i>→</i><span>Owner opens the email link</span><i>→</i><span>Add passkey</span><i>→</i><span>Sign-in page: "Passkey added. Sign in with it now."</span></div>
 <p></p>
 <div class="flow"><span>Register (optional mode)</span><i>→</i><span>Signed in at once</span><i>→</i><span>Profile, Add passkey focused</span><i>→</i><span>Add passkey</span></div>
 <p class="note">Sign-in is always usernameless. The browser picks the account, so there is no username field on the passkey form.</p>
@@ -113,42 +116,32 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <!-- ============ LOGIN ============ -->
 <section class="screen" id="login" data-title="Login page" data-group="Sign-in">
 <h2>Login page</h2>
-<p class="lead">wp-login.php with the passkey form added inside the native login form. Preferred method decides which side shows first.</p>
+<p class="lead">wp-login.php with a passkey button added to the native login form. Passkey only mode is an on/off switch: off shows the password form and the passkey button, on shows only the passkey button.</p>
 <div class="demo">
 <div class="chips"></div>
 <div class="stage">
 
-<div data-v="Prefer passkey" class="on">
+<div data-v="Passkey only off" class="on">
 <p class="url">/wp-login.php</p>
-<div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card pk-root">
-<p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p>
-<p><label><input type="checkbox"> Remember me</label></p>
-<button class="btn primary full" data-sim="login"><span class="fp"></span>Sign in with a passkey</button>
-<p style="margin:12px 0 0"><button class="linkbtn" data-swap="Prefer password">Use a password instead</button></p>
-<div class="status" role="status"></div>
-</div></div></div>
-<p class="note">Click the button to play the ceremony states. "Remember me" appears only when enabled in settings and starts unchecked.</p>
-</div>
-
-<div data-v="Prefer password">
-<p class="url">/wp-login.php (after "Use a password instead", or preferred = password)</p>
 <div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card">
 <p><label>Username or Email Address</label><input type="text"></p>
 <p><label>Password</label><input type="password"></p>
 <p><label><input type="checkbox"> Remember Me</label></p>
 <button class="btn primary">Log In</button>
-<p style="margin:12px 0 0"><button class="linkbtn" data-swap="Prefer passkey">Use a passkey instead</button></p>
+<div class="pk-root"><p style="text-align:center;margin:12px 0 8px">or</p>
+<button class="btn primary full" data-sim="login"><span class="fp"></span>Sign in with a passkey</button>
+<div class="status" role="status"></div></div>
 </div><p style="text-align:center;font-size:13px">Register | Lost your password?</p></div></div>
-<p class="note">Lost-password link disappears when password resets are blocked.</p>
+<p class="note">Click the passkey button to play the ceremony states. With "Remember me" enabled in settings, passkey sign-in follows the form's Remember Me box. Lost-password link disappears when password resets are blocked.</p>
 </div>
 
 <div data-v="Passkey only">
-<p class="url">/wp-login.php (site in Passkey only mode)</p>
+<p class="url">/wp-login.php (Passkey only mode on)</p>
 <div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card">
 <p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p>
 <button class="btn primary full"><span class="fp"></span>Sign in with a passkey</button>
 <div class="status"></div></div></div></div>
-<p class="note">No username or password fields, no switch link. Accounts with no passkey cannot sign in here. Turning the mode on also signs out any session a passkey did not open, on its next page load.</p>
+<p class="note">No username, password or lost-password link; resets are closed for everyone in this mode. "Remember me" shows here when enabled in settings. Accounts with no passkey cannot sign in here. Turning the mode on also signs out any session a passkey did not open, on its next page load.</p>
 </div>
 
 <div data-v="Browser unsupported">
@@ -159,7 +152,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <button class="btn primary">Log In</button>
 <div class="status err">Passkeys are unavailable. Use a supported browser and a secure connection.</div>
 </div></div></div>
-<p class="note">Falls back to the password form unless the site is passkey only, in which case the error shows on the passkey form.</p>
+<p class="note">With Passkey only mode off, the password form works and this message replaces the passkey button. With it on, the message is all that shows.</p>
 </div>
 
 <div data-v="Failure messages">
@@ -281,8 +274,8 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <p class="url">/wp-admin/user-edit.php?user_id=7</p>
 <div class="pk"><h4>Passkeys</h4><p>Passkeys for Bob Jones</p><label><input type="checkbox"> Passkey only mode</label>
 <table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>Bob's phone<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Google Password Manager</td><td>2026-10-01 09:00</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody></table>
-<p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p></div>
-<p class="note">Shown to users with edit_users. Adding a passkey for someone else emails that owner and names the actor.</p>
+<p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button> <button class="btn">Send passkey setup link</button></p><div class="status">Setup link sent to the account email address. It expires in one hour.</div></div>
+<p class="note">Shown to users with edit_users. Adding a passkey for someone else emails that owner and names the actor. "Send passkey setup link" emails the owner a one-time link; the admin never sees it.</p>
 </div>
 
 <div data-v="Environment unavailable">
@@ -302,17 +295,10 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="[azwp_pk_login]" class="on">
 <div class="pk pk-root" style="max-width:360px">
-<p>Confirm with your fingerprint, face, or device PIN. This is required to continue.</p>
-<p><label><input type="checkbox"> Remember me</label></p>
-<button class="btn primary" data-sim="login">Sign in with a passkey</button>
-<p><button class="linkbtn" data-swap="login password">Use a password instead</button></p><div class="status"></div></div>
-<p class="note">Attributes: traditional (password form, default on), username (prefill), auto_hide (hide when signed in, default on), to (redirect). Signed-in visitors see nothing while auto_hide is on.</p>
-</div>
-
-<div data-v="login password">
-<div class="pk" style="max-width:360px"><p><label>Username or Email Address</label><input type="text"></p><p><label>Password</label><input type="password"></p><p><label><input type="checkbox"> Remember Me</label></p><button class="btn primary">Log In</button>
-<p><button class="linkbtn" data-swap="[azwp_pk_login]">Use a passkey instead</button></p></div>
-<p class="note">Embedded password form uses wp_login_form. Not rendered when traditional=false or in Passkey only mode.</p>
+<p><label>Username or Email Address</label><input type="text"></p><p><label>Password</label><input type="password"></p><p><label><input type="checkbox"> Remember Me</label></p><button class="btn primary">Log In</button>
+<p>or</p>
+<button class="btn primary" data-sim="login">Sign in with a passkey</button><div class="status"></div></div>
+<p class="note">Attributes: traditional (password form, default on), username (prefill), auto_hide (hide when signed in, default on), to (redirect). The password form uses wp_login_form and is left out when traditional=false or in Passkey only mode, which leaves only the passkey button. Signed-in visitors see nothing while auto_hide is on.</p>
 </div>
 
 <div data-v="[azwp_pk_register]">
@@ -364,8 +350,8 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <tr><th>Passkey domain</th><td><input type="text" value="example.com"><p class="desc">Use the site's domain or a valid parent domain, without https://, a path or a port.</p></td></tr></table>
 <h3>Sign-in</h3>
 <table class="form">
-<tr><th>Default sign-in method</th><td><select><option>Prefer passkey</option><option>Prefer password</option><option>Passkey only mode</option></select><p class="desc">Passkey only mode turns off password sign-in. Make sure each account has a working passkey first.</p></td></tr>
-<tr><th>Remember me</th><td class="radio"><label><input type="radio" name="r1"> Enable</label><label><input type="radio" name="r1" checked> Disable</label><p class="desc">Show a Remember me checkbox on the passkey sign-in form. It starts unchecked.</p></td></tr>
+<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="po"> Enable</label><label><input type="radio" name="po" checked> Disable</label><p class="desc">Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.</p><div class="notice warn"><p>3 members have no working passkey for this site and cannot sign in while Passkey only mode is on.</p><p><a href="#">View these members</a></p></div></td></tr>
+<tr><th>Remember me</th><td class="radio"><label><input type="radio" name="r1"> Enable</label><label><input type="radio" name="r1" checked> Disable</label><p class="desc">Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked.</p></td></tr>
 <tr><th>Block password resets</th><td><select><option>No</option><option>Except for administrators</option><option>For everyone</option></select><p class="desc">Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles.</p></td></tr>
 <tr><th>After registration</th><td><select><option>WordPress default</option><option>Sign in and add a passkey</option></select><p class="desc">New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in.</p><p class="desc">This has no effect until Anyone can register is turned on in General settings.</p></td></tr>
 </table>
@@ -377,20 +363,22 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="notice ok"><p>Settings saved</p></div>
 <div class="notice err"><p>Settings could not be saved.</p></div>
 <table class="form"><tr><th>Passkey domain</th><td><input type="text" value="127.0.0.1"><p class="desc azwp-err" style="color:var(--err)">Check this field and save again.</p></td></tr>
-<tr><th>Default sign-in method</th><td><select><option>Passkey only mode</option></select><p class="desc" style="color:var(--err)">Add a working passkey to your own account before turning on Passkey only mode.</p></td></tr></table>
-<p class="note">The domain error also covers IP addresses. The second message appears when the saving administrator has no working passkey. Both come back via redirect with status and invalid query args.</p>
+<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" checked> Enable</label><label><input type="radio"> Disable</label><p class="desc" style="color:var(--err)">Add a working passkey to your own account before turning on Passkey only mode.</p><p class="desc" style="color:var(--err)">Confirm that the accounts listed above will not be able to sign in, then save again.</p></td></tr>
+<tr><th>Passkey domain</th><td><input type="text" value="example.org"><p class="desc" style="color:var(--err)">Passkey only mode is on, and changing this would stop every passkey from working. Turn Passkey only mode off first.</p></td></tr></table>
+<div class="email">Browser confirm: 3 accounts have no working passkey and will not be able to sign in. Turn on Passkey only mode anyway?   Cancel   OK</div>
+<p class="note">The domain error also covers IP addresses. The first Passkey only message appears when the saving administrator has no working passkey. The second appears when the confirmation was skipped or the listed accounts changed since the page loaded. The domain message appears when a save would change the Passkey domain or empty the Website name while the mode stays on. Both come back via redirect with status and invalid query args. Cancel in the browser dialog keeps the mode off without saving.</p>
 </div>
 
 <div data-v="Not configured">
 <div class="notice err"><p>Passkeys are unavailable. Check that this site uses HTTPS and that the server supports OpenSSL, P-256 and SHA-256. HTTP is supported only on localhost.</p></div>
 <table class="form"><tr><th>Website name</th><td><input type="text"><p>Enter the website name and passkey domain before adding passkeys.</p></td></tr>
-<tr><th>Default sign-in method</th><td><select><option>Prefer passkey</option><option>Prefer password</option><option disabled>Passkey only mode (disabled)</option></select></td></tr></table>
+<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" disabled> Enable</label><label><input type="radio" checked> Disable</label></td></tr></table>
 </div>
 
 <div data-v="Multisite site screen">
-<table class="form"><tr><th>Default sign-in method</th><td><p>Set in network settings: Prefer passkey</p><a href="#">Network settings</a></td></tr>
+<table class="form"><tr><th>Passkey only mode</th><td><p>Set in network settings: Disabled</p><a href="#">Network settings</a></td></tr>
 <tr><th>Remember me</th><td>Enable / Disable radios</td></tr><tr><th>Block password resets</th><td>select</td></tr></table>
-<p class="note">On multisite the preferred method is network-owned and shown read-only, and After registration is hidden.</p>
+<p class="note">On multisite Passkey only mode is network-owned and shown read-only with this site's readiness count, and After registration is hidden.</p>
 </div>
 </div></div>
 </section>
@@ -401,9 +389,9 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <p class="lead">/wp-admin/network/settings.php?page=azwp-passkeys</p>
 <div class="stage" style="border-style:solid">
 <h3 style="margin-top:0">Sign-in</h3>
-<table class="form"><tr><th>Default sign-in method</th><td><select><option>Prefer passkey</option><option>Prefer password</option><option>Passkey only mode</option></select><p class="desc">Passkey only mode turns off password sign-in. Make sure each account has a working passkey first.</p></td></tr></table>
+<table class="form"><tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="npo"> Enable</label><label><input type="radio" name="npo" checked> Disable</label><p class="desc">Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.</p><div class="notice warn"><p>5 accounts have no working passkey on at least one site and cannot sign in there while Passkey only mode is on.</p><p><a href="#">Main site: 3</a><br><a href="#">Shop: 2</a></p></div></td></tr></table>
 <p><button class="btn primary">Save changes</button></p>
-<p class="note">Only one network-owned control is visible. Saving "only" requires the saving super admin to hold a working passkey.</p>
+<p class="note">Only one network-owned control is visible. Turning it on requires the saving super admin to hold a working passkey, and a confirmation while any account lacks one.</p>
 </div>
 </section>
 
@@ -420,7 +408,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <pre>{"event":"authentication","result":"ok","actor_id":null,"target_id":3,"correlation_id":"9f2c…"}
 {"event":"credential_test","result":"ok","actor_id":3,"target_id":3}
 {"event":"registration","result":"credential_exists","actor_id":3,"target_id":3}
-{"event":"settings_saved","detail":{"setting":"preferred_login","previous":"passkey","value":"only"}}</pre>
+{"event":"settings_saved","detail":{"setting":"passkey_only","previous":false,"value":true}}</pre>
 <p><button class="btn">Clear logs</button></p><div class="status okk">Logs cleared.</div>
 <p class="desc">Logs remain until cleared. Passwords and passkey responses are not logged.</p><p><a href="#">Back to settings</a></p>
 </div>
@@ -443,6 +431,29 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="notice warn"><p>Password sign-in is disabled for Alice Smith and no passkey has been added on this site. <a href="#">Add passkey</a></p><p>Passkeys from other sites in this network may still work.</p></div>
 <p class="note">Shown on every admin screen to the owner, and to users with edit_users on that user's Edit screen. The second line only appears on path-based multisite.</p>
 </div>
+<div data-v="Setup link email and page">
+<div class="email">Subject: [My Site] Add a passkey to your account
+
+Carol Admin sent you a link to add a passkey to your account on My Site.
+
+Open it on the device that will store the passkey. It works once and expires in one hour.
+
+https://example.com/wp-login.php?action=azwp_passkeys_setup&amp;user=7&amp;token=…
+
+If you did not expect this, ignore this email. Nothing changes until the link is used.</div>
+<div class="loginbg"><div class="login"><div class="logo">WP</div><div class="card"><p>Add a passkey for bob. Confirm with your fingerprint, face, or device PIN.</p><button class="btn primary full">Add passkey</button></div></div></div>
+<p class="note">After the passkey is added the browser goes to the sign-in page, which says "Passkey added. Sign in with it now." A used, replaced or expired link shows "This passkey setup link has expired or was already used. Ask a site administrator for a new one." The welcome email in Passkey only mode has no set-password link and points to this flow.</p>
+</div>
+<div data-v="Welcome email in Passkey only mode">
+<div class="email">Subject: [My Site] Login Details
+
+Username: bob
+
+Accounts on this site sign in with passkeys only, so there is no password to set. Ask a site administrator to send you a passkey setup link.
+
+https://example.com/wp-login.php</div>
+<p class="note">WordPress sends this to a new account while Passkey only mode is on, from public registration or Add New User. It replaces WordPress's set-password text, so it has no reset link. With the mode off, WordPress's normal welcome email is unchanged.</p>
+</div>
 <div data-v="Passkey added email">
 <div class="email">Subject: [My Site] A passkey was added to your account
 
@@ -450,6 +461,7 @@ A passkey named “Work phone” was added to your account on My Site.
 
 It was added while you were signed in.
 (or: It was added by Carol Admin.)
+(or: It was added with a setup link sent by Carol Admin.)
 
 If you did not expect this, remove the passkey and change your password:
 

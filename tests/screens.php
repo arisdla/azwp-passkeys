@@ -24,7 +24,14 @@ try {
     $html=$screens->render_shortcode(['traditional'=>'false','username'=>'<script>bad</script>'],null,'azwp_pk_login');
     $assert(!str_contains($html,'<script>bad</script>')&&!str_contains($html,'name="pwd"'),'Login attribute escaped and password form omitted');
     $html=$screens->render_shortcode([],null,'azwp_pk_login');
-    $assert(str_contains($html,'name="pwd"'),'Default frontend login contains native password form');
+    $assert(str_contains($html,'name="pwd"')&&str_contains($html,'data-action="login"')&&!str_contains($html,'switch-login'),'Default frontend login shows the password form and a passkey button, with no switch');
+    $policy_scope=is_multisite()?['network',(int)get_current_network_id()]:['site',(int)get_current_blog_id()];
+    $storage->save_settings($policy_scope[0],$policy_scope[1],['passkey_only'=>true]);
+    try {
+        $html=$screens->render_shortcode([],null,'azwp_pk_login');
+        $assert(!str_contains($html,'name="pwd"')&&str_contains($html,'data-action="login"'),'Passkey only mode shows only the passkey button');
+        $assert(in_array('azwp-passkeys-only',apply_filters('login_body_class',[],'login'),true),'Passkey only mode marks the native login page');
+    } finally { $storage->save_settings($policy_scope[0],$policy_scope[1],['passkey_only'=>false]); }
     wp_set_current_user($id);
     $assert($screens->render_shortcode([],null,'azwp_pk_login')==='','Login hidden for signed-in reader');
     $assert($screens->render_shortcode(['auto_hide'=>'false'],null,'azwp_pk_login')!=='','Explicit signed-in login remains visible');
@@ -42,6 +49,7 @@ try {
     $site=$render(fn()=> $screens->render_site_settings());
     foreach (['require_user_verification','authenticator_attachment','name="logging"','name="terminology"','name="login_identifier"','name="username_free"'] as $removed) $assert(!str_contains($site,$removed),'Site settings excludes '.$removed);
     $assert(str_contains($site,'Passkey diagnostics'),'Site settings links separate diagnostics');
+    $assert(str_contains($site,'name="passkey_only"')===!is_multisite()&&!str_contains($site,'Prefer password'),'Passkey only mode is an on/off switch with no sign-in preference');
     $assert(str_contains($site,'name="after_registration"')===!is_multisite(),'After registration is offered only on single-site');
     $diagnostics=$render(fn()=> $screens->render_diagnostics());
     $assert(str_contains($diagnostics,'name="logging"')&&str_contains($diagnostics,'Clear logs'),'Diagnostics owns logging control and clear action');

@@ -2,7 +2,7 @@
 /** Isolated observable-behavior tests; no WordPress installation or database writes. */
 namespace AZWP\Passkeys {
     class Settings {
-        public array $values = ['preferred_login' => 'passkey', 'reset_restriction' => 'off', 'after_registration' => 'default'];
+        public array $values = ['passkey_only' => false, 'reset_restriction' => 'off', 'after_registration' => 'default'];
         public function get_effective(int $site): array { return $this->values; }
     }
     class Storage {
@@ -72,6 +72,7 @@ namespace {
     function is_multisite(): bool { return false; }
     function admin_url($path = ''): string { return 'https://site.test/wp-admin/' . $path; }
     function home_url(): string { return 'https://site.test/'; }
+    function wp_login_url(): string { return 'https://site.test/wp-login.php'; }
     function wp_validate_redirect($value, $fallback): string { return str_starts_with($value, 'https://site.test/') ? $value : $fallback; }
     function wp_set_current_user($id): void { $GLOBALS['actor'] = $id; }
     function wp_unslash($value) { return $value; }
@@ -134,11 +135,12 @@ namespace {
     }, 50);
     add_action('wp_login', function () use (&$late_success_events) { $late_success_events++; }, 10, 2);
     check(!complete($auth)['ok'] && $late_success_events === 0 && $GLOBALS['cookies'] === 0 && WP_Session_Tokens::$destroyed === ['new-token'], 'Dynamically added terminal cookie rejection cannot report login success.');
-    [$auth, $settings] = setup_case(); $settings->values['preferred_login'] = 'only';
+    [$auth, $settings] = setup_case(); $settings->values['passkey_only'] = true;
     check(is_wp_error($auth->check_password_login($GLOBALS['users'][1], 'password')), 'Passkey only mode rejects password authentication.');
     do_action('application_password_did_authenticate', $GLOBALS['users'][1]);
     check($auth->check_password_result($GLOBALS['users'][1], 'user1', 'app') instanceof WP_User, 'Application-password authentication remains allowed.');
     check(is_wp_error($auth->check_password_result($GLOBALS['users'][1], 'user1', 'password')), 'Application-password exemption is consumed, not a persistent bypass.');
+    $settings->values['passkey_only'] = false;
     $settings->values['reset_restriction'] = 'except_admin';
     check($auth->allow_password_reset(true, 1) === false && $auth->filter_reset_url('link') === '', 'Anonymous reset is blocked and reset link hidden.');
     $GLOBALS['admin'] = true;
@@ -146,6 +148,12 @@ namespace {
     check($auth->allow_password_reset(false, 1) === false, 'Reset integration preserves another denial.');
     $settings->values['reset_restriction'] = 'everyone';
     check(!$auth->allow_password_reset(true, 1), 'Everyone mode also denies administrator reset permission.');
+    $settings->values['reset_restriction'] = 'off'; $settings->values['passkey_only'] = true; $GLOBALS['admin'] = true;
+    check(!$auth->allow_password_reset(true, 1) && $auth->filter_reset_url('link') === '', 'Passkey only mode closes resets for everyone even when resets are allowed.');
+    $welcome = $auth->filter_welcome_email(['to' => 'a@example.test', 'subject' => 'Welcome', 'message' => "To set your password, visit wp-login.php?action=rp&key=k"], $GLOBALS['users'][1]);
+    check(!str_contains($welcome['message'], 'action=rp') && str_contains($welcome['message'], 'passkey setup link'), 'Passkey only welcome email has no set-password link.');
+    $settings->values['passkey_only'] = false;
+    check($auth->filter_welcome_email(['message' => 'keep'], $GLOBALS['users'][1])['message'] === 'keep', 'Welcome email is unchanged when passwords are allowed.');
     check(empty($GLOBALS['wp_filter']['show_password_fields']), 'Profile password fields are not disabled.');
 
     $registration_case = function (string $mode = 'add_passkey'): array {
@@ -179,7 +187,7 @@ namespace {
     check($auth->registration_sign_in(1) === '' && $results($storage) === ['cross_origin'], 'An unconfigured site has no permitted origin.');
     [$auth, , , $storage] = $registration_case(); $GLOBALS['actor'] = 2;
     check($auth->registration_sign_in(1) === '' && $GLOBALS['actor'] === 2 && $GLOBALS['cookies'] === 0 && !$storage->logs, 'An existing session is never replaced at registration.');
-    [$auth, $settings] = $registration_case(); $settings->values['preferred_login'] = 'only';
+    [$auth, $settings] = $registration_case(); $settings->values['passkey_only'] = true;
     check($auth->registration_sign_in(1) !== '', 'Passkey only mode does not block passwordless registration sign-in.');
     check(is_wp_error($auth->check_password_login($GLOBALS['users'][1], 'password')), 'Registration exemption does not outlive the sign-in.');
     [$auth, , , $storage] = $registration_case();

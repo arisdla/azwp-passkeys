@@ -16,7 +16,7 @@
     };
     function setPagePending(value) {
         pending = value;
-        const buttons = [...document.querySelectorAll('.azwp-passkeys [data-action="register"],.azwp-passkeys [data-action="login"],.azwp-passkeys [data-action^="test"],.azwp-passkeys [data-action="rename"],.azwp-passkeys [data-action="remove"]')];
+        const buttons = [...document.querySelectorAll('.azwp-passkeys [data-action="register"],.azwp-passkeys [data-action="setup"],.azwp-passkeys [data-action="send-setup"],.azwp-passkeys [data-action="login"],.azwp-passkeys [data-action^="test"],.azwp-passkeys [data-action="rename"],.azwp-passkeys [data-action="remove"]')];
         const passwordSubmit = document.querySelector('[data-password-form] input[type="submit"]');
         if (passwordSubmit) buttons.push(passwordSubmit);
         buttons.forEach(button => { if (value) { originalDisabled.set(button, button.disabled); button.disabled = true; } else { button.disabled = originalDisabled.get(button) || false; originalDisabled.delete(button); } });
@@ -55,7 +55,7 @@
     const supported = () => !!(window.isSecureContext && window.PublicKeyCredential && navigator.credentials && config.server_ready);
     const createCredential = async options => serialize(await navigator.credentials.create({ publicKey: publicOptions(options) }));
     const getAssertion = async options => serialize(await navigator.credentials.get({ publicKey: publicOptions(options) }));
-    const rootFor = node => node.closest('[data-azwp-passkeys="register"],[data-azwp-passkeys="test"],[data-azwp-passkeys="login"],[data-azwp-passkeys="list"]');
+    const rootFor = node => node.closest('[data-azwp-passkeys="register"],[data-azwp-passkeys="test"],[data-azwp-passkeys="login"],[data-azwp-passkeys="list"],[data-azwp-passkeys="setup"]');
     async function refreshCredentialList(root) {
         if (root.dataset.canManage !== '1') return;
         const table = root.querySelector('table');
@@ -87,13 +87,21 @@
         }
     }
     const refreshLists = target => Promise.all([...document.querySelectorAll('[data-azwp-passkeys="list"]')].filter(root => root.dataset.target === String(target)).map(refreshCredentialList));
+    // With a password form on the page, its own Remember Me box applies to passkey sign-in too.
+    function rememberLogin(root) {
+        const own = root.querySelector('[data-field="remember"]');
+        if (own) return own.checked;
+        if (!config.policy.remember_login) return false;
+        const scope = root.closest('form') || root.closest('.azwp-passkeys-login-wrapper');
+        return !!scope?.querySelector('input[name="rememberme"]')?.checked;
+    }
     async function ceremony(root, action) {
         if (pending) return;
         if (!supported()) { status(root, __('Passkeys are unavailable. Use a supported browser and a secure connection.', 'azwp-passkeys'), true); return; }
-        const isLogin = action === 'login'; const register = action === 'register';
-        const prefix = register ? 'register' : isLogin ? 'login' : 'test';
-        const nonce = register ? root.dataset.nonce : '';
-        const payload = register ? { target_id: root.dataset.target } : isLogin ? { remember: !!root.querySelector('[data-field="remember"]')?.checked, redirect_to: (root.dataset.surface === 'frontend' ? document.querySelector('[data-field="redirect_to"]') : root.querySelector('[data-field="redirect_to"]'))?.value || '', surface: root.dataset.surface } : { target_id: root.dataset.target };
+        const isLogin = action === 'login'; const setup = action === 'setup'; const register = action === 'register' || setup;
+        const prefix = setup ? 'setup' : register ? 'register' : isLogin ? 'login' : 'test';
+        const nonce = register && !setup ? root.dataset.nonce : '';
+        const payload = setup ? { user_id: root.dataset.user, token: root.dataset.token } : register ? { target_id: root.dataset.target } : isLogin ? { remember: rememberLogin(root), redirect_to: (root.dataset.surface === 'frontend' ? document.querySelector('[data-field="redirect_to"]') : root.querySelector('[data-field="redirect_to"]'))?.value || '', surface: root.dataset.surface } : { target_id: root.dataset.target };
         setPagePending(true); status(root, __('Preparing…', 'azwp-passkeys'));
         let stage = 'options';
         try {
@@ -104,20 +112,27 @@
             const credential = register ? await createCredential(issued.publicKey) : await getAssertion(issued.publicKey);
             status(root, register ? __('Saving…', 'azwp-passkeys') : __('Verifying…', 'azwp-passkeys'));
             stage = 'completion';
-            const result = await requestAction(prefix + '_complete', { attempt_id: issued.attempt_id, credential }, nonce, true);
+            const result = await requestAction(prefix + '_complete', { attempt_id: issued.attempt_id, credential, ...(setup ? { token: root.dataset.token } : {}) }, nonce, true);
             status(root, register ? __('Passkey added.', 'azwp-passkeys') : isLogin ? __('Passkey verified.', 'azwp-passkeys') : sprintf(__('Passkey test passed for “%s”.', 'azwp-passkeys'), result.name));
-            if (!isLogin) await refreshLists(root.dataset.target);
-            if (isLogin && typeof result.redirect_to === 'string') window.setTimeout(() => window.location.assign(result.redirect_to), 200);
+            if (!isLogin && !setup) await refreshLists(root.dataset.target);
+            if ((isLogin || setup) && typeof result.redirect_to === 'string') window.setTimeout(() => window.location.assign(result.redirect_to), 200);
         } catch (error) {
             const cancelled = error.name === 'NotAllowedError' || error.name === 'AbortError';
             // A cancelled sign-in picker usually means no passkey on this device, so point to the password when policy allows one.
-            let message = cancelled ? (isLogin && config.policy.preferred_login !== 'only' ? __('Passkey prompt cancelled. Try again or use a password.', 'azwp-passkeys') : __('Passkey prompt cancelled. Try again.', 'azwp-passkeys')) : (error.server || error.code === 'network_error') ? error.message : __('The passkey could not be verified. Try again.', 'azwp-passkeys');
+            let message = cancelled ? (isLogin && !config.policy.passkey_only ? __('Passkey prompt cancelled. Try again or use a password.', 'azwp-passkeys') : __('Passkey prompt cancelled. Try again.', 'azwp-passkeys')) : (error.server || error.code === 'network_error') ? error.message : __('The passkey could not be verified. Try again.', 'azwp-passkeys');
             if (stage === 'options' && !error.server && error.code !== 'network_error') message = __('The passkey request could not be started. Try again.', 'azwp-passkeys');
             status(root, message, true);
-            if (register) await refreshLists(root.dataset.target);
+            if (register && !setup) await refreshLists(root.dataset.target);
         } finally {
             setPagePending(false);
         }
+    }
+    async function sendSetup(root) {
+        if (pending) return;
+        setPagePending(true);
+        try { await requestAction('send_setup', { target_id: root.dataset.target }, root.dataset.nonce, true); status(root, __('Setup link sent to the account email address. It expires in one hour.', 'azwp-passkeys')); }
+        catch (error) { status(root, error.message, true); }
+        finally { setPagePending(false); }
     }
     async function manage(root, button) {
         if (pending) return;
@@ -130,11 +145,11 @@
         catch (error) { status(root, error.message, true); }
         finally { setPagePending(false); await refreshCredentialList(root); }
     }
-    document.addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button || button.disabled) return; const root = rootFor(button); if (!root) return; const action = button.dataset.action; if (['register','login','test'].includes(action)) { event.preventDefault(); ceremony(root, action); } if (['rename','remove'].includes(action)) { event.preventDefault(); manage(root, button); } });
+    document.addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button || button.disabled) return; const root = rootFor(button); if (!root) return; const action = button.dataset.action; if (['register','login','test','setup'].includes(action)) { event.preventDefault(); ceremony(root, action); } if (action === 'send-setup') { event.preventDefault(); sendSetup(root); } if (['rename','remove'].includes(action)) { event.preventDefault(); manage(root, button); } });
     function initialize() {
         document.querySelectorAll('[data-azwp-passkeys="list"]').forEach(refreshCredentialList);
-        if (!supported()) document.querySelectorAll('[data-azwp-passkeys="register"],[data-azwp-passkeys="test"],[data-azwp-passkeys="login"]').forEach(root => {
-            root.querySelectorAll('[data-action="register"],[data-action="login"],[data-action^="test"]').forEach(button => { button.disabled = true; });
+        if (!supported()) document.querySelectorAll('[data-azwp-passkeys="register"],[data-azwp-passkeys="test"],[data-azwp-passkeys="login"],[data-azwp-passkeys="setup"]').forEach(root => {
+            root.querySelectorAll('[data-action="register"],[data-action="setup"],[data-action="login"],[data-action^="test"]').forEach(button => { button.disabled = true; });
             if (root.querySelector('[data-action]')) status(root, __('Passkeys are unavailable. Use a supported browser and a secure connection.', 'azwp-passkeys'), true);
         });
     }

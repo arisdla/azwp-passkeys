@@ -23,7 +23,7 @@ pnpm install
 pnpm start
 ```
 
-The dev site is http://localhost:18765 (`admin` / `password`). The tests use a separate site at http://localhost:18766.
+The dev site is http://localhost:8080 (`admin` / `password`). The tests use a separate site at http://localhost:8090.
 
 | Command | Does |
 | --- | --- |

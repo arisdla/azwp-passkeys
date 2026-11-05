@@ -6,6 +6,7 @@ final class Passkeys
 {
     public const ATTEMPT_TTL_SECONDS = 90;
     public const ANONYMOUS_ATTEMPTS_PER_MINUTE = 30;
+    public const SETUP_LINK_TTL_SECONDS = 3600;
     public function __construct(private Settings $settings, private Storage $storage, private WebAuthn $webauthn) {}
     private function ok(array $data = []): array { return ['ok'=>true,'code'=>'ok','data'=>$data,'message'=>'']; }
     private function error(string $code): array { return ['ok'=>false,'code'=>$code,'data'=>[],'message'=>'']; }
@@ -135,6 +136,11 @@ final class Passkeys
     {
         $target = $this->target($context, $input);
         if (!$target || !$this->authorized($context, $target)) { return $this->error('forbidden'); }
+        $context['purpose'] = 'register';
+        return $this->issue_registration($context, $target);
+    }
+    private function issue_registration(array $context, int $target): array
+    {
         $config = $this->configuration($context['site_id']);
         if (!$config['ok']) { return $config; }
         $config = $config['data'];
@@ -144,7 +150,6 @@ final class Passkeys
         if (!$credentials['ok']) { return $credentials; }
         $user = get_userdata($target);
         if (!$user) { return $this->error('forbidden'); }
-        $context['purpose'] = 'register';
         return $this->issue($context, $target, [
             'rp_id'=>$config['rp_id'],'rp_name'=>$config['rp_name'],'origins'=>$config['origins'],'user_verification'=>'required',
             'user_handle'=>$identity['data']['identity']['handle'],'user_name'=>$user->user_login,'user_display_name'=>$user->display_name,
@@ -224,8 +229,91 @@ final class Passkeys
             return $this->ok(['credential'=>$this->summary($result['data']['credential'], $config['data'], true)]);
         } finally { $this->storage->delete_attempt($input['attempt_id']); }
     }
+    /** Emails the owner a one-time link that can only add a passkey. The admin never sees the link, so the admin cannot add their own device to the account. */
+    public function send_setup_link(array $context, int $target): array
+    {
+        if (!$this->authorized($context, $target) || $target === (int) $context['actor_id'] || !$this->same_session($context)) { return $this->error('forbidden'); }
+        if (!$this->configuration($context['site_id'])['ok']) { return $this->error('not_configured'); }
+        $owner = get_userdata($target);
+        if (!$owner || !is_email($owner->user_email)) { return $this->error('invalid_request'); }
+        $token = random_bytes(32);
+        $url = add_query_arg(['action'=>'azwp_passkeys_setup', 'user'=>$target, 'token'=>WebAuthn::encode($token)], wp_login_url());
+        $switched = switch_to_user_locale($target);
+        try {
+            $site = wp_specialchars_decode((string) get_option('blogname'), ENT_QUOTES);
+            $actor = get_userdata((int) $context['actor_id']);
+            $lines = [
+                sprintf(__('%1$s sent you a link to add a passkey to your account on %2$s.', 'azwp-passkeys'), $actor ? $actor->display_name : $site, $site),
+                __('Open it on the device that will store the passkey. It works once and expires in one hour.', 'azwp-passkeys'),
+                $url,
+                __('If you did not expect this, ignore this email. Nothing changes until the link is used.', 'azwp-passkeys'),
+            ];
+            $sent = wp_mail($owner->user_email, sprintf(__('[%s] Add a passkey to your account', 'azwp-passkeys'), $site), implode("\n\n", $lines));
+        } finally {
+            if ($switched) { restore_previous_locale(); }
+        }
+        // Only a delivered link replaces the pending one, so a failed send leaves the owner's earlier link working.
+        if (!$sent) { return $this->error('mail_failed'); }
+        $saved = $this->storage->save_setup_link($target, ['hash'=>hash('sha256', $token), 'expires_at'=>time()+self::SETUP_LINK_TTL_SECONDS, 'issued_by'=>(int) $context['actor_id'], 'site_id'=>$context['site_id']]);
+        return $saved['ok'] ? $this->ok(['sent'=>true]) : $saved;
+    }
+    private static function setup_hash(mixed $token): ?string
+    {
+        if (!is_string($token)) { return null; }
+        try { $bytes = WebAuthn::decode($token); } catch (\Throwable) { return null; }
+        return strlen($bytes) === 32 ? hash('sha256', $bytes) : null;
+    }
+    /** Checks a setup link without using it up, because mail scanners open links before people do. */
+    public function setup_link_valid(int $target, mixed $token, int $site_id): bool
+    {
+        $hash = self::setup_hash($token);
+        try { $link = $hash === null ? null : $this->storage->get_setup_link($target); } catch (\Throwable) { return false; }
+        return $link !== null && hash_equals($link['hash'], $hash) && $link['site_id'] === $site_id && $link['expires_at'] > time() && (bool) get_userdata($target);
+    }
+    public function setup_options(array $context, array $input): array
+    {
+        if (!$context['actor_id'] && !$this->anonymous_allowed()) { return $this->error('rate_limited'); }
+        $target = self::numeric_id($input['user_id'] ?? null);
+        if (!$target || ($context['actor_id'] && (int) $context['actor_id'] !== $target)) { return $this->error('forbidden'); }
+        if (!$this->setup_link_valid($target, $input['token'] ?? null, $context['site_id'])) { return $this->error('attempt_unavailable'); }
+        $context['purpose'] = 'setup';
+        return $this->issue_registration($context, $target);
+    }
+    /** Consuming the link and saving the passkey share one owner transaction, so a link is used up only when a passkey is saved. */
+    public function complete_setup(array $context, array $input): array
+    {
+        $context['purpose'] = 'setup';
+        $hash = self::setup_hash($input['token'] ?? null);
+        if ($hash === null || !is_string($input['attempt_id'] ?? null) || !is_array($input['credential'] ?? null)) { return $this->error('invalid_request'); }
+        $bound = $this->bound_attempt($context, $input['attempt_id']);
+        if (!$bound['ok']) { return $bound; }
+        $attempt = $bound['data']['attempt']; $target = (int) $attempt['target_id'];
+        if ($context['actor_id'] && (int) $context['actor_id'] !== $target) { return $this->error('forbidden'); }
+        $claim = $this->claim($context, $input['attempt_id']);
+        if (!$claim['ok']) { return $claim; }
+        try {
+            $config = $this->current_configuration($attempt);
+            if (!$config['ok']) { return $config; }
+            $verified = $this->webauthn->verify_registration($attempt, $input['credential']);
+            if (!$verified['ok']) { return $verified; }
+            $record = $verified['data'] + ['user_id'=>$target,'site_id'=>$context['site_id'],'name'=>$attempt['issued']['name'],'created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
+            $inputs = $this->configuration_inputs($context['site_id']);
+            $link = null;
+            $result = $this->storage->with_owner_lock($target, function(Storage $storage) use ($attempt,$record,$inputs,$context,$target,$hash,&$config,&$link): array {
+                if (!$storage->account_exists($target)) { return $this->error('forbidden'); }
+                $link = $storage->consume_setup_link($target, $hash, $context['site_id']);
+                if (!$link) { return $this->error('attempt_unavailable'); }
+                $config = $this->check_issued_configuration($this->locked_configuration($storage, $inputs), $attempt['issued']);
+                if (!$config['ok']) { return $config; }
+                return $storage->insert_credential($record);
+            });
+            if (!$result['ok']) { return $result; }
+            $this->notify_added($target, (int) $link['issued_by'], $attempt['issued']['name'], true);
+            return ['ok'=>true,'code'=>'ok','message'=>'','subject_id'=>$target,'data'=>['redirect_to'=>add_query_arg('azwp_passkeys_setup', 'done', wp_login_url())]];
+        } finally { $this->storage->delete_attempt($input['attempt_id']); }
+    }
     /** Tells the owner about every confirmed new passkey. Mail failure never changes the registration result. */
-    private function notify_added(int $owner_id, int $actor_id, string $name): void
+    private function notify_added(int $owner_id, int $actor_id, string $name, bool $setup_link = false): void
     {
         $owner = get_userdata($owner_id);
         if (!$owner || !is_email($owner->user_email)) { return; }
@@ -235,7 +323,7 @@ final class Passkeys
             $actor = $actor_id !== $owner_id ? get_userdata($actor_id) : false;
             $lines = [
                 sprintf(__('A passkey named “%1$s” was added to your account on %2$s.', 'azwp-passkeys'), $name, $site),
-                $actor ? sprintf(__('It was added by %s.', 'azwp-passkeys'), $actor->display_name) : __('It was added while you were signed in.', 'azwp-passkeys'),
+                $setup_link ? sprintf(__('It was added with a setup link sent by %s.', 'azwp-passkeys'), get_userdata($actor_id) ? get_userdata($actor_id)->display_name : $site) : ($actor ? sprintf(__('It was added by %s.', 'azwp-passkeys'), $actor->display_name) : __('It was added while you were signed in.', 'azwp-passkeys')),
                 __('If you did not expect this, remove the passkey and change your password:', 'azwp-passkeys'),
                 admin_url('profile.php#azwp-passkeys'),
             ];
@@ -339,7 +427,13 @@ final class Passkeys
     private function usable_after_removal(int $target,int $record_id,array $rows,array $configuration): bool
     {
         foreach($rows as $row) { if ((int)$row['id']!==$record_id && $this->eligible($row,$configuration)) { return true; } }
-        return $configuration['settings']['preferred_login']!=='only' && !$this->storage->password_disabled($target) && $this->storage->get_account_password($target)!=='';
+        return empty($configuration['settings']['passkey_only']) && !$this->storage->password_disabled($target) && $this->storage->get_account_password($target)!=='';
+    }
+    /** Site members who could not sign in under Passkey only mode, or null when passkeys are not configured. */
+    public function members_without_passkey(int $site_id): ?array
+    {
+        $config=$this->configuration($site_id); if (!$config['ok']) { return null; }
+        try { return $this->storage->members_without_passkey($site_id,$config['data']['rp_id']); } catch (\Throwable) { return null; }
     }
     /** Whether the account holds a passkey that works under the site's current settings. */
     public function has_usable_credential(int $user_id,int $site_id): bool

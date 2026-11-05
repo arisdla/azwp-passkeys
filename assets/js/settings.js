@@ -1,7 +1,18 @@
 (function () {
     'use strict';
     const client = window.azwpPasskeys;
-    const { __ } = wp.i18n;
+    const { __, _n, sprintf } = wp.i18n;
+    document.querySelectorAll('[data-passkey-only-readiness]').forEach(notice => {
+        const form = notice.closest('form');
+        const field = form?.querySelector('input[type="hidden"][name="passkey_only_confirmed"]');
+        if (!field) return;
+        form.addEventListener('submit', event => {
+            if (!form.querySelector('input[name="passkey_only"][value="1"]')?.checked) return;
+            const total = Number(notice.dataset.passkeyOnlyReadiness);
+            if (window.confirm(sprintf(_n('%d account has no working passkey and will not be able to sign in. Turn on Passkey only mode anyway?', '%d accounts have no working passkey and will not be able to sign in. Turn on Passkey only mode anyway?', total, 'azwp-passkeys'), total))) field.value = notice.dataset.passkeyOnlyToken;
+            else event.preventDefault();
+        });
+    });
     const root = document.querySelector('[data-azwp-passkeys="diagnostics"]');
     if (!root) return;
     const viewer = root.querySelector('[data-log-view]');

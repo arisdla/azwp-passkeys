@@ -22,6 +22,7 @@ $lifecycle = new Lifecycle($settings, $storage);
 $lifecycle->activate(is_multisite());
 $assert(wp_next_scheduled('azwp_passkeys_cleanup') !== false, 'Activation schedules cleanup');
 $assert(!array_key_exists('username_free', $settings->get_effective(get_current_blog_id())), 'Settings have no usernameless switch');
+$assert($settings->get_effective(get_current_blog_id())['passkey_only'] === false, 'Passkey only mode is off after activation');
 $user_id = wp_insert_user(['user_login'=>'azwp_lifecycle_'.bin2hex(random_bytes(5)), 'user_pass'=>wp_generate_password(), 'role'=>'subscriber']);
 if (is_wp_error($user_id)) { throw new RuntimeException('Could not create test user'); }
 try {

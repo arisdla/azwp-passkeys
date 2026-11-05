@@ -24,7 +24,7 @@ foreach ([-7, -257] as $algorithm) {
 	$key = openssl_pkey_new($algorithm === -7 ? ['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1'] : ['private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => 2048]);
 	if (!$key) { throw new RuntimeException('Fixture key generation unavailable'); }
 	$details = openssl_pkey_get_details($key);
-	$cose = cose_fixture($algorithm === -7 ? [1 => 2, 3 => -7, -1 => 1, -2 => $details['ec']['x'], -3 => $details['ec']['y']] : [1 => 3, 3 => -257, -1 => $details['rsa']['n'], -2 => $details['rsa']['e']]);
+	$cose = $algorithm === -7 ? es256_cose($key) : cose_fixture([1 => 3, 3 => -257, -1 => $details['rsa']['n'], -2 => $details['rsa']['e']]);
 	foreach (['https://example.test:8443' => 'example.test', 'http://localhost' => 'localhost'] as $origin => $rp) {
 		$issued = ['rp_id' => $rp, 'rp_name' => 'Test', 'challenge' => random_bytes(32), 'origins' => [$origin], 'user_handle' => random_bytes(32), 'user_name' => 'alice', 'user_display_name' => 'Alice', 'exclude_credentials' => [], 'allow_credentials' => []];
 		$id = random_bytes(32); $aaguid = random_bytes(16); $tag = "$algorithm $origin ";

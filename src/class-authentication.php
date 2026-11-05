@@ -15,6 +15,7 @@ final class Authentication
     private array $session_origin = [];
     /** @var array<int, string> The session token of the auth cookie that identified each account in this request. */
     private array $cookie_tokens = [];
+    private ?int $welcome_user = null;
 
     public function __construct(
         private Settings $settings,
@@ -40,6 +41,9 @@ final class Authentication
         add_filter('lost_password_html_link', [$this, 'filter_reset_url'], PHP_INT_MAX);
         add_filter('get_user_option_default_password_nag', [$this, 'filter_password_nag']);
         add_filter('login_link_separator', [$this, 'filter_login_separator']);
+        add_filter('wp_new_user_notification_email', [$this, 'filter_welcome_email'], 10, 2);
+        // wp_new_user_notification() applies this filter right before it asks for the reset key it needs.
+        add_filter('wp_send_new_user_notification_to_user', [$this, 'begin_welcome'], PHP_INT_MAX, 2);
         // Runs after WordPress sends the new-user notification at priority 10.
         add_action('register_new_user', [$this, 'sign_in_registered_user'], PHP_INT_MAX);
     }
@@ -329,9 +333,20 @@ final class Authentication
         }
     }
 
+    public function begin_welcome($send, $user)
+    {
+        $this->welcome_user = $send && $user instanceof \WP_User ? (int) $user->ID : null;
+        return $send;
+    }
+
     public function allow_password_reset($allowed, $user_id)
     {
         if (is_wp_error($allowed) || !$allowed) {
+            return $allowed;
+        }
+        // The welcome email cannot be built without a key. The exemption covers only that one request, and the link stays unusable because the reset pages remain blocked.
+        if ($this->welcome_user === (int) $user_id) {
+            $this->welcome_user = null;
             return $allowed;
         }
         $mode = $this->reset_mode();
@@ -361,15 +376,29 @@ final class Authentication
         return $this->reset_mode() === 'off' ? $value : false;
     }
 
+    /** In Passkey only mode a reset produces a password that cannot sign in, so the plugin blocks resets for everyone. */
     private function reset_mode(): string
     {
-        return $this->settings->get_effective(get_current_blog_id())['reset_restriction'];
+        $policy = $this->settings->get_effective(get_current_blog_id());
+        return empty($policy['passkey_only']) ? $policy['reset_restriction'] : 'everyone';
+    }
+
+    /** Replaces the set-password link, which leads to a blocked reset page in Passkey only mode. */
+    public function filter_welcome_email($email, $user)
+    {
+        if (!is_array($email) || !$user instanceof \WP_User || empty($this->settings->get_effective(get_current_blog_id())['passkey_only'])) {
+            return $email;
+        }
+        $email['message'] = sprintf(__('Username: %s', 'azwp-passkeys'), $user->user_login) . "\r\n\r\n"
+            . __('Accounts on this site sign in with passkeys only, so there is no password to set. Ask a site administrator to send you a passkey setup link.', 'azwp-passkeys') . "\r\n\r\n"
+            . wp_login_url() . "\r\n";
+        return $email;
     }
 
     private function password_disabled(int $user_id): bool
     {
         $policy = $this->settings->get_effective(get_current_blog_id());
-        return $policy['preferred_login'] === 'only' || (bool) get_user_meta($user_id, 'azwp_passkeys_password_disabled', true);
+        return !empty($policy['passkey_only']) || (bool) get_user_meta($user_id, 'azwp_passkeys_password_disabled', true);
     }
 
     private function account_available($user): bool

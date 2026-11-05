@@ -9,7 +9,7 @@ final class Settings {
         return [
             'rp_name' => ['scope' => 'site', 'type' => 'string', 'default' => ''],
             'rp_id' => ['scope' => 'site', 'type' => 'host', 'default' => ''],
-            'preferred_login' => ['scope' => 'network', 'type' => 'choice', 'default' => 'passkey', 'choices' => ['passkey','password','only']],
+            'passkey_only' => ['scope' => 'network', 'type' => 'boolean', 'default' => false],
             'remember_login' => ['scope' => 'site', 'type' => 'boolean', 'default' => false],
             'reset_restriction' => ['scope' => 'site', 'type' => 'choice', 'default' => 'off', 'choices' => ['off','except_admin','everyone']],
             'after_registration' => ['scope' => 'site', 'type' => 'choice', 'default' => 'default', 'choices' => ['default','add_passkey'], 'single_site' => true],
