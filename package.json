@@ -2,8 +2,8 @@
 	"name": "azwp-passkeys",
 	"private": true,
 	"scripts": {
-		"start": "wp-env start",
-		"stop": "wp-env stop",
+		"start": "sh bin/mailpit.sh start && wp-env start",
+		"stop": "wp-env stop && sh bin/mailpit.sh stop",
 		"reset": "wp-env clean all",
 		"reset:tests": "wp-env clean tests",
 		"logs": "wp-env logs",

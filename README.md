@@ -25,6 +25,8 @@ pnpm start
 
 The dev site is http://localhost:8080 (`admin` / `password`). The tests use a separate site at http://localhost:8090.
 
+The dev site sends all its email to [Mailpit](https://mailpit.axllent.org/), which `pnpm start` runs in Docker. Read it at http://localhost:8025. The tests site does not use it.
+
 | Command | Does |
 | --- | --- |
 | `pnpm start` / `pnpm stop` | Start or stop both sites |
