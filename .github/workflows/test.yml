@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -93,7 +94,7 @@ jobs:
       - name: Warn when a newer WordPress is out than the tested version
         if: matrix.name == 'latest'
         run: |
-          tested=$(grep -oP '"tested":\s*"\K[\d.]+' .github/templates/azwp-passkeys.json.tpl)
+          tested=$(grep -oP 'Tested up to:\s*\K[\d.]+' azwp-passkeys.php)
           if ! latest=$(curl -fsS --max-time 20 https://api.wordpress.org/core/version-check/1.7/ | jq -er '.offers[0].version'); then
             echo "::warning::Could not fetch the latest WordPress version to compare with Tested up to $tested."
             exit 0

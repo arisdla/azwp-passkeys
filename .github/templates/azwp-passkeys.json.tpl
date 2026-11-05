@@ -4,9 +4,9 @@
 	"download_url": "${DOWNLOAD_URL}",
 
 	"homepage": "https://github.com/arisdla/azwp-passkeys",
-	"requires": "6.9",
-	"requires_php": "8.3",
-	"tested": "7.1",
+	"requires": "${REQUIRES}",
+	"requires_php": "${REQUIRES_PHP}",
+	"tested": "${TESTED}",
 	"last_updated": "${LAST_UPDATED}",
 
 	"author": "${AUTHOR}",

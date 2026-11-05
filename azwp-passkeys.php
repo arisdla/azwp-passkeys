@@ -6,6 +6,7 @@
  * Author: Arthur Z.
  * Requires at least: 6.9
  * Requires PHP: 8.3
+ * Tested up to: 7.1
  * License: GPL-3.0-or-later
  * Text Domain: azwp-passkeys
  * Domain Path: /languages

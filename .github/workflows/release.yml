@@ -9,7 +9,43 @@ permissions:
   contents: write
 
 jobs:
+  check:
+    name: Check versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Tag, header and constant must name one version
+        env:
+          TAG_VERSION: ${{ github.ref_name }}
+        run: |
+          PLUGIN_FILE="azwp-passkeys.php"
+          VERSION=$(grep -oP 'Version:\s*\K[\d.]+' "$PLUGIN_FILE")
+          CONSTANT=$(grep -oP "define\('AZWP_PASSKEYS_VERSION', '\K[\d.]+" "$PLUGIN_FILE")
+          if [ "${TAG_VERSION#v}" != "$VERSION" ] || [ "$CONSTANT" != "$VERSION" ]; then
+            echo "::error::Tag $TAG_VERSION, header Version $VERSION and AZWP_PASSKEYS_VERSION $CONSTANT must all match"
+            exit 1
+          fi
+          for field in 'Requires at least' 'Requires PHP' 'Tested up to'; do
+            if ! grep -qP "^ \* $field:\s*[\d.]+\s*$" "$PLUGIN_FILE"; then
+              echo "::error::The plugin header needs a '$field' line with a version number"
+              exit 1
+            fi
+          done
+          # Checkout creates the tag ref without the annotated tag object, so fetch the tag itself.
+          git fetch --force origin "refs/tags/$TAG_VERSION:refs/tags/$TAG_VERSION"
+          if ! git cat-file tag "$TAG_VERSION" >/dev/null 2>&1; then
+            echo "::error::$TAG_VERSION is not an annotated tag, so it has no changelog. Create it with git tag -a."
+            exit 1
+          fi
+
+  test:
+    needs: check
+    uses: ./.github/workflows/test.yml
+
   release:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -27,24 +63,24 @@ jobs:
         run: |
           PLUGIN_FILE="azwp-passkeys.php"
           VERSION=$(grep -oP 'Version:\s*\K[\d.]+' "$PLUGIN_FILE")
-          CONSTANT=$(grep -oP "define\('AZWP_PASSKEYS_VERSION', '\K[\d.]+" "$PLUGIN_FILE")
           NAME=$(grep -oP 'Plugin Name:\s*\K.+' "$PLUGIN_FILE")
           SHORT_DESC=$(grep -oP 'Description:\s*\K.+' "$PLUGIN_FILE")
           AUTHOR=$(grep -oP 'Author:\s*\K.+' "$PLUGIN_FILE")
-          VERSION_FROM_TAG="${TAG_VERSION#v}"
-
-          if [ "$VERSION_FROM_TAG" != "$VERSION" ] || [ "$CONSTANT" != "$VERSION" ]; then
-            echo "Tag $TAG_VERSION, header Version $VERSION and AZWP_PASSKEYS_VERSION $CONSTANT must all match"
-            exit 1
-          fi
+          REQUIRES=$(grep -oP 'Requires at least:\s*\K[\d.]+' "$PLUGIN_FILE")
+          REQUIRES_PHP=$(grep -oP 'Requires PHP:\s*\K[\d.]+' "$PLUGIN_FILE")
+          TESTED=$(grep -oP 'Tested up to:\s*\K[\d.]+' "$PLUGIN_FILE")
 
           # The annotated tag's message becomes the changelog.
           TAG_MESSAGE=$(git cat-file tag "$TAG_VERSION" | sed -n '/^$/,$p' | tail -n +2)
           TAG_MESSAGE=$(echo "$TAG_MESSAGE" | sed 's/^[-–*]\s*/- /')
+          echo "$TAG_MESSAGE" > "$RUNNER_TEMP/release-notes.md"
 
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "NAME=$NAME" >> $GITHUB_ENV
           echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
+          echo "REQUIRES=$REQUIRES" >> $GITHUB_ENV
+          echo "REQUIRES_PHP=$REQUIRES_PHP" >> $GITHUB_ENV
+          echo "TESTED=$TESTED" >> $GITHUB_ENV
 
           echo "SHORT_DESC<<EOF" >> $GITHUB_ENV
           echo "$SHORT_DESC" >> $GITHUB_ENV
@@ -84,16 +120,12 @@ jobs:
           cp build/azwp-passkeys-${VERSION}.zip build/azwp-passkeys.zip
           cp build/azwp-passkeys-${VERSION}.json build/azwp-passkeys.json
 
-      - name: Force update 'latest' tag to current commit
-        run: |
-          git tag -f latest
-          git push -f origin latest
-
       - name: Upload versioned release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
           name: Release v${{ env.VERSION }}
+          body_path: ${{ runner.temp }}/release-notes.md
           files: |
             build/azwp-passkeys-${{ env.VERSION }}.zip
             build/azwp-passkeys-${{ env.VERSION }}.json
@@ -106,3 +138,9 @@ jobs:
           files: |
             build/azwp-passkeys.zip
             build/azwp-passkeys.json
+
+      # Sites read the 'latest' release's files, not this tag; it is moved last only to keep the tag in step with them.
+      - name: Force update 'latest' tag to current commit
+        run: |
+          git tag -f latest
+          git push -f origin latest

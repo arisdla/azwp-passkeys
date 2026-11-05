@@ -9,6 +9,7 @@
 		"logs": "wp-env logs",
 		"wp": "wp-env run cli wp",
 		"i18n": "sh bin/i18n.sh",
+		"bump": "sh bin/bump.sh",
 		"dist": "sh bin/dist.sh",
 		"test": "pnpm reset:tests && pnpm test:js && pnpm test:php && pnpm test:http && pnpm test:browser",
 		"test:js": "node tests/client.cjs && node tests/blocks.cjs",

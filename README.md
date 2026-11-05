@@ -39,8 +39,9 @@ The dev site sends all its email to [Mailpit](https://mailpit.axllent.org/), whi
 | `pnpm test` | Reset the tests site and run every suite |
 | `pnpm test:js`, `test:php`, `test:http`, `test:browser` | Run one suite |
 | `pnpm i18n` | Regenerate translation files |
+| `pnpm bump <version>` | Set a new plugin version and regenerate translation files |
 | `pnpm dist` | Build the release zip in `dist/` |
 
-To release, set `Version` and `AZWP_PASSKEYS_VERSION` in `azwp-passkeys.php` to the new version, commit, and push an annotated tag such as `v0.2.2`. The tag message becomes the changelog. The release workflow builds the zip and the update metadata.
+To release, follow [docs/release.md](docs/release.md).
 
 `test:browser` uses Google Chrome; set `BROWSER_PATH` for another browser. `concurrency.php` and `two-factor.php` are skipped unless the environment supports them.
