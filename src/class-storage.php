@@ -540,6 +540,19 @@ final class Storage {
             return self::ok();
         }, true);
     }
+    /** Counts one use of a one-minute transient counter; false at the limit or when the counter cannot be locked. */
+    public function consume_rate(string $key, int $limit): bool {
+        $lock = $this->lock_name . ':' . substr(hash('sha256', $key), 0, 16);
+        $acquired = false;
+        try {
+            $acquired = (string) $this->db->get_var($this->db->prepare('SELECT GET_LOCK(%s,%d)', $lock, self::LOCK_WAIT_SECONDS)) === '1';
+            if (!$acquired) { return false; }
+            $count = (int) get_transient($key);
+            return $count < $limit && set_transient($key, $count + 1, MINUTE_IN_SECONDS);
+        } finally {
+            if ($acquired) { $this->db->get_var($this->db->prepare('SELECT RELEASE_LOCK(%s)', $lock)); }
+        }
+    }
     /** Rate-limit counters are transients; remove any left in this site's options table. */
     public function delete_rate_limits(int $site_id): array {
         try {

@@ -6,6 +6,7 @@ final class Passkeys
 {
     public const ATTEMPT_TTL_SECONDS = 90;
     public const ANONYMOUS_ATTEMPTS_PER_MINUTE = 30;
+    public const REDIRECT_MAX_BYTES = 8192;
     public const SETUP_LINK_TTL_SECONDS = 3600;
     public function __construct(private Settings $settings, private Storage $storage, private WebAuthn $webauthn) {}
     private function ok(array $data = []): array { return ['ok'=>true,'code'=>'ok','data'=>$data,'message'=>'']; }
@@ -338,11 +339,7 @@ final class Passkeys
     private function anonymous_allowed(): bool
     {
         $address = is_string($_SERVER['REMOTE_ADDR'] ?? null) ? $_SERVER['REMOTE_ADDR'] : '';
-        $key = 'azwp_passkeys_rate_' . substr(hash_hmac('sha256', $address, wp_salt('auth')), 0, 32);
-        $count = (int) get_transient($key);
-        if ($count >= self::ANONYMOUS_ATTEMPTS_PER_MINUTE) { return false; }
-        set_transient($key, $count + 1, MINUTE_IN_SECONDS);
-        return true;
+        return $this->storage->consume_rate('azwp_passkeys_rate_' . substr(hash_hmac('sha256', $address, wp_salt('auth')), 0, 32), self::ANONYMOUS_ATTEMPTS_PER_MINUTE);
     }
     public function assertion_options(array $context, array $input): array
     {
@@ -352,7 +349,7 @@ final class Passkeys
         $issued=['rp_id'=>$config['rp_id'],'rp_name'=>$config['rp_name'],'origins'=>$config['origins'],'user_verification'=>'required'];
         // Sign-in is always usernameless: the browser picks the account and no target is bound.
         if ($context['purpose'] === 'login') {
-            if (!is_bool($input['remember'] ?? null) || !is_string($input['redirect_to'] ?? null) || !in_array($input['surface'] ?? null,['native','frontend'],true)) { return $this->error('invalid_request'); }
+            if (!is_bool($input['remember'] ?? null) || !is_string($input['redirect_to'] ?? null) || strlen($input['redirect_to']) > self::REDIRECT_MAX_BYTES || !in_array($input['surface'] ?? null,['native','frontend'],true)) { return $this->error('invalid_request'); }
             if ($input['remember'] && !$config['settings']['remember_login']) { return $this->error('invalid_request'); }
             return $this->issue($context,null,$issued+['remember'=>$input['remember'],'redirect_to'=>$input['redirect_to'],'surface'=>$input['surface']],false);
         }

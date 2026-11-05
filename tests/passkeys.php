@@ -113,6 +113,7 @@ try {
     $login_input = ['remember'=>false,'redirect_to'=>'','surface'=>'native'];
     $login = $passkeys->assertion_options($anonymous,$login_input);
     check('anonymous usernameless login options issued', $login['ok'] && !array_key_exists('allowCredentials',$login['data']['publicKey']));
+    check('oversized redirect is rejected', $passkeys->assertion_options($anonymous,['redirect_to'=>'https://site.test/'.str_repeat('a',Passkeys::REDIRECT_MAX_BYTES)]+$login_input)['code']==='invalid_request');
     check('login attempt binds no target', $storage->read_attempt($login['data']['attempt_id'])['data']['attempt']['target_id']===null);
     $attempt_ids[] = $login_id = $login['data']['attempt_id'];
     // Reuse the live plugin's policy boundary when the bootstrap activates it.

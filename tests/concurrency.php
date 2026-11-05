@@ -89,6 +89,24 @@ try {
     $assert(count(array_filter($results,static fn($r)=>$r['ok']))===1,'Only one of two concurrent removals succeeds');
     $assert(count(array_filter($results,static fn($r)=>$r['code']==='access_required'))===1,'Second removal protects remaining sign-in method');
     $assert(count($storage->get_credentials($user)['data']['credentials'])===1,'One usable credential remains stored');
+    $original_address=$_SERVER['REMOTE_ADDR']??null;$_SERVER['REMOTE_ADDR']='203.0.113.'.random_int(1,254);
+    $anonymous=['site_id'=>$site,'actor_id'=>0,'browser_hash'=>random_bytes(32),'session_hash'=>null,'purpose'=>'login'];$login=['remember'=>false,'redirect_to'=>'','surface'=>'native'];
+    try {
+        for($i=1;$i<Passkeys::ANONYMOUS_ATTEMPTS_PER_MINUTE;$i++){$issued=$passkeys->assertion_options($anonymous,$login);$assert($issued['ok'],'Rate fixture below the limit');$storage->delete_attempt($issued['data']['attempt_id']);}
+        // Forked workers inherit this process's object cache; each must read the counter from the database.
+        // The delay holds both workers between reading and writing the counter, so an unlocked counter always races.
+        $job=static function($s,$p)use($anonymous,$login):array{
+            wp_cache_flush();
+            add_filter('pre_option',static function($pre,$option){if(str_starts_with($option,'_transient_azwp_passkeys_rate_')){usleep(200000);}return $pre;},10,2);
+            return $p->assertion_options($anonymous,$login);
+        };
+        $results=$pair('rate',[$job,$job]);
+        $assert(count(array_filter($results,static fn($r)=>$r['ok']))===1,'Only one concurrent request takes the last anonymous slot');
+        $assert(count(array_filter($results,static fn($r)=>$r['code']==='rate_limited'))===1,'Other concurrent request is rate limited');
+    } finally {
+        if($original_address===null){unset($_SERVER['REMOTE_ADDR']);}else{$_SERVER['REMOTE_ADDR']=$original_address;}
+        $storage->delete_rate_limits($site);
+    }
     echo "Concurrency integration: $checks checks passed.\n";
 }finally{
     $storage->cleanup_user($user);wp_delete_user($user);wp_set_current_user($original_user);
