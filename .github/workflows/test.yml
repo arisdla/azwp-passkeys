@@ -1,0 +1,104 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: WordPress ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Trunk is an early warning about the next WordPress release; its failures do not fail the run.
+    continue-on-error: ${{ matrix.name == 'trunk' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: minimum
+            core: WordPress/WordPress#6.9-branch
+            php: '8.3'
+          # wp-env ignores an empty WP_ENV_CORE, so latest needs an explicit source.
+          - name: latest
+            core: https://wordpress.org/latest.zip
+            php: '8.4'
+          - name: trunk
+            core: WordPress/WordPress#master
+            php: '8.4'
+    env:
+      WP_ENV_CORE: ${{ matrix.core }}
+      WP_ENV_PHP_VERSION: ${{ matrix.php }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: npx wp-env start
+
+      - name: Add pcntl to the tests CLI container for concurrency tests
+        run: docker exec -u root "$(docker ps -qf name=tests-cli)" docker-php-ext-install pcntl
+
+      - name: Start the PHP error log empty
+        # Truncate rather than create, so the file keeps the web server's ownership.
+        run: |
+          npx wp-env run tests-cli sh -c 'if [ -f wp-content/debug.log ]; then : > wp-content/debug.log; fi'
+
+      - name: JavaScript tests
+        if: matrix.name == 'latest'
+        run: pnpm test:js
+
+      - name: PHP tests
+        env:
+          AZWP_REQUIRE_CONCURRENCY: '1'
+        run: pnpm test:php
+
+      - name: HTTP tests
+        run: pnpm test:http
+
+      - name: Browser tests
+        if: matrix.name == 'latest'
+        run: |
+          # Ubuntu's AppArmor policy blocks the namespaces Chrome's sandbox needs; older images lack the setting.
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          BROWSER_PATH="$(command -v google-chrome)" pnpm test:browser
+
+      - name: Fail on PHP deprecations, notices and warnings
+        run: |
+          log=$(npx wp-env run tests-cli sh -c 'grep -E "PHP (Deprecated|Notice|Warning)" wp-content/debug.log || true' 2>/dev/null | grep "PHP " || true)
+          if [ -n "$log" ]; then
+            echo "$log"
+            echo "::error::The tests logged PHP deprecations, notices or warnings."
+            exit 1
+          fi
+
+      - name: Warn when a newer WordPress is out than the tested version
+        if: matrix.name == 'latest'
+        run: |
+          tested=$(grep -oP '"tested":\s*"\K[\d.]+' .github/templates/azwp-passkeys.json.tpl)
+          if ! latest=$(curl -fsS --max-time 20 https://api.wordpress.org/core/version-check/1.7/ | jq -er '.offers[0].version'); then
+            echo "::warning::Could not fetch the latest WordPress version to compare with Tested up to $tested."
+            exit 0
+          fi
+          latest=$(echo "$latest" | cut -d. -f1,2)
+          if [ "$(printf '%s\n%s\n' "$tested" "$latest" | sort -V | tail -1)" != "$tested" ]; then
+            echo "::warning::WordPress $latest is out and the tests pass on it. Tested up to is still $tested."
+          fi

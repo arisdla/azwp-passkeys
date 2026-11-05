@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs the PHP tests inside wp-env's disposable tests site (never the dev site).
 # Optional: AZWP_TWO_FACTOR_SOURCE=<path inside the container to a Two-Factor release> also runs two-factor.php.
+# Optional: AZWP_REQUIRE_CONCURRENCY=1 fails instead of skipping concurrency.php when pcntl/posix are missing.
 set -e
 dir=/var/www/html/wp-content/plugins/azwp-passkeys/tests
 cli() { npx wp-env run tests-cli "$@"; }
@@ -15,6 +16,9 @@ for test in storage passkeys passkey-only screens lifecycle; do
 done
 if cli php -r "exit(extension_loaded('pcntl') && extension_loaded('posix') ? 0 : 1);" >/dev/null 2>&1; then
 	wp_test concurrency
+elif [ -n "$AZWP_REQUIRE_CONCURRENCY" ]; then
+	echo "concurrency.php needs pcntl and posix in tests-cli PHP." >&2
+	exit 1
 else
 	echo "Skipped concurrency.php: tests-cli PHP lacks pcntl/posix."
 fi
