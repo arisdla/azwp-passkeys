@@ -5,6 +5,7 @@ namespace AZWP\Passkeys;
 final class Storage {
     public const LOCK_WAIT_SECONDS = 5;
     private const SETUP_LINK_KEY = 'azwp_passkeys_setup_link';
+    private const ENGINE_FAILURE = 1;
     private \wpdb $db;
     private array $tables;
     private ?int $locked_owner = null;
@@ -37,13 +38,26 @@ final class Storage {
         if ($this->db->last_error !== '') { throw new \RuntimeException('Database read failed'); }
         return $rows ?: [];
     }
-    private function transactional_tables(): void {
-        $names = array_merge(array_values($this->tables), [$this->db->users, $this->db->usermeta, $this->db->options]);
+    private function transactional_tables(array $extra = []): void {
+        $names = array_merge(array_values($this->tables), [$this->db->users, $this->db->usermeta, $this->db->options], $extra);
         if (is_multisite()) { $names[] = $this->db->sitemeta; }
         foreach (array_unique($names) as $name) {
             $row = $this->row($this->db->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', $name));
-            if (!$row || strcasecmp($row['ENGINE'], 'InnoDB') !== 0) { throw new \RuntimeException('Transactional storage unavailable'); }
+            if (!$row) { throw new \RuntimeException('Table unavailable'); }
+            if (strcasecmp((string) $row['ENGINE'], 'InnoDB') !== 0) { throw new \RuntimeException('Transactional storage unavailable', self::ENGINE_FAILURE); }
         }
+    }
+    /** Activation writes settings into every site's options table on the network. */
+    private function network_options_tables(): array {
+        if (!is_multisite()) { return []; }
+        $names = [];
+        $offset = 0;
+        do {
+            $sites = get_sites(['network_id' => get_current_network_id(), 'fields' => 'ids', 'number' => 100, 'offset' => $offset]);
+            foreach ($sites as $site_id) { $names[] = $this->options_table((int) $site_id); }
+            $offset += count($sites);
+        } while (count($sites) === 100);
+        return $names;
     }
     public function install_schema(): array {
         $charset = $this->db->get_charset_collate();
@@ -67,9 +81,9 @@ final class Storage {
                 if ($this->db->last_error !== '') { throw new \RuntimeException('Schema installation failed'); }
             }
             $this->verify_schema();
-            $this->transactional_tables();
+            $this->transactional_tables($this->network_options_tables());
             return self::ok();
-        } catch (\Throwable $e) { return self::error(); }
+        } catch (\Throwable $e) { return self::error($e->getCode() === self::ENGINE_FAILURE ? 'storage_engine' : 'storage_failed'); }
     }
 
     private function verify_schema(): void {

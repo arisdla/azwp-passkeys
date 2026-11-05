@@ -8,6 +8,8 @@ The [UX demo](https://raw.githack.com/arisdla/azwp-passkeys/main/wireframes/inde
 
 Requires WordPress 6.9, PHP 8.3 with OpenSSL, and HTTPS. Plain HTTP works only on `localhost`.
 
+Database tables must use InnoDB, not MyISAM, because the plugin saves data in transactions. Otherwise activation fails. To convert a MyISAM table, back up the database and run `ALTER TABLE <table> ENGINE=InnoDB`.
+
 Download `azwp-passkeys.zip` from the [latest release](https://github.com/arisdla/azwp-passkeys/releases/latest) and upload it under Plugins, Add New, Upload Plugin. On multisite, network-activate it. Updates come from this repository's GitHub releases through [plugin-update-checker](https://github.com/YahnisElsts/plugin-update-checker) and appear as normal WordPress plugin updates.
 
 Set **Website name** and **Passkey domain** on the AZ's WP Passkeys page under Settings. Users add and test passkeys from their profile. The shortcodes `[azwp_pk_login]`, `[azwp_pk_register]`, `[azwp_pk_test]` and `[azwp_pk_list]` are also blocks.

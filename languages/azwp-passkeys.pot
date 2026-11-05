@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-05T04:10:51+00:00\n"
+"POT-Creation-Date: 2026-11-05T05:58:06+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: azwp-passkeys\n"
@@ -116,16 +116,20 @@ msgid "Activate AZ's WP Passkeys for the network."
 msgstr ""
 
 #: src/class-lifecycle.php:53
-msgid "Passkey storage could not be initialized. Transactional database storage is required."
+msgid "Passkey storage could not be initialized. The database tables must use the InnoDB storage engine."
 msgstr ""
 
-#: src/class-lifecycle.php:57
-#: src/class-lifecycle.php:63
-#: src/class-lifecycle.php:68
+#: src/class-lifecycle.php:54
+msgid "Passkey storage could not be initialized."
+msgstr ""
+
+#: src/class-lifecycle.php:58
+#: src/class-lifecycle.php:64
+#: src/class-lifecycle.php:69
 msgid "Passkey settings could not be initialized."
 msgstr ""
 
-#: src/class-lifecycle.php:138
+#: src/class-lifecycle.php:139
 msgid "Passkey data could not be completely removed. Try deleting the plugin again."
 msgstr ""
 

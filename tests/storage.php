@@ -18,6 +18,21 @@ $storage = new Storage($GLOBALS['wpdb']);
 $settings = new Settings($storage);
 $assert($storage->install_schema()['ok'], 'Transactional schema installs');
 $assert($storage->install_schema()['ok'], 'Schema installation is idempotent');
+$logs_table = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_logs';
+$GLOBALS['wpdb']->query("ALTER TABLE `$logs_table` ENGINE=MyISAM");
+try {
+    $assert($storage->install_schema()['code'] === 'storage_engine', 'A MyISAM table reports the storage engine');
+} finally {
+    $GLOBALS['wpdb']->query("ALTER TABLE `$logs_table` ENGINE=InnoDB");
+}
+$assert($storage->install_schema()['ok'], 'Schema installs again after conversion to InnoDB');
+$usermeta_table = $GLOBALS['wpdb']->usermeta;
+$GLOBALS['wpdb']->usermeta = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_missing';
+try {
+    $assert($storage->install_schema()['code'] === 'storage_failed', 'A missing table is not reported as the storage engine');
+} finally {
+    $GLOBALS['wpdb']->usermeta = $usermeta_table;
+}
 $user_id = wp_insert_user(['user_login' => 'azwp_storage_' . bin2hex(random_bytes(6)), 'user_pass' => wp_generate_password(), 'role' => 'subscriber']);
 if (is_wp_error($user_id)) { throw new RuntimeException('Test user creation failed'); }
 $original_settings = get_option('azwp_passkeys_settings', null);

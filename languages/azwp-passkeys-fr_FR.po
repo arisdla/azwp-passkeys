@@ -243,7 +243,7 @@ msgstr "Clé d’accès ajoutée."
 msgid "Passkey already removed. List refreshed."
 msgstr "Clé d’accès déjà supprimée. Liste actualisée."
 
-#: src/class-lifecycle.php:138
+#: src/class-lifecycle.php:139
 msgid "Passkey data could not be completely removed. Try deleting the plugin again."
 msgstr "Certaines données des clés d’accès n’ont pas pu être supprimées. Réessayez de supprimer l’extension."
 
@@ -286,9 +286,9 @@ msgstr "Clé d’accès supprimée."
 msgid "Passkey renamed."
 msgstr "Clé d’accès renommée."
 
-#: src/class-lifecycle.php:57
-#: src/class-lifecycle.php:63
-#: src/class-lifecycle.php:68
+#: src/class-lifecycle.php:58
+#: src/class-lifecycle.php:64
+#: src/class-lifecycle.php:69
 msgid "Passkey settings could not be initialized."
 msgstr "Les réglages des clés d’accès n’ont pas pu être initialisés."
 
@@ -297,8 +297,8 @@ msgid "Passkey sign-in"
 msgstr "Connexion avec une clé d’accès"
 
 #: src/class-lifecycle.php:53
-msgid "Passkey storage could not be initialized. Transactional database storage is required."
-msgstr "Le stockage des clés d’accès n’a pas pu être initialisé. La base de données doit prendre en charge les transactions."
+msgid "Passkey storage could not be initialized. The database tables must use the InnoDB storage engine."
+msgstr "Le stockage des clés d’accès n’a pas pu être initialisé. Les tables de la base de données doivent utiliser le moteur de stockage InnoDB."
 
 #: src/class-authentication.php:442
 #: assets/js/client.js:116
@@ -689,3 +689,7 @@ msgstr "Permet à la connexion par clé d’accès de garder les personnes conne
 #: src/class-screens.php:239
 msgid "Passkey only mode is on, and changing this would stop every passkey from working. Turn Passkey only mode off first."
 msgstr "Le mode clé d’accès uniquement est activé, et ce changement empêcherait toutes les clés d’accès de fonctionner. Désactivez d’abord le mode clé d’accès uniquement."
+
+#: src/class-lifecycle.php:54
+msgid "Passkey storage could not be initialized."
+msgstr "Le stockage des clés d’accès n’a pas pu être initialisé."
