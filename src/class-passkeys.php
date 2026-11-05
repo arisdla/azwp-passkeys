@@ -154,17 +154,33 @@ final class Passkeys
         return $this->issue($context, $target, [
             'rp_id'=>$config['rp_id'],'rp_name'=>$config['rp_name'],'origins'=>$config['origins'],'user_verification'=>'required',
             'user_handle'=>$identity['data']['identity']['handle'],'user_name'=>$user->user_login,'user_display_name'=>$user->display_name,
-            'name'=>$this->default_name($credentials['data']['credentials']),
             'exclude_credentials'=>$this->descriptors($credentials['data']['credentials']),
         ], true);
     }
-    /** The lowest "passkey_N" the account is not already using; the owner can rename it later. */
-    private function default_name(array $credentials): string
+    private const DEVICES = ['iPhone'=>'iPhone', 'iPad'=>'iPad', 'Android'=>'Android', 'CrOS'=>'Chromebook', 'Windows'=>'Windows', 'Macintosh'=>'Mac', 'Linux'=>'Linux'];
+    private const BROWSERS = ['Edg/'=>'Edge', 'EdgA/'=>'Edge', 'EdgiOS/'=>'Edge', 'OPR/'=>'Opera', 'OPT/'=>'Opera', 'OPiOS/'=>'Opera', 'SamsungBrowser/'=>'Samsung Internet', 'Firefox/'=>'Firefox', 'FxiOS/'=>'Firefox', 'Chrome/'=>'Chrome', 'CriOS/'=>'Chrome', 'Safari/'=>'Safari'];
+    private static function first_match(string $user_agent, array $markers): ?string
     {
+        foreach ($markers as $marker => $label) { if (str_contains($user_agent, $marker)) { return $label; } }
+        return null;
+    }
+    /** Where the passkey was created, such as "Chrome on Mac", or null when the device is not recognised. Edge, Opera and Samsung Internet also say Chrome, and every iOS browser also says Safari, so list order decides. */
+    public static function device_label(string $user_agent): ?string
+    {
+        $device = self::first_match($user_agent, self::DEVICES);
+        if ($device === null) { return null; }
+        $browser = self::first_match($user_agent, self::BROWSERS);
+        /* translators: 1: browser name, 2: device name, such as "Chrome on Mac". */
+        return $browser === null ? $device : sprintf(__('%1$s on %2$s', 'azwp-passkeys'), $browser, $device);
+    }
+    /** The device label, or "Passkey" for an unrecognised device, numbered "(2)", "(3)" when the account already uses it. The owner can rename it later. */
+    private function default_name(array $credentials, string $user_agent): string
+    {
+        $base = self::device_label($user_agent) ?? __('Passkey', 'azwp-passkeys');
         $taken = array_flip(array_column($credentials, 'name'));
-        $number = 1;
-        while (isset($taken['passkey_'.$number])) { $number++; }
-        return 'passkey_'.$number;
+        $name = $base;
+        for ($number = 2; isset($taken[$name]); $number++) { $name = sprintf('%s (%d)', $base, $number); }
+        return $name;
     }
     private function bound_attempt(array $context, string $id): array
     {
@@ -216,17 +232,17 @@ final class Passkeys
             if (!$config['ok']) { return $config; }
             $verified = $this->webauthn->verify_registration($attempt, $input['credential']);
             if (!$verified['ok']) { return $verified; }
-            $record = $verified['data'] + ['user_id'=>$target,'site_id'=>$context['site_id'],'name'=>$attempt['issued']['name'],'created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
+            $record = $verified['data'] + ['user_id'=>$target,'site_id'=>$context['site_id'],'created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
             $inputs = $this->configuration_inputs($context['site_id']);
             if (!$this->authorized($context, $target) || !$this->same_session($context)) { return $this->error('forbidden'); }
             $result = $this->storage->with_owner_lock($target, function(Storage $storage) use ($attempt,$record,$inputs,$context,$target,&$config): array {
                 if (!$this->existing_accounts($storage, $context, $target)) { return $this->error('forbidden'); }
                 $config = $this->check_issued_configuration($this->locked_configuration($storage, $inputs), $attempt['issued']);
                 if (!$config['ok']) { return $config; }
-                return $storage->insert_credential($record);
+                return $this->insert_named($storage, $record, $context);
             });
             if (!$result['ok']) { return $result; }
-            $this->notify_added($target, (int) $context['actor_id'], $attempt['issued']['name']);
+            $this->notify_added($result['data']['credential'], (int) $context['actor_id'], !empty($config['data']['settings']['passkey_only']));
             return $this->ok(['credential'=>$this->summary($result['data']['credential'], $config['data'], true)]);
         } finally { $this->storage->delete_attempt($input['attempt_id']); }
     }
@@ -297,7 +313,7 @@ final class Passkeys
             if (!$config['ok']) { return $config; }
             $verified = $this->webauthn->verify_registration($attempt, $input['credential']);
             if (!$verified['ok']) { return $verified; }
-            $record = $verified['data'] + ['user_id'=>$target,'site_id'=>$context['site_id'],'name'=>$attempt['issued']['name'],'created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
+            $record = $verified['data'] + ['user_id'=>$target,'site_id'=>$context['site_id'],'created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
             $inputs = $this->configuration_inputs($context['site_id']);
             $link = null;
             $result = $this->storage->with_owner_lock($target, function(Storage $storage) use ($attempt,$record,$inputs,$context,$target,$hash,&$config,&$link): array {
@@ -306,26 +322,42 @@ final class Passkeys
                 if (!$link) { return $this->error('attempt_unavailable'); }
                 $config = $this->check_issued_configuration($this->locked_configuration($storage, $inputs), $attempt['issued']);
                 if (!$config['ok']) { return $config; }
-                return $storage->insert_credential($record);
+                return $this->insert_named($storage, $record, $context);
             });
             if (!$result['ok']) { return $result; }
-            $this->notify_added($target, (int) $link['issued_by'], $attempt['issued']['name'], true);
+            $this->notify_added($result['data']['credential'], (int) $link['issued_by'], !empty($config['data']['settings']['passkey_only']), true);
             return ['ok'=>true,'code'=>'ok','message'=>'','subject_id'=>$target,'data'=>['redirect_to'=>add_query_arg('azwp_passkeys_setup', 'done', wp_login_url())]];
         } finally { $this->storage->delete_attempt($input['attempt_id']); }
     }
-    /** Tells the owner about every confirmed new passkey. Mail failure never changes the registration result. */
-    private function notify_added(int $owner_id, int $actor_id, string $name, bool $setup_link = false): void
+    /** Names the passkey from the account's saved names at insert time, under the owner lock. */
+    private function insert_named(Storage $storage, array $record, array $context): array
     {
+        $credentials = $storage->get_locked_credentials($record['user_id']);
+        if (!$credentials['ok']) { return $credentials; }
+        // Each site lists only its own passkeys, so numbering ignores names used on other sites.
+        $on_site = array_filter($credentials['data']['credentials'], static fn(array $row): bool => (int) $row['site_id'] === $record['site_id']);
+        $record['name'] = $this->default_name($on_site, $context['user_agent'] ?? '');
+        return $storage->insert_credential($record);
+    }
+    /** Tells the owner about every confirmed new passkey. Mail failure never changes the registration result. */
+    private function notify_added(array $credential, int $actor_id, bool $passkey_only, bool $setup_link = false): void
+    {
+        $owner_id = (int) $credential['user_id'];
         $owner = get_userdata($owner_id);
         if (!$owner || !is_email($owner->user_email)) { return; }
         $switched = switch_to_user_locale($owner_id);
         try {
             $site = wp_specialchars_decode((string) get_option('blogname'), ENT_QUOTES);
             $actor = $actor_id !== $owner_id ? get_userdata($actor_id) : false;
+            $authenticator = Authenticators::name((string) $credential['aaguid']);
             $lines = [
-                sprintf(__('A passkey named “%1$s” was added to your account on %2$s.', 'azwp-passkeys'), $name, $site),
+                $authenticator === null
+                    ? sprintf(__('A passkey from an unknown authenticator (named “%1$s”) was added to your account on %2$s.', 'azwp-passkeys'), $credential['name'], $site)
+                    : sprintf(__('A passkey from %1$s (named “%2$s”) was added to your account on %3$s.', 'azwp-passkeys'), $authenticator, $credential['name'], $site),
                 $setup_link ? sprintf(__('It was added with a setup link sent by %s.', 'azwp-passkeys'), get_userdata($actor_id) ? get_userdata($actor_id)->display_name : $site) : ($actor ? sprintf(__('It was added by %s.', 'azwp-passkeys'), $actor->display_name) : __('It was added while you were signed in.', 'azwp-passkeys')),
-                __('If you did not expect this, remove the passkey and change your password:', 'azwp-passkeys'),
+                $passkey_only || $this->storage->password_disabled($owner_id)
+                    ? __('If you did not expect this, remove the passkey and tell a site administrator:', 'azwp-passkeys')
+                    : __('If you did not expect this, remove the passkey and change your password:', 'azwp-passkeys'),
                 admin_url('profile.php#azwp-passkeys'),
             ];
             wp_mail($owner->user_email, sprintf(__('[%s] A passkey was added to your account', 'azwp-passkeys'), $site), implode("\n\n", $lines));

@@ -106,7 +106,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <h3>Core journeys</h3>
 <div class="flow"><span>Open login</span><i>→</i><span>Sign in with a passkey</span><i>→</i><span>Browser prompt (biometric / PIN)</span><i>→</i><span>Verifying</span><i>→</i><span>Redirect</span></div>
 <p></p>
-<div class="flow"><span>Profile</span><i>→</i><span>Add passkey</span><i>→</i><span>Browser prompt</span><i>→</i><span>Saved as passkey_N, list refreshes, owner emailed</span></div>
+<div class="flow"><span>Profile</span><i>→</i><span>Add passkey</span><i>→</i><span>Browser prompt</span><i>→</i><span>Saved as “Chrome on Mac”, list refreshes, owner emailed</span></div>
 <p></p>
 <div class="flow"><span>Admin: Send passkey setup link</span><i>→</i><span>Owner opens the email link</span><i>→</i><span>Add passkey</span><i>→</i><span>Sign-in page: "Passkey added. Sign in with it now."</span></div>
 <p></p>
@@ -225,10 +225,10 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="After adding">
 <div class="pk"><h4>Passkeys</h4>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td><td><button class="btn">Remove</button></td></tr><tr style="background:var(--soft)"><td>passkey_1<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>YubiKey 5 NFC</td><td>2026-11-04 15:42:57</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td><td><button class="btn">Remove</button></td></tr><tr style="background:var(--soft)"><td>Firefox on Windows<div><a href="#" data-modal="Rename" style="color:inherit">Rename</a></div></td><td>YubiKey 5 NFC</td><td>2026-11-04 15:42:57</td><td>—</td><td><button class="btn">Remove</button></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th><th>Actions</th></tr></tfoot></table>
 <p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
 <div class="status okk">Passkey added.</div></div>
-<p class="note">The new passkey appears in the list with a default name: the lowest passkey_N the account is not using, here passkey_1 because "MacBook (iCloud)" was renamed. Use Rename to give it a clearer name. The owner is emailed about the new passkey.</p>
+<p class="note">The new passkey appears in the list named after the device and browser that created it, here Firefox on Windows. A second passkey from the same device and browser on this site would be "Firefox on Windows (2)". Use Rename to give it a clearer name. The owner is emailed about the new passkey.</p>
 </div>
 
 <div data-v="After testing">
@@ -256,7 +256,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="grid2">
 <div class="notice ok"><p>Passkey renamed.</p></div>
 <div class="notice ok"><p>Passkey added.</p></div>
-<div class="notice ok"><p>Passkey test passed for “passkey_1”.</p></div>
+<div class="notice ok"><p>Passkey test passed for “Chrome on Mac”.</p></div>
 <div class="notice err"><p>This passkey has already been added. Nothing was replaced.</p></div>
 <div class="notice err"><p>Add another usable passkey or restore another sign-in method before removing this passkey.</p></div>
 <div class="notice ok"><p>Passkey removed.</p></div>
@@ -504,13 +504,15 @@ https://example.com/wp-login.php</div>
 <div data-v="Passkey added email">
 <div class="email">Subject: [My Site] A passkey was added to your account
 
-A passkey named “Work phone” was added to your account on My Site.
+A passkey from Apple Passwords (named “Safari on iPhone”) was added to your account on My Site.
+(or: A passkey from an unknown authenticator (named “Passkey”) was added to your account on My Site.)
 
 It was added while you were signed in.
 (or: It was added by Carol Admin.)
 (or: It was added with a setup link sent by Carol Admin.)
 
 If you did not expect this, remove the passkey and change your password:
+(or, in Passkey only mode or without password sign-in: If you did not expect this, remove the passkey and tell a site administrator:)
 
 https://example.com/wp-admin/profile.php#azwp-passkeys</div>
 <p class="note">Sent in the owner's locale after every confirmed registration. A mail failure never affects the result.</p>

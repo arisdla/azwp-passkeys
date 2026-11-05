@@ -108,6 +108,8 @@ try {
         wp_new_user_notification($welcomed, null, 'user');
         check('a direct welcome notification is sent too', count($mails) === 1 && str_contains($mails[0]['message'], 'passkey setup link'));
         check('the welcome exemption does not allow a later password reset', is_wp_error(get_password_reset_key(get_userdata($welcomed))));
+        $mails = [];
+        check('in Passkey only mode the passkey-added email says to tell an administrator', $enroll($make_user('subscriber')) && count($mails) === 1 && str_contains($mails[0]['message'], 'remove the passkey and tell a site administrator:') && !str_contains($mails[0]['message'], 'change your password'));
     } finally { remove_filter('pre_wp_mail', $capture_mail, 10); }
     $storage->save_settings($scope[0], $scope[1], ['passkey_only' => false]);
 

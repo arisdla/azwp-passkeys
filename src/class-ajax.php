@@ -41,7 +41,7 @@ final class Ajax
             $bytes=random_bytes(32);
             if (headers_sent() || !setcookie('azwp_passkeys_browser',WebAuthn::encode($bytes),['expires'=>0,'path'=>'/','secure'=>is_ssl(),'httponly'=>true,'samesite'=>'Lax'])) { throw new \RuntimeException('Browser binding unavailable'); }
         }
-        return ['site_id'=>(int)get_current_blog_id(),'network_id'=>is_multisite()?(int)get_current_network_id():0,'actor_id'=>$actor,'browser_hash'=>$bytes===null?null:hash('sha256',$bytes,true),'session_hash'=>$actor?hash('sha256',wp_get_session_token(),true):null,'purpose'=>$purpose];
+        return ['site_id'=>(int)get_current_blog_id(),'network_id'=>is_multisite()?(int)get_current_network_id():0,'actor_id'=>$actor,'browser_hash'=>$bytes===null?null:hash('sha256',$bytes,true),'session_hash'=>$actor?hash('sha256',wp_get_session_token(),true):null,'purpose'=>$purpose,'user_agent'=>is_string($_SERVER['HTTP_USER_AGENT'] ?? null)?$_SERVER['HTTP_USER_AGENT']:''];
     }
     private function dispatch(string $action): void
     {

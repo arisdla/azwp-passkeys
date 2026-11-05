@@ -72,13 +72,35 @@ try {
     $result = $passkeys->complete_registration($context,$input);
     remove_filter('pre_wp_mail', $capture, 10);
     check('real signed enrollment persists successfully', $result['ok']);
-    check('owner is emailed about the new passkey', count($mails)===1 && $mails[0]['to']===get_userdata($alice)->user_email && str_contains($mails[0]['message'],'passkey_1') && str_contains($mails[0]['message'],'while you were signed in'));
+    check('owner is emailed about the new passkey', count($mails)===1 && $mails[0]['to']===get_userdata($alice)->user_email && str_contains($mails[0]['message'],'A passkey from an unknown authenticator (named “Passkey”) was added to your account on') && str_contains($mails[0]['message'],'while you were signed in') && str_contains($mails[0]['message'],'remove the passkey and change your password:'));
     check('enrollment completion replay rejected', !$passkeys->complete_registration($context,$input)['ok']);
-    check('new passkey gets the first default name', $storage->find_credential($id)['data']['credential']['name'] === 'passkey_1');
+    check('a passkey from an unrecognised device is named Passkey', $storage->find_credential($id)['data']['credential']['name'] === 'Passkey');
     $next = $passkeys->registration_options($context,[]);
     if ($next['ok']) { $attempt_ids[] = $next['data']['attempt_id']; }
-    check('next default name skips one already in use', $next['ok'] && $read_issued($next['data']['attempt_id'])['name'] === 'passkey_2');
     check('repeated enrollment keeps exact handle', $next['ok'] && $read_issued($next['data']['attempt_id'])['user_handle'] === $issued['user_handle']);
+    $enroll = static function (array $context, string $aaguid) use ($passkeys, $storage, $read_issued, $cose, $capture, &$mails, &$attempt_ids): array {
+        $options = $passkeys->registration_options($context,[]);
+        if (!$options['ok']) { return []; }
+        $attempt_ids[] = $options['data']['attempt_id'];
+        $credential_id = random_bytes(32);
+        $mails = [];
+        add_filter('pre_wp_mail', $capture, 10, 2);
+        try { $done = $passkeys->complete_registration($context,['attempt_id'=>$options['data']['attempt_id'],'credential'=>registration_fixture($read_issued($options['data']['attempt_id']),$credential_id,$cose,$aaguid)]); }
+        finally { remove_filter('pre_wp_mail', $capture, 10); }
+        return $done['ok'] ? $storage->find_credential($credential_id)['data']['credential'] + ['email'=>end($mails)['message'] ?? ''] : [];
+    };
+    $chrome_mac = ['user_agent'=>'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'] + $context;
+    $elsewhere = $storage->with_owner_lock($alice, static fn(Storage $store): array => $store->insert_credential(['user_id'=>$alice,'site_id'=>$site+1000,'credential_id'=>random_bytes(32),'rp_id'=>$rp,'public_key_pem'=>'validated fixture','public_key_cose'=>"\xa1\x01\x02",'credential_type'=>'public-key','attestation_type'=>'none','trust_path'=>[],'aaguid'=>random_bytes(16),'other_ui'=>null,'algorithm'=>-7,'sign_count'=>0,'backup_eligible'=>false,'backed_up'=>false,'transports'=>[],'name'=>'Chrome on Mac','created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null]));
+    check('a passkey on another site is saved for the numbering check', $elsewhere['ok']);
+    $second = $enroll($context, random_bytes(16));
+    $apple = $enroll($chrome_mac, hex2bin('fbfc3007154e4ecc8c0b6e020557d7bd'));
+    $again = $enroll($chrome_mac, random_bytes(16));
+    check('a second unrecognised device is numbered', ($second['name'] ?? null) === 'Passkey (2)');
+    check('a recognised browser and device name the passkey, ignoring the same name on another site', ($apple['name'] ?? null) === 'Chrome on Mac');
+    check('the email names a known authenticator and the passkey', str_contains($apple['email'] ?? '','A passkey from Apple Passwords (named “Chrome on Mac”) was added to your account on'));
+    check('a repeated device name is numbered', ($again['name'] ?? null) === 'Chrome on Mac (2)');
+    foreach ([$second, $apple, $again] as $extra) { if ($extra) { $passkeys->remove_credential($context,$alice,(int)$extra['id']); } }
+    $storage->cleanup_user($alice,$site+1000);
     $other = $storage->with_owner_lock($bob, static fn(Storage $store): array => $store->get_identity($bob));
     check('different accounts have different 64-byte handles', $other['ok'] && strlen($other['data']['identity']['handle']) === 64 && $other['data']['identity']['handle'] !== $issued['user_handle']);
     $stored = $storage->find_credential($id)['data']['credential'];
@@ -86,6 +108,25 @@ try {
     check('database retains exact nonzero AAGUID and COSE', $stored['aaguid']===$aaguid && $stored['public_key_cose']===$cose);
     $stored['user_handle'] = $issued['user_handle'];
     check('last passkey protected when password disabled', $storage->save_password_policy($alice,true)['ok'] && $passkeys->remove_credential($context,$alice,$record)['code']==='access_required');
+    $without_password = $enroll($context, random_bytes(16));
+    check('with password sign-in off, the email says to tell an administrator', str_contains($without_password['email'] ?? '','remove the passkey and tell a site administrator:') && !str_contains($without_password['email'] ?? '','change your password'));
+    if ($without_password) { $passkeys->remove_credential($context,$alice,(int)$without_password['id']); }
+    $labels = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0' => 'Edge on Windows',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 EdgiOS/131.0.2903.68 Mobile/15E148 Safari/605.1.15' => 'Edge on iPhone',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1' => 'Chrome on iPhone',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1' => 'Safari on iPhone',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1 OPT/4.6.1' => 'Opera on iPhone',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15' => 'Safari on Mac',
+        'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36' => 'Chrome on Android',
+        'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 Chrome/122.0.0.0 Mobile Safari/537.36' => 'Samsung Internet on Android',
+        'Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0' => 'Firefox on Linux',
+        'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36' => 'Chrome on Chromebook',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/490.0.0]' => 'iPhone',
+        'Mozilla/5.0 (X11; FreeBSD amd64; rv:132.0) Gecko/20100101 Firefox/132.0' => null,
+        '' => null,
+    ];
+    foreach ($labels as $user_agent => $label) { check('device label: '.($label ?? 'none').' from '.substr($user_agent,0,48), Passkeys::device_label($user_agent) === $label); }
     check('another account management denied', !$passkeys->list_credentials($context,$bob)['ok']);
     $test_context = array_replace($context,['purpose'=>'test']);
     check('test of another account without permission denied', $passkeys->assertion_options($test_context,['target_id'=>(string)$bob])['code']==='forbidden');

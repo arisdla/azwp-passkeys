@@ -12,15 +12,10 @@ msgstr ""
 "Language: fr_CA\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/class-passkeys.php:331
+#: src/class-passkeys.php:363
 #, php-format
 msgid "[%s] A passkey was added to your account"
 msgstr "[%s] Une clé d’accès a été ajoutée à votre compte"
-
-#: src/class-passkeys.php:326
-#, php-format
-msgid "A passkey named “%1$s” was added to your account on %2$s."
-msgstr "Une clé d’accès nommée « %1$s » a été ajoutée à votre compte sur %2$s."
 
 #: views/credential-list.php:3
 #: assets/js/client.js:65
@@ -155,7 +150,7 @@ msgstr "Pour tout le monde"
 msgid "Hide when signed in"
 msgstr "Masquer après la connexion"
 
-#: src/class-passkeys.php:328
+#: src/class-passkeys.php:360
 msgid "If you did not expect this, remove the passkey and change your password:"
 msgstr "Si vous ne vous y attendiez pas, supprimez cette clé d’accès et changez votre mot de passe :"
 
@@ -163,12 +158,12 @@ msgstr "Si vous ne vous y attendiez pas, supprimez cette clé d’accès et chan
 msgid "Include password sign-in form"
 msgstr "Inclure le formulaire de connexion par mot de passe"
 
-#: src/class-passkeys.php:327
+#: src/class-passkeys.php:357
 #, php-format
 msgid "It was added by %s."
 msgstr "Elle a été ajoutée par %s."
 
-#: src/class-passkeys.php:327
+#: src/class-passkeys.php:357
 msgid "It was added while you were signed in."
 msgstr "Elle a été ajoutée pendant que vous étiez connecté."
 
@@ -471,7 +466,7 @@ msgstr "Ce réglage n’a aucun effet tant que l’option « Tout le monde peut 
 msgid "This passkey has already been added. Nothing was replaced."
 msgstr "Cette clé d’accès a déjà été ajoutée. Rien n’a été remplacé."
 
-#: src/class-passkeys.php:422
+#: src/class-passkeys.php:454
 msgid "This passkey is unavailable under the current site settings."
 msgstr "Cette clé d’accès n’est pas disponible avec les réglages actuels du site."
 
@@ -584,25 +579,25 @@ msgstr "Nom d’utilisateur : %s"
 msgid "Accounts on this site sign in with passkeys only, so there is no password to set. Ask a site administrator to send you a passkey setup link."
 msgstr "Les comptes de ce site se connectent uniquement avec des clés d’accès : il n’y a donc aucun mot de passe à définir. Demandez à un administrateur du site de vous envoyer un lien de configuration de clé d’accès."
 
-#: src/class-passkeys.php:247
+#: src/class-passkeys.php:263
 #, php-format
 msgid "%1$s sent you a link to add a passkey to your account on %2$s."
 msgstr "%1$s vous a envoyé un lien pour ajouter une clé d’accès à votre compte sur %2$s."
 
-#: src/class-passkeys.php:248
+#: src/class-passkeys.php:264
 msgid "Open it on the device that will store the passkey. It works once and expires in one hour."
 msgstr "Ouvrez-le sur l’appareil qui conservera la clé d’accès. Il ne fonctionne qu’une fois et expire dans une heure."
 
-#: src/class-passkeys.php:250
+#: src/class-passkeys.php:266
 msgid "If you did not expect this, ignore this email. Nothing changes until the link is used."
 msgstr "Si vous ne vous y attendiez pas, ignorez ce courriel. Rien ne change tant que le lien n’est pas utilisé."
 
-#: src/class-passkeys.php:252
+#: src/class-passkeys.php:268
 #, php-format
 msgid "[%s] Add a passkey to your account"
 msgstr "[%s] Ajoutez une clé d’accès à votre compte"
 
-#: src/class-passkeys.php:327
+#: src/class-passkeys.php:357
 #, php-format
 msgid "It was added with a setup link sent by %s."
 msgstr "Elle a été ajoutée avec un lien de configuration envoyé par %s."
@@ -693,3 +688,27 @@ msgstr "Le mode clé d’accès uniquement est activé, et ce changement empêch
 #: src/class-lifecycle.php:54
 msgid "Passkey storage could not be initialized."
 msgstr "Le stockage des clés d’accès n’a pas pu être initialisé."
+
+#. translators: 1: browser name, 2: device name, such as "Chrome on Mac".
+#: src/class-passkeys.php:174
+#, php-format
+msgid "%1$s on %2$s"
+msgstr "%1$s sur %2$s"
+
+#: src/class-passkeys.php:179
+msgid "Passkey"
+msgstr "Clé d’accès"
+
+#: src/class-passkeys.php:355
+#, php-format
+msgid "A passkey from an unknown authenticator (named “%1$s”) was added to your account on %2$s."
+msgstr "Une clé d’accès d’un authentificateur inconnu (nommée « %1$s ») a été ajoutée à votre compte sur %2$s."
+
+#: src/class-passkeys.php:356
+#, php-format
+msgid "A passkey from %1$s (named “%2$s”) was added to your account on %3$s."
+msgstr "Une clé d’accès de %1$s (nommée « %2$s ») a été ajoutée à votre compte sur %3$s."
+
+#: src/class-passkeys.php:359
+msgid "If you did not expect this, remove the passkey and tell a site administrator:"
+msgstr "Si vous ne vous y attendiez pas, supprimez cette clé d’accès et prévenez un administrateur du site :"
