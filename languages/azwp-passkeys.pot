@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: AZ's WP Passkeys 0.2.1\n"
+"Project-Id-Version: AZ's WP Passkeys 0.2.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/azwp-passkeys\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-05T06:04:46+00:00\n"
+"POT-Creation-Date: 2026-11-05T21:11:15+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: azwp-passkeys\n"
@@ -133,53 +133,53 @@ msgstr ""
 msgid "Passkey data could not be completely removed. Try deleting the plugin again."
 msgstr ""
 
-#: src/class-passkeys.php:246
+#: src/class-passkeys.php:247
 #, php-format
 msgid "%1$s sent you a link to add a passkey to your account on %2$s."
 msgstr ""
 
-#: src/class-passkeys.php:247
+#: src/class-passkeys.php:248
 msgid "Open it on the device that will store the passkey. It works once and expires in one hour."
 msgstr ""
 
-#: src/class-passkeys.php:249
+#: src/class-passkeys.php:250
 msgid "If you did not expect this, ignore this email. Nothing changes until the link is used."
 msgstr ""
 
-#: src/class-passkeys.php:251
+#: src/class-passkeys.php:252
 #, php-format
 msgid "[%s] Add a passkey to your account"
 msgstr ""
 
-#: src/class-passkeys.php:325
+#: src/class-passkeys.php:326
 #, php-format
 msgid "A passkey named “%1$s” was added to your account on %2$s."
 msgstr ""
 
-#: src/class-passkeys.php:326
+#: src/class-passkeys.php:327
 #, php-format
 msgid "It was added with a setup link sent by %s."
 msgstr ""
 
-#: src/class-passkeys.php:326
+#: src/class-passkeys.php:327
 #, php-format
 msgid "It was added by %s."
 msgstr ""
 
-#: src/class-passkeys.php:326
+#: src/class-passkeys.php:327
 msgid "It was added while you were signed in."
 msgstr ""
 
-#: src/class-passkeys.php:327
+#: src/class-passkeys.php:328
 msgid "If you did not expect this, remove the passkey and change your password:"
 msgstr ""
 
-#: src/class-passkeys.php:330
+#: src/class-passkeys.php:331
 #, php-format
 msgid "[%s] A passkey was added to your account"
 msgstr ""
 
-#: src/class-passkeys.php:425
+#: src/class-passkeys.php:422
 msgid "This passkey is unavailable under the current site settings."
 msgstr ""
 
