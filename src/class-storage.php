@@ -49,7 +49,7 @@ final class Storage {
         $charset = $this->db->get_charset_collate();
         $t = $this->tables;
         $schemas = [
-            "CREATE TABLE IF NOT EXISTS `{$t['identities']}` (user_id BIGINT UNSIGNED NOT NULL, handle BINARY(32) NOT NULL, enrollment_initialized TINYINT UNSIGNED NOT NULL DEFAULT 0, created_at BIGINT UNSIGNED NOT NULL, PRIMARY KEY (user_id), UNIQUE KEY handle (handle)) ENGINE=InnoDB $charset",
+            "CREATE TABLE IF NOT EXISTS `{$t['identities']}` (user_id BIGINT UNSIGNED NOT NULL, handle BINARY(64) NOT NULL, enrollment_initialized TINYINT UNSIGNED NOT NULL DEFAULT 0, created_at BIGINT UNSIGNED NOT NULL, PRIMARY KEY (user_id), UNIQUE KEY handle (handle)) ENGINE=InnoDB $charset",
             "CREATE TABLE IF NOT EXISTS `{$t['credentials']}` (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, user_id BIGINT UNSIGNED NOT NULL, site_id BIGINT UNSIGNED NOT NULL, credential_hash BINARY(32) NOT NULL, credential_id BLOB NOT NULL, rp_id VARCHAR(253) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, public_key_pem TEXT NOT NULL, public_key_cose BLOB NOT NULL, credential_type VARCHAR(10) NOT NULL, attestation_type VARCHAR(32) NOT NULL, trust_path TEXT NOT NULL, aaguid BINARY(16) NOT NULL, other_ui TEXT NULL, algorithm SMALLINT NOT NULL, sign_count BIGINT UNSIGNED NOT NULL, backup_eligible TINYINT UNSIGNED NOT NULL, backed_up TINYINT UNSIGNED NOT NULL, transports TEXT NOT NULL, name TEXT NOT NULL, created_at BIGINT UNSIGNED NOT NULL, created_local DATETIME NOT NULL, last_used_local DATETIME NULL, PRIMARY KEY (id), UNIQUE KEY credential_hash (credential_hash), KEY owner_site_created (user_id,site_id,created_at,id), KEY owner_rp (user_id,rp_id)) ENGINE=InnoDB $charset",
             "CREATE TABLE IF NOT EXISTS `{$t['attempts']}` (id BINARY(32) NOT NULL, site_id BIGINT UNSIGNED NOT NULL, purpose VARCHAR(16) NOT NULL, actor_id BIGINT UNSIGNED NULL, target_id BIGINT UNSIGNED NULL, browser_hash BINARY(32) NULL, session_hash BINARY(32) NULL, challenge BINARY(32) NOT NULL, issued TEXT NOT NULL, status VARCHAR(8) NOT NULL, created_at BIGINT UNSIGNED NOT NULL, expires_at BIGINT UNSIGNED NOT NULL, PRIMARY KEY (id), KEY expires_at (expires_at)) ENGINE=InnoDB $charset",
             "CREATE TABLE IF NOT EXISTS `{$t['logs']}` (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, site_id BIGINT UNSIGNED NOT NULL, occurred_at BIGINT UNSIGNED NOT NULL, event VARCHAR(48) NOT NULL, actor_id BIGINT UNSIGNED NULL, target_id BIGINT UNSIGNED NULL, result VARCHAR(32) NOT NULL, correlation_id CHAR(32) CHARACTER SET ascii NOT NULL, detail TEXT NOT NULL, PRIMARY KEY (id), KEY site_log (site_id,id)) ENGINE=InnoDB $charset",
@@ -133,7 +133,7 @@ final class Storage {
             $identity = $this->identity_row($user_id);
             if (!$identity && $exists) {
                 do {
-                    $handle = random_bytes(32);
+                    $handle = random_bytes(64);
                     // The global advisory lock serializes plugin provisioning. Unique keys
                     // also protect against another writer without replacing an existing handle.
                     $inserted = $this->db->insert($this->tables['identities'], ['user_id' => $user_id, 'handle' => $handle, 'enrollment_initialized' => 0, 'created_at' => time()], ['%d', '%s', '%d', '%d']);

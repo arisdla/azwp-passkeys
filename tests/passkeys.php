@@ -61,6 +61,7 @@ try {
     check('real enrollment options issued', $options['ok']);
     $attempt_ids[] = $attempt_id = $options['data']['attempt_id'];
     $issued = $read_issued($attempt_id);
+    check('registration uses a 64-byte handle', strlen($issued['user_handle']) === 64);
     $input = ['attempt_id'=>$attempt_id,'credential'=>registration_fixture($issued,$id,$cose,$aaguid)];
     $wrong_context = array_replace($context,['session_hash'=>random_bytes(32)]);
     check('changed session cannot complete enrollment', !$passkeys->complete_registration($wrong_context,$input)['ok']);
@@ -77,6 +78,9 @@ try {
     $next = $passkeys->registration_options($context,[]);
     if ($next['ok']) { $attempt_ids[] = $next['data']['attempt_id']; }
     check('next default name skips one already in use', $next['ok'] && $read_issued($next['data']['attempt_id'])['name'] === 'passkey_2');
+    check('repeated enrollment keeps exact handle', $next['ok'] && $read_issued($next['data']['attempt_id'])['user_handle'] === $issued['user_handle']);
+    $other = $storage->with_owner_lock($bob, static fn(Storage $store): array => $store->get_identity($bob));
+    check('different accounts have different 64-byte handles', $other['ok'] && strlen($other['data']['identity']['handle']) === 64 && $other['data']['identity']['handle'] !== $issued['user_handle']);
     $stored = $storage->find_credential($id)['data']['credential'];
     $record = (int) $stored['id'];
     check('database retains exact nonzero AAGUID and COSE', $stored['aaguid']===$aaguid && $stored['public_key_cose']===$cose);

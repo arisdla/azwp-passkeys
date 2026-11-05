@@ -18,7 +18,7 @@ final class WebAuthn {
 	public function creation_options(array $issued): array {
 		return $this->guard(function () use ($issued): array {
 			$library = $this->library($issued);
-			$this->require(strlen($issued['challenge']) === 32 && strlen($issued['user_handle']) === 32);
+			$this->require(strlen($issued['challenge']) === 32 && strlen($issued['user_handle']) === 64);
 			$args = $library->getCreateArgs($issued['user_handle'], $issued['user_name'], $issued['user_display_name'], 60, true, 'required', null);
 			$options = json_decode(json_encode($args->publicKey, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
 			$options['challenge'] = self::encode($issued['challenge']);
@@ -51,6 +51,7 @@ final class WebAuthn {
 		return $this->guard(function () use ($attempt, $response): array {
 			$issued = $this->issued($attempt);
 			[$credential_id, $body] = $this->envelope($response);
+			$this->require(is_string($issued['user_handle'] ?? null) && strlen($issued['user_handle']) === 64);
 			$client = $this->client_data($issued, $body, 'webauthn.create');
 			$attestation = self::decode($body['attestationObject'] ?? null);
 			$object = CborDecoder::decode($attestation);
@@ -96,6 +97,7 @@ final class WebAuthn {
 			[$credential_id, $body] = $this->envelope($response);
 			$this->require(hash_equals($credential['credential_id'], $credential_id) && $credential['rp_id'] === $issued['rp_id']);
 			$this->require(isset($credential['user_id']) && (int) $credential['user_id'] > 0);
+			$this->require(is_string($credential['user_handle'] ?? null) && strlen($credential['user_handle']) === 64);
 			$listed = isset($issued['allow_credentials']);
 			if ($listed) {
 				$this->require(is_array($issued['allow_credentials']));
@@ -108,7 +110,7 @@ final class WebAuthn {
 			$handle = $body['userHandle'] ?? null;
 			if (!$listed || $handle !== null) {
 				$handle = self::decode($handle);
-				$this->require($handle !== '' && hash_equals($credential['user_handle'], $handle));
+				$this->require(strlen($handle) === 64 && hash_equals($credential['user_handle'], $handle));
 			}
 			$client = $this->client_data($issued, $body, 'webauthn.get');
 			$auth_data = self::decode($body['authenticatorData'] ?? null);

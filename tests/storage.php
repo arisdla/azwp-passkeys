@@ -24,7 +24,7 @@ $original_settings = get_option('azwp_passkeys_settings', null);
 $site_id = get_current_blog_id();
 try {
     $identity = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->get_identity($user_id));
-    $assert($identity['ok'] && strlen($identity['data']['identity']['handle']) === 32 && (int) $identity['data']['identity']['enrollment_initialized'] === 0, 'Lock provisioning does not initialize enrollment');
+    $assert($identity['ok'] && strlen($identity['data']['identity']['handle']) === 64 && (int) $identity['data']['identity']['enrollment_initialized'] === 0, 'Lock provisioning does not initialize enrollment');
     $initialized = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->initialize_identity($user_id));
     $assert($initialized['ok'] && $initialized['data']['identity']['handle'] === $identity['data']['identity']['handle'], 'Enrollment retains stable handle');
     $row = ['user_id'=>$user_id,'site_id'=>$site_id,'credential_id'=>"\0".random_bytes(64),'rp_id'=>'example.test','public_key_pem'=>'validated PEM fixture','public_key_cose'=>"\xa1\x01\x02",'credential_type'=>'public-key','attestation_type'=>'none','trust_path'=>[],'aaguid'=>str_repeat("\0",16),'other_ui'=>null,'algorithm'=>-7,'sign_count'=>0,'backup_eligible'=>false,'backed_up'=>false,'transports'=>['internal'],'name'=>'Test passkey','created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
