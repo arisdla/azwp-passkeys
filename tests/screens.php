@@ -7,7 +7,7 @@ require_once ABSPATH.'wp-admin/includes/template.php';
 $checks=0;
 $assert=static function(bool $condition,string $label)use(&$checks):void { if (!$condition) throw new RuntimeException($label); ++$checks; };
 $storage=new \AZWP\Passkeys\Storage($GLOBALS['wpdb']);
-$settings=new \AZWP\Passkeys\Settings($storage);
+$settings=new \AZWP\Passkeys\Settings($storage,new \AZWP\Passkeys\Logs($storage));
 $screens=new \AZWP\Passkeys\Screens($settings,new \AZWP\Passkeys\Passkeys($settings,$storage,new \AZWP\Passkeys\WebAuthn()),$storage);
 $original=get_option('azwp_passkeys_settings',null);
 $actor=get_current_user_id();
@@ -48,14 +48,15 @@ try {
     $assert(str_contains($profile_registered,'data-open="add"')&&str_contains($profile_registered,'Your account is ready.'),'After-registration marker opens Add passkey on own profile');
     $site=$render(fn()=> $screens->render_site_settings());
     foreach (['require_user_verification','authenticator_attachment','name="logging"','name="terminology"','name="login_identifier"','name="username_free"'] as $removed) $assert(!str_contains($site,$removed),'Site settings excludes '.$removed);
-    $assert(str_contains($site,'Passkey diagnostics'),'Site settings links separate diagnostics');
+    $assert(str_contains($site,'Passkey Logs'),'Site settings links the Passkey Logs page');
     $assert(str_contains($site,'name="passkey_only"')===!is_multisite()&&!str_contains($site,'Prefer password'),'Passkey only mode is an on/off switch with no sign-in preference');
     $assert(str_contains($site,'name="after_registration"')===!is_multisite(),'After registration is offered only on single-site');
-    $diagnostics=$render(fn()=> $screens->render_diagnostics());
-    $assert(str_contains($diagnostics,'name="logging"')&&str_contains($diagnostics,'Clear logs'),'Diagnostics owns logging control and clear action');
+    $logs_page=$render(fn()=> $screens->render_logs());
+    $assert(str_contains($logs_page,'name="logging"')&&str_contains($logs_page,'Clear logs'),'The log page owns the logging control and clear action');
+    $assert(str_contains($logs_page,'<h1>Passkey Logs</h1>')&&str_contains($logs_page,'scope="col"')&&str_contains($logs_page,'data-log-filter="category"')&&!str_contains($logs_page,'<pre'),'The log page shows a filtered table, not raw entries');
     if (!WP_Block_Type_Registry::get_instance()->is_registered('azwp-passkeys/login')) $screens->register_blocks();
     foreach (['login','register','test','list'] as $kind) $assert(\WP_Block_Type_Registry::get_instance()->is_registered('azwp-passkeys/'.$kind),'Registered block '.$kind);
-    $assert(!preg_match('/\b(authenticator|Terminology)\b/',$site.$profile.$diagnostics),'No removed jargon in visible generated screens');
+    $assert(!preg_match('/\b(authenticator|Terminology)\b/',$site.$profile.$logs_page),'No removed jargon in visible generated screens');
     echo "Screens integration: {$checks} checks passed.\n";
 } finally {
     wp_set_current_user($actor);

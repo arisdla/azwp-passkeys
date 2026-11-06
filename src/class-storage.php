@@ -4,6 +4,8 @@ namespace AZWP\Passkeys;
 
 final class Storage {
     public const LOCK_WAIT_SECONDS = 5;
+    /** 2 replaced the logs table with the events table. */
+    public const SCHEMA_VERSION = 2;
     private const SETUP_LINK_KEY = 'azwp_passkeys_setup_link';
     private const ENGINE_FAILURE = 1;
     private \wpdb $db;
@@ -15,7 +17,7 @@ final class Storage {
 
     public function __construct(\wpdb $wpdb) {
         $this->db = $wpdb;
-        foreach (['identities', 'credentials', 'attempts', 'logs'] as $name) {
+        foreach (['identities', 'credentials', 'attempts', 'events'] as $name) {
             $this->tables[$name] = $wpdb->base_prefix . 'azwp_passkeys_' . $name;
         }
         $this->lock_name = 'azwp-passkeys:' . substr(hash('sha256', (defined('DB_NAME') ? DB_NAME : '') . ':' . $wpdb->base_prefix), 0, 32);
@@ -38,8 +40,9 @@ final class Storage {
         if ($this->db->last_error !== '') { throw new \RuntimeException('Database read failed'); }
         return $rows ?: [];
     }
+    /** The events table is left out, so a missing events table never blocks a passkey operation. */
     private function transactional_tables(array $extra = []): void {
-        $names = array_merge(array_values($this->tables), [$this->db->users, $this->db->usermeta, $this->db->options], $extra);
+        $names = array_merge(array_values(array_diff_key($this->tables, ['events' => true])), [$this->db->users, $this->db->usermeta, $this->db->options], $extra);
         if (is_multisite()) { $names[] = $this->db->sitemeta; }
         foreach (array_unique($names) as $name) {
             $row = $this->row($this->db->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', $name));
@@ -66,7 +69,7 @@ final class Storage {
             "CREATE TABLE IF NOT EXISTS `{$t['identities']}` (user_id BIGINT UNSIGNED NOT NULL, handle BINARY(64) NOT NULL, enrollment_initialized TINYINT UNSIGNED NOT NULL DEFAULT 0, created_at BIGINT UNSIGNED NOT NULL, PRIMARY KEY (user_id), UNIQUE KEY handle (handle)) ENGINE=InnoDB $charset",
             "CREATE TABLE IF NOT EXISTS `{$t['credentials']}` (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, user_id BIGINT UNSIGNED NOT NULL, site_id BIGINT UNSIGNED NOT NULL, credential_hash BINARY(32) NOT NULL, credential_id BLOB NOT NULL, rp_id VARCHAR(253) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, public_key_pem TEXT NOT NULL, public_key_cose BLOB NOT NULL, credential_type VARCHAR(10) NOT NULL, attestation_type VARCHAR(32) NOT NULL, trust_path TEXT NOT NULL, aaguid BINARY(16) NOT NULL, other_ui TEXT NULL, algorithm SMALLINT NOT NULL, sign_count BIGINT UNSIGNED NOT NULL, backup_eligible TINYINT UNSIGNED NOT NULL, backed_up TINYINT UNSIGNED NOT NULL, transports TEXT NOT NULL, name TEXT NOT NULL, created_at BIGINT UNSIGNED NOT NULL, created_local DATETIME NOT NULL, last_used_local DATETIME NULL, PRIMARY KEY (id), UNIQUE KEY credential_hash (credential_hash), KEY owner_site_created (user_id,site_id,created_at,id), KEY owner_rp (user_id,rp_id)) ENGINE=InnoDB $charset",
             "CREATE TABLE IF NOT EXISTS `{$t['attempts']}` (id BINARY(32) NOT NULL, site_id BIGINT UNSIGNED NOT NULL, purpose VARCHAR(16) NOT NULL, actor_id BIGINT UNSIGNED NULL, target_id BIGINT UNSIGNED NULL, browser_hash BINARY(32) NULL, session_hash BINARY(32) NULL, challenge BINARY(32) NOT NULL, issued TEXT NOT NULL, status VARCHAR(8) NOT NULL, created_at BIGINT UNSIGNED NOT NULL, expires_at BIGINT UNSIGNED NOT NULL, PRIMARY KEY (id), KEY expires_at (expires_at)) ENGINE=InnoDB $charset",
-            "CREATE TABLE IF NOT EXISTS `{$t['logs']}` (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, site_id BIGINT UNSIGNED NOT NULL, occurred_at BIGINT UNSIGNED NOT NULL, event VARCHAR(48) NOT NULL, actor_id BIGINT UNSIGNED NULL, target_id BIGINT UNSIGNED NULL, result VARCHAR(32) NOT NULL, correlation_id CHAR(32) CHARACTER SET ascii NOT NULL, detail TEXT NOT NULL, PRIMARY KEY (id), KEY site_log (site_id,id)) ENGINE=InnoDB $charset",
+            "CREATE TABLE IF NOT EXISTS `{$t['events']}` (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, site_id BIGINT UNSIGNED NOT NULL, occurred_at BIGINT UNSIGNED NOT NULL, event VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, ok TINYINT UNSIGNED NOT NULL, code VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, correlation_id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, actor_id BIGINT UNSIGNED NULL, actor_login VARCHAR(60) NULL, target_id BIGINT UNSIGNED NULL, target_login VARCHAR(60) NULL, passkey_id BIGINT UNSIGNED NULL, passkey_name VARCHAR(255) NULL, passkey_aaguid BINARY(16) NULL, ip VARCHAR(45) CHARACTER SET ascii COLLATE ascii_bin NULL, data TEXT NULL, PRIMARY KEY (id), KEY site_id_id (site_id,id), KEY site_event (site_id,event,id), KEY actor (actor_id), KEY target (target_id)) ENGINE=InnoDB $charset",
         ];
         try {
             require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -81,7 +84,7 @@ final class Storage {
                 if ($this->db->last_error !== '') { throw new \RuntimeException('Schema installation failed'); }
             }
             $this->verify_schema();
-            $this->transactional_tables($this->network_options_tables());
+            $this->transactional_tables([$this->tables['events'], ...$this->network_options_tables()]);
             return self::ok();
         } catch (\Throwable $e) { return self::error($e->getCode() === self::ENGINE_FAILURE ? 'storage_engine' : 'storage_failed'); }
     }
@@ -91,7 +94,7 @@ final class Storage {
             'identities' => ['PRIMARY' => ['user_id'], 'handle' => ['handle']],
             'credentials' => ['PRIMARY' => ['id'], 'credential_hash' => ['credential_hash'], 'owner_site_created' => ['user_id','site_id','created_at','id'], 'owner_rp' => ['user_id','rp_id']],
             'attempts' => ['PRIMARY' => ['id'], 'expires_at' => ['expires_at']],
-            'logs' => ['PRIMARY' => ['id'], 'site_log' => ['site_id','id']],
+            'events' => ['PRIMARY' => ['id'], 'site_id_id' => ['site_id','id'], 'site_event' => ['site_id','event','id'], 'actor' => ['actor_id'], 'target' => ['target_id']],
         ];
         foreach ($indexes as $name => $required) {
             $found = [];
@@ -463,71 +466,113 @@ final class Storage {
         wp_cache_delete('notoptions', 'options');
         if ($switched) { restore_current_blog(); }
     }
-    public function append_log(int $site_id, array $entry): array {
-        if ($this->in_transaction) { return self::error(); }
-        try {
-            if (empty($this->read_site_settings($site_id)['logging'])) { return self::ok(['logged' => false]); }
-            $events = ['log_initialized','settings_saved','registration','setup_link_sent','passkey_setup','authentication','credential_test','credential_renamed','credential_removed','registration_sign_in','storage_error','configuration_error','account_cleanup','membership_cleanup'];
-            if (!in_array($entry['event'] ?? null, $events, true)) { return self::error('invalid_request'); }
-            $detail = [];
-            // Only known non-secret configuration and status fields can reach logs.
-            $allowed = ['plugin_version','php_version','wordpress_version','library_version','rp_name','rp_id','passkey_only','remember_login','reset_restriction','logging','setting','previous','value','code','count','initialization'];
-            foreach (($entry['detail'] ?? []) as $key => $value) {
-                if (!in_array($key, $allowed, true)) { continue; }
-                if (is_bool($value) || is_int($value) || $value === null) { $detail[$key] = $value; }
-                elseif (is_array($value) && array_is_list($value) && ($entry['detail']['setting'] ?? '') === 'related_origins' && in_array($key, ['previous', 'value'], true)) {
-                    $detail[$key] = [];
-                    foreach ($value as $origin) {
-                        if (!is_string($origin)) { continue; }
-                        $parts = parse_url($origin);
-                        $detail[$key][] = is_array($parts) && isset($parts['scheme'], $parts['host'])
-                            ? strtolower($parts['scheme']) . '://' . strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '')
-                            : '[invalid origin]';
-                    }
-                } elseif (is_string($value)) {
-                    $text = strip_tags($value);
-                    // Extension initialization strings cannot bypass central redaction.
-                    $text = preg_replace('/(?:bearer\s+\S+|(?:password|cookie|token|challenge|secret|authorization|signature)\s*[:=]\s*\S+|-----BEGIN[\s\S]*?-----END[^-]*-----)/i', '[redacted]', $text);
-                    $detail[$key] = $text;
-                }
-            }
-            $correlation = $entry['correlation_id'] ?? bin2hex(random_bytes(16));
-            if (!is_string($correlation) || !preg_match('/^[a-f0-9]{32}$/D', $correlation)) { return self::error('invalid_request'); }
-            $result = $entry['result'] ?? 'ok';
-            if (!is_string($result) || !preg_match('/^[a-z_]{1,32}$/D', $result)) { return self::error('invalid_request'); }
-            $data = ['site_id' => $site_id, 'occurred_at' => time(), 'event' => $entry['event'], 'actor_id' => $entry['actor_id'] ?? null, 'target_id' => $entry['target_id'] ?? null, 'result' => $result, 'correlation_id' => $correlation, 'detail' => json_encode($detail, JSON_THROW_ON_ERROR)];
-            return $this->db->insert($this->tables['logs'], $data) === false ? self::error() : self::ok(['logged' => true]);
-        } catch (\Throwable $e) { return self::error(); }
+    /** Inside an owner transaction the write is skipped, because a rollback would take it with the operation. */
+    public function insert_event(array $row): bool {
+        if ($this->in_transaction) { return false; }
+        $formats = ['site_id'=>'%d','occurred_at'=>'%d','event'=>'%s','ok'=>'%d','code'=>'%s','correlation_id'=>'%s','actor_id'=>'%d','actor_login'=>'%s','target_id'=>'%d','target_login'=>'%s','passkey_id'=>'%d','passkey_name'=>'%s','passkey_aaguid'=>'%s','ip'=>'%s','data'=>'%s'];
+        $row = array_intersect_key($row, $formats);
+        return $this->db->insert($this->tables['events'], $row, array_map(static fn(string $key): string => $formats[$key], array_keys($row))) !== false;
     }
-    public function read_logs(int $site_id): array {
+    /** One page of the site's events, newest first. A page past the end returns the last page. */
+    public function read_events(int $site_id, ?array $events, ?bool $ok, int $paged, int $per_page): array {
         try {
-            $rows = $this->rows($this->db->prepare("SELECT occurred_at,event,actor_id,target_id,result,correlation_id,detail FROM `{$this->tables['logs']}` WHERE site_id=%d ORDER BY id", $site_id));
+            $table = $this->tables['events'];
+            $where = $this->db->prepare('site_id=%d', $site_id);
+            $total = (int) $this->row("SELECT COUNT(*) AS total FROM `$table` WHERE $where")['total'];
+            if ($events !== null) { $where .= $this->db->prepare(' AND event IN (' . implode(',', array_fill(0, count($events), '%s')) . ')', ...$events); }
+            if ($ok !== null) { $where .= $this->db->prepare(' AND ok=%d', (int) $ok); }
+            $matched = (int) $this->row("SELECT COUNT(*) AS total FROM `$table` WHERE $where")['total'];
+            $pages = max(1, (int) ceil($matched / $per_page));
+            $paged = min($paged, $pages);
+            $rows = $this->rows("SELECT * FROM `$table` WHERE $where ORDER BY id DESC" . $this->db->prepare(' LIMIT %d OFFSET %d', $per_page, ($paged - 1) * $per_page));
             foreach ($rows as &$row) {
-                $row['detail'] = json_decode($row['detail'], true, 512, JSON_THROW_ON_ERROR);
-                foreach (['actor_id','target_id'] as $field) {
-                    if ($row[$field] === null) { continue; }
-                    $value = (string) $row[$field];
+                foreach (['id', 'site_id', 'actor_id', 'target_id', 'passkey_id'] as $key) {
+                    if ($row[$key] === null) { continue; }
+                    $value = (string) $row[$key];
                     if (strlen($value) > strlen((string) PHP_INT_MAX) || (strlen($value) === strlen((string) PHP_INT_MAX) && strcmp($value, (string) PHP_INT_MAX) > 0)) { throw new \RuntimeException('ID out of range'); }
-                    $row[$field] = (int) $value;
+                    $row[$key] = (int) $value;
                 }
+                $row['occurred_at'] = (int) $row['occurred_at'];
+                $row['ok'] = (bool) $row['ok'];
+                $data = $row['data'] === null ? [] : json_decode($row['data'], true, 32, JSON_THROW_ON_ERROR);
+                $row['data'] = is_array($data) ? $data : [];
             }
             unset($row);
-            return self::ok(['entries' => $rows, 'count' => count($rows)]);
+            return self::ok(['total' => $total, 'matched' => $matched, 'paged' => $paged, 'total_pages' => $pages, 'rows' => $rows]);
         } catch (\Throwable $e) { return self::error(); }
     }
-    public function clear_logs(int $site_id): array {
+    public function clear_events(int $site_id): array {
         try {
-            $this->query($this->db->prepare("DELETE FROM `{$this->tables['logs']}` WHERE site_id=%d", $site_id));
-            $rows = $this->row($this->db->prepare("SELECT COUNT(*) AS total FROM `{$this->tables['logs']}` WHERE site_id=%d", $site_id));
+            $this->query($this->db->prepare("DELETE FROM `{$this->tables['events']}` WHERE site_id=%d", $site_id));
+            $rows = $this->row($this->db->prepare("SELECT COUNT(*) AS total FROM `{$this->tables['events']}` WHERE site_id=%d", $site_id));
             return (int) $rows['total'] === 0 ? self::ok(['count' => 0]) : self::error('outcome_unknown');
         } catch (\Throwable $e) { return self::error(); }
+    }
+    /** Erases the user's logins on every site, and the names of passkeys the user owns. A row without a passkey keeps its NULL name. */
+    public function erase_event_logins(int $user_id): array {
+        try {
+            $table = $this->tables['events'];
+            // MySQL counts only rows whose values changed, so an already erased row adds nothing.
+            $changed = $this->query($this->db->prepare("UPDATE `$table` SET actor_login='erased', ip=IF(ip IS NULL, NULL, 'erased') WHERE actor_id=%d", $user_id));
+            // With no actor, the request came from the target, such as a sign-in, so the address is the target's.
+            $changed += $this->query($this->db->prepare("UPDATE `$table` SET target_login='erased', passkey_name=IF(passkey_name IS NULL, NULL, 'erased'), ip=IF(ip IS NULL OR actor_id IS NOT NULL, ip, 'erased') WHERE target_id=%d", $user_id));
+            return self::ok(['changed' => $changed]);
+        } catch (\Throwable $e) { return self::error(); }
+    }
+    /**
+     * Replaces personal data keys with "erased" in one page of the user's rows.
+     * $personal maps each event to its personal keys and whose data each is, "target" or "actor".
+     */
+    public function erase_event_data(int $user_id, array $personal, int $page, int $per_page): array {
+        if ($personal === []) { return self::ok(['rows' => 0, 'changed' => 0]); }
+        try {
+            $table = $this->tables['events'];
+            $clauses = [];
+            foreach ($personal as $event => $keys) {
+                foreach (array_unique(array_values($keys)) as $owner) {
+                    $clauses[] = $this->db->prepare('(event=%s AND ' . ($owner === 'actor' ? 'actor_id' : 'target_id') . '=%d)', $event, $user_id);
+                }
+            }
+            $rows = $this->rows("SELECT id,event,actor_id,target_id,data FROM `$table` WHERE " . implode(' OR ', $clauses) . ' ORDER BY id' . $this->db->prepare(' LIMIT %d OFFSET %d', $per_page, ($page - 1) * $per_page));
+            $changed = 0;
+            foreach ($rows as $row) {
+                $data = $row['data'] === null ? [] : json_decode($row['data'], true, 32, JSON_THROW_ON_ERROR);
+                if (!is_array($data)) { continue; }
+                $erased = $data;
+                foreach ($personal[$row['event']] as $key => $owner) {
+                    if (array_key_exists($key, $erased) && (int) $row[$owner . '_id'] === $user_id) { $erased[$key] = 'erased'; }
+                }
+                if ($erased === $data) { continue; }
+                $this->query($this->db->prepare("UPDATE `$table` SET data=%s WHERE id=%d", json_encode($erased, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $row['id']));
+                ++$changed;
+            }
+            return self::ok(['rows' => count($rows), 'changed' => $changed]);
+        } catch (\Throwable $e) { return self::error(); }
+    }
+    /** Rows on any site where the user acted or was acted on, or null when the count fails. */
+    public function count_user_events(int $user_id): ?int {
+        try { return (int) $this->row($this->db->prepare("SELECT COUNT(*) AS total FROM `{$this->tables['events']}` WHERE actor_id=%d OR target_id=%d", $user_id, $user_id))['total']; }
+        catch (\Throwable $e) { return null; }
+    }
+    /** Runs $operation under a non-blocking named lock. Returns null when another request holds it. */
+    public function with_upgrade_lock(callable $operation): mixed {
+        $lock = $this->lock_name . ':upgrade';
+        if ((string) $this->db->get_var($this->db->prepare('SELECT GET_LOCK(%s,0)', $lock)) !== '1') { return null; }
+        try { return $operation(); }
+        finally { $this->db->get_var($this->db->prepare('SELECT RELEASE_LOCK(%s)', $lock)); }
+    }
+    /** 0.3.0 and earlier logged to this table. Its history is not copied. */
+    public function drop_legacy_logs(): bool {
+        return $this->db->query("DROP TABLE IF EXISTS `{$this->db->base_prefix}azwp_passkeys_logs`") !== false;
     }
     public function cleanup_user(int $user_id, ?int $site_id = null, bool $require_missing_account = false): array {
         return $this->with_owner_lock($user_id, function () use ($user_id, $site_id, $require_missing_account): array {
             if ($require_missing_account && $this->account_exists($user_id)) { return self::ok(['unchanged' => true]); }
-            $sql = $this->db->prepare("DELETE FROM `{$this->tables['credentials']}` WHERE user_id=%d", $user_id);
-            if ($site_id !== null) { $sql .= $this->db->prepare(' AND site_id=%d', $site_id); }
-            $this->query($sql);
+            $where = $this->db->prepare('user_id=%d', $user_id);
+            if ($site_id !== null) { $where .= $this->db->prepare(' AND site_id=%d', $site_id); }
+            $counts = [];
+            foreach ($this->rows("SELECT site_id, COUNT(*) AS total FROM `{$this->tables['credentials']}` WHERE $where GROUP BY site_id") as $row) { $counts[(int) $row['site_id']] = (int) $row['total']; }
+            $this->query("DELETE FROM `{$this->tables['credentials']}` WHERE $where");
             if ($site_id === null) {
                 $this->query($this->db->prepare("DELETE FROM `{$this->tables['identities']}` WHERE user_id=%d", $user_id));
                 $this->query($this->db->prepare("DELETE FROM `{$this->tables['attempts']}` WHERE actor_id=%d OR target_id=%d", $user_id, $user_id));
@@ -537,7 +582,7 @@ final class Storage {
                 // Missing users must not retain a provisional identity from cleanup.
                 $this->query($this->db->prepare("DELETE FROM `{$this->tables['identities']}` WHERE user_id=%d", $user_id));
             }
-            return self::ok();
+            return self::ok(['counts' => $counts]);
         }, true);
     }
     /** Counts one use of a one-minute transient counter; false at the limit or when the counter cannot be locked. */
@@ -565,6 +610,7 @@ final class Storage {
         try {
             $users = $this->rows($this->db->prepare("SELECT DISTINCT user_id FROM `{$this->db->usermeta}` WHERE meta_key IN (%s,%s)", 'azwp_passkeys_password_disabled', self::SETUP_LINK_KEY));
             foreach ($this->tables as $table) { $this->query("DROP TABLE IF EXISTS `$table`"); }
+            if (!$this->drop_legacy_logs()) { return self::error(); }
             $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE meta_key IN (%s,%s)", 'azwp_passkeys_password_disabled', self::SETUP_LINK_KEY));
             foreach ($users as $user) { wp_cache_delete((int) $user['user_id'], 'user_meta'); }
             // Lifecycle deletes per-site/network options using WordPress cache-aware APIs.

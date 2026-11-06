@@ -4,14 +4,14 @@ if (!defined('ABSPATH') || !defined('AZWP_PASSKEYS_TESTS') || AZWP_PASSKEYS_TEST
 if (!function_exists('pcntl_fork') || !function_exists('posix_kill')) { throw new RuntimeException('Concurrency tests require test-only pcntl and posix support.'); }
 require_once dirname(__DIR__) . '/autoload.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
-use AZWP\Passkeys\{Storage,Settings,Passkeys,WebAuthn};
+use AZWP\Passkeys\{Storage,Settings,Passkeys,WebAuthn,Logs};
 $checks=0;
 $assert=static function(bool $ok,string $label) use (&$checks):void { if(!$ok){throw new RuntimeException($label);} ++$checks; };
 $wait=static function(string $path):void { $end=microtime(true)+8; while(!is_file($path)){if(microtime(true)>$end){throw new RuntimeException('Worker barrier timed out');} usleep(10000);} };
 $directory=sys_get_temp_dir().'/azwp-concurrency-'.bin2hex(random_bytes(8));
 if(!mkdir($directory,0700)){throw new RuntimeException('Cannot create test barriers');}
 $wpdb=$GLOBALS['wpdb']; $site=get_current_blog_id(); $base=$wpdb->base_prefix;
-$storage=new Storage($wpdb); $settings=new Settings($storage); $passkeys=new Passkeys($settings,$storage,new WebAuthn());
+$storage=new Storage($wpdb); $settings=new Settings($storage,new Logs($storage)); $passkeys=new Passkeys($settings,$storage,new WebAuthn());
 $storage->install_schema();
 $user=wp_insert_user(['user_login'=>'azwp_race_'.bin2hex(random_bytes(6)),'user_pass'=>wp_generate_password(),'role'=>'subscriber']);
 if(is_wp_error($user)){throw new RuntimeException('Test account creation failed');}
@@ -33,7 +33,7 @@ $pair=static function(string $name,array $jobs)use($wpdb,$base,$site,$directory,
                 while (ob_get_level() > 0) { ob_end_clean(); }
                 try {
                     $db=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$db->set_prefix($base);$db->set_blog_id($site);$GLOBALS['wpdb']=$db;
-                    $s=new Storage($db);$p=new Passkeys(new Settings($s),$s,new WebAuthn());
+                    $s=new Storage($db);$p=new Passkeys(new Settings($s,new Logs($s)),$s,new WebAuthn());
                     touch($run.'/ready'.$index);$wait($run.'/ready'.(1-$index));
                     $result=$job($s,$p,$db,$run,$wait);$db->close();
                     file_put_contents($run.'/result'.$index,json_encode(['ok'=>(bool)($result['ok']??false),'code'=>(string)($result['code']??'invalid_result')],JSON_THROW_ON_ERROR));exit(0);

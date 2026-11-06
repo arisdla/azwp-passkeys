@@ -4,6 +4,7 @@ namespace AZWP\Passkeys;
 final class Plugin
 {
     private Storage $storage;
+    private Logs $logs;
     private Settings $settings;
     private Passkeys $passkeys;
     private Authentication $authentication;
@@ -13,12 +14,13 @@ final class Plugin
     public function __construct(\wpdb $wpdb)
     {
         $this->storage = new Storage($wpdb);
-        $this->settings = new Settings($this->storage);
+        $this->logs = new Logs($this->storage);
+        $this->settings = new Settings($this->storage, $this->logs);
         $this->passkeys = new Passkeys($this->settings, $this->storage, new WebAuthn());
-        $this->authentication = new Authentication($this->settings, $this->passkeys, $this->storage);
-        $this->ajax = new Ajax($this->settings, $this->passkeys, $this->authentication, $this->storage);
+        $this->authentication = new Authentication($this->settings, $this->passkeys, $this->logs);
+        $this->ajax = new Ajax($this->settings, $this->passkeys, $this->authentication, $this->logs);
         $this->screens = new Screens($this->settings, $this->passkeys, $this->storage);
-        $this->lifecycle = new Lifecycle($this->settings, $this->storage);
+        $this->lifecycle = new Lifecycle($this->settings, $this->storage, $this->logs);
     }
     public function register_hooks(): void
     {

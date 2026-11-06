@@ -4,7 +4,8 @@ namespace AZWP\Passkeys;
 final class Ajax
 {
     private const ACTIONS = ['login_options','login_complete','register_options','register_complete','test_options','test_complete','list','rename','remove','log_read','log_clear','send_setup','setup_options','setup_complete'];
-    public function __construct(private Settings $settings, private Passkeys $passkeys, private Authentication $authentication, private Storage $storage) {}
+    public const EVENTS = ['login_complete'=>'signin.passkey','register_complete'=>'passkey.added','setup_complete'=>'passkey.added_by_link','test_complete'=>'passkey.tested','rename'=>'passkey.renamed','remove'=>'passkey.deleted','send_setup'=>'admin.setup_link'];
+    public function __construct(private Settings $settings, private Passkeys $passkeys, private Authentication $authentication, private Logs $logs) {}
     public function register_hooks(): void
     {
         foreach(self::ACTIONS as $action) {
@@ -86,21 +87,28 @@ final class Ajax
                 'list'=>$this->passkeys->list_credentials($context,$target),
                 'rename'=>$this->passkeys->rename_credential($context,$target,$record_id,$payload['name']),
                 'remove'=>$this->passkeys->remove_credential($context,$target,$record_id),
-                'log_read'=>$this->storage->read_logs($site_id),
-                'log_clear'=>$this->storage->clear_logs($site_id),
+                'log_read'=>$this->logs->read($site_id,$payload),
+                'log_clear'=>$this->logs->clear($site_id),
                 'send_setup'=>$this->passkeys->send_setup_link($context,$target),
                 'setup_options'=>$this->passkeys->setup_options($context,$payload),
                 'setup_complete'=>$this->passkeys->complete_setup($context,$payload),
             };
-            $events=['send_setup'=>'setup_link_sent','setup_complete'=>'passkey_setup','register_complete'=>'registration','login_complete'=>'authentication','test_complete'=>'credential_test','rename'=>'credential_renamed','remove'=>'credential_removed'];
-            // Authentication subjects come only from accepted server proof, never client targets.
-            $subject = in_array($action, ['login_complete','test_complete','setup_complete'], true)
-                ? (!empty($result['ok']) ? ($result['subject_id'] ?? null) : null)
-                : $target;
-            try { if(isset($events[$action])) { $this->storage->append_log($site_id,['event'=>$events[$action],'actor_id'=>$context['actor_id'] ?: null,'target_id'=>$subject,'result'=>$result['code'],'correlation_id'=>$correlation_id,'detail'=>[]]); } } catch(\Throwable) { /* Logging cannot change the operation result. */ }
+            if (isset(self::EVENTS[$action])) { $this->logs->record(self::EVENTS[$action], self::log_fields($action,$result,(int)$context['actor_id'],$target,$correlation_id)); }
         } catch(\JsonException|\InvalidArgumentException) { $result=$this->failure('invalid_request'); }
         catch(\Throwable) { $result=$this->failure('storage_failed'); }
         $this->respond($result,$correlation_id);
+    }
+    /** The record() fields for an operation result. The browser never receives the result's top-level log. */
+    public static function log_fields(string $action, array $result, int $actor_id, ?int $target, string $correlation_id): array
+    {
+        $log=is_array($result['log']??null)?$result['log']:[];
+        // Authentication subjects come only from accepted server proof, never client targets.
+        $subject=in_array($action,['login_complete','test_complete','setup_complete'],true)
+            ?(!empty($result['ok'])?($result['subject_id']??null):null)
+            :$target;
+        // A logged passkey names its owner, so the eraser finds the row even when the operation failed.
+        if (is_int($log['passkey']['user_id']??null)) { $subject=$log['passkey']['user_id']; }
+        return ['ok'=>!empty($result['ok']),'code'=>(string)$result['code'],'actor_id'=>$actor_id?:null,'target_id'=>$subject,'correlation_id'=>$correlation_id,'passkey'=>$log['passkey']??null,'data'=>$log['data']??[]];
     }
     private function nonce(string $action): bool
     {

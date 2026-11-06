@@ -24,14 +24,14 @@ final class Screens {
         foreach (['login','register','test','list'] as $name) add_shortcode('azwp_pk_'.$name, [$this, 'render_shortcode']);
         add_action('admin_post_azwp_passkeys_save_site', fn() => $this->save_form('site'));
         add_action('network_admin_edit_azwp_passkeys_save_network', fn() => $this->save_form('network'));
-        add_action('admin_post_azwp_passkeys_save_diagnostics', fn() => $this->save_form('diagnostics'));
+        add_action('admin_post_azwp_passkeys_save_logs', fn() => $this->save_form('logs'));
         add_filter('users_list_table_query_args', [$this, 'filter_missing_passkey_users']);
         add_filter('plugin_action_links_'.plugin_basename(AZWP_PASSKEYS_FILE), [$this, 'plugin_links']);
         add_filter('network_admin_plugin_action_links_'.plugin_basename(AZWP_PASSKEYS_FILE), [$this, 'plugin_links']);
     }
     public function register_menus(): void {
         $this->page_hooks[] = add_options_page(__("AZ's WP Passkeys", 'azwp-passkeys'), __("AZ's WP Passkeys", 'azwp-passkeys'), 'manage_options', 'azwp-passkeys', [$this, 'render_site_settings']);
-        $this->page_hooks[] = add_management_page(__('Passkey diagnostics','azwp-passkeys'), __('Passkey diagnostics','azwp-passkeys'), 'manage_options', 'azwp-passkeys-diagnostics', [$this,'render_diagnostics']);
+        $this->page_hooks[] = add_management_page(__('Passkey Logs','azwp-passkeys'), __('Passkey Logs','azwp-passkeys'), 'manage_options', 'azwp-passkeys-logs', [$this,'render_logs']);
     }
     public function register_network_menu(): void {
         $this->page_hooks[] = add_submenu_page('settings.php', __("AZ's WP Passkeys",'azwp-passkeys'), __("AZ's WP Passkeys",'azwp-passkeys'), 'manage_network_options', 'azwp-passkeys', [$this,'render_network_settings']);
@@ -196,21 +196,21 @@ final class Screens {
         $values=$network?$this->settings->get_network(get_current_network_id()):$policy;
         echo $this->view($network?'settings-network':'settings-site',['values'=>$values,'network'=>$network,'ready'=>$this->server_ready()]);
     }
-    public function render_diagnostics(): void {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('You do not have permission to view diagnostics.','azwp-passkeys'));
+    public function render_logs(): void {
+        if (!current_user_can('manage_options')) wp_die(esc_html__('You do not have permission to view logs.','azwp-passkeys'));
         $this->environment_notice();
         if (!$this->passkeys->configuration(get_current_blog_id())['ok']) echo '<div class="notice notice-error"><p>'.esc_html__('Check Website name and Passkey domain in settings. The passkey domain must match this site.','azwp-passkeys').'</p></div>';
-        echo $this->view('diagnostics',['values'=>$this->settings->get_effective(get_current_blog_id()),'nonce'=>wp_create_nonce('azwp_passkeys_logs_'.get_current_blog_id()),'ready'=>$this->server_ready()]);
+        echo $this->view('logs',['values'=>$this->settings->get_effective(get_current_blog_id()),'nonce'=>wp_create_nonce('azwp_passkeys_logs_'.get_current_blog_id()),'ready'=>$this->server_ready()]);
     }
     private function save_form(string $scope): void {
         $network=$scope==='network'; $id=$network?get_current_network_id():get_current_blog_id();
         if (!current_user_can($network?'manage_network_options':'manage_options')) wp_die(esc_html__('You do not have permission to manage these settings.','azwp-passkeys'));
         check_admin_referer('azwp_passkeys_save_'.$scope.'_'.$id);
         $input=wp_unslash($_POST); $method='save_'.$scope;
-        $url=$network?network_admin_url('settings.php?page=azwp-passkeys'):admin_url($scope==='diagnostics'?'tools.php?page=azwp-passkeys-diagnostics':'options-general.php?page=azwp-passkeys');
+        $url=$network?network_admin_url('settings.php?page=azwp-passkeys'):admin_url($scope==='logs'?'tools.php?page=azwp-passkeys-logs':'options-general.php?page=azwp-passkeys');
         $effective=$this->settings->get_effective(get_current_blog_id());
         // Passkey only mode removes the password form, so the saving administrator must be able to get back in.
-        $sets_only=$scope!=='diagnostics'&&($network||!is_multisite())&&($input['passkey_only']??null)==='1'&&empty($effective['passkey_only']);
+        $sets_only=$scope!=='logs'&&($network||!is_multisite())&&($input['passkey_only']??null)==='1'&&empty($effective['passkey_only']);
         // The checks below use the stored passkey domain, so a save that leaves the mode on must keep that domain and a usable configuration.
         $only_after=$scope==='site'&&(is_multisite()?!empty($effective['passkey_only']):($input['passkey_only']??null)==='1');
         $locked=$only_after?array_keys(array_filter([
@@ -245,14 +245,15 @@ final class Screens {
         if ($status==='settings_failed') echo '<div class="notice notice-error"><p>'.esc_html__('Settings could not be saved.','azwp-passkeys').'</p></div>';
     }
     private function setting_control(string $key,array $values,bool $network,bool $ready): void {
-        $definitions=[
-            'passkey_only'=>[__('Passkey only mode','azwp-passkeys'),null,__('Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.','azwp-passkeys')],
-            'remember_login'=>[__('Remember me','azwp-passkeys'),null,__('Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked.','azwp-passkeys')],
-            'reset_restriction'=>[__('Block password resets','azwp-passkeys'),['off'=>__('No','azwp-passkeys'),'except_admin'=>__('Except for administrators','azwp-passkeys'),'everyone'=>__('For everyone','azwp-passkeys')],__('Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles.','azwp-passkeys')],
-            'after_registration'=>[__('After registration','azwp-passkeys'),['default'=>__('WordPress default','azwp-passkeys'),'add_passkey'=>__('Sign in and add a passkey','azwp-passkeys')],__('New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in.','azwp-passkeys')],
-            'logging'=>[__('Logging','azwp-passkeys'),null,__('Save diagnostic entries for troubleshooting. Entries remain until you clear them.','azwp-passkeys')],
-        ];
-        [$label,$choices,$help]=$definitions[$key]; $value=$values[$key];
+        $labels=Settings::labels();
+        $help=[
+            'passkey_only'=>__('Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.','azwp-passkeys'),
+            'remember_login'=>__('Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked.','azwp-passkeys'),
+            'reset_restriction'=>__('Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles.','azwp-passkeys'),
+            'after_registration'=>__('New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in.','azwp-passkeys'),
+            'logging'=>__('Save log entries for troubleshooting. Entries remain until you clear them.','azwp-passkeys'),
+        ][$key];
+        $label=$labels['settings'][$key]; $choices=$labels['choices'][$key]??null; $value=$values[$key];
         echo '<tr><th scope="row"><label for="azwp-passkeys-'.$key.'">'.esc_html($label).'</label></th><td>';
         if (!$network&&is_multisite()&&$key==='passkey_only') {
             echo '<p>'.esc_html__('Set in network settings:','azwp-passkeys').' '.esc_html($value?__('Enabled','azwp-passkeys'):__('Disabled','azwp-passkeys')).'</p><a href="'.esc_url(network_admin_url('settings.php?page=azwp-passkeys')).'">'.esc_html__('Network settings','azwp-passkeys').'</a>';

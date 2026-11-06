@@ -99,7 +99,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <tr><td>Frontend components</td><td>Shortcodes and four blocks</td><td>Signed in or out, by component</td></tr>
 <tr><td>Site settings</td><td>Settings, AZ's WP Passkeys</td><td>manage_options</td></tr>
 <tr><td>Network settings</td><td>Network Admin, Settings</td><td>manage_network_options</td></tr>
-<tr><td>Diagnostics</td><td>Tools, Passkey diagnostics</td><td>manage_options</td></tr>
+<tr><td>Logs</td><td>Tools, Passkey Logs</td><td>manage_options</td></tr>
 <tr><td>Activation errors</td><td>Plugins screen, on activate or delete</td><td>Admins</td></tr>
 <tr><td>Notices and email</td><td>Admin notices, "passkey added" and "add a passkey" setup emails</td><td>Account owners, admins</td></tr>
 </table>
@@ -368,7 +368,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <tr><th>After registration</th><td><select><option>WordPress default</option><option>Sign in and add a passkey</option></select><p class="desc">New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in.</p><p class="desc">This has no effect until Anyone can register is turned on in General settings.</p></td></tr>
 </table>
 <p><button class="btn primary">Save changes</button></p>
-<p><a href="#">Manage your passkeys</a> | <a href="#">Passkey diagnostics</a></p>
+<p><a href="#">Manage your passkeys</a> | <a href="#">Passkey Logs</a></p>
 </div></div></div></div>
 
 <div data-v="Saved / failed / errors">
@@ -415,14 +415,14 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 </div>
 </section>
 
-<!-- ============ DIAGNOSTICS ============ -->
-<section class="screen" id="diag" data-title="Diagnostics" data-group="Admin">
-<h2>Passkey diagnostics</h2>
-<p class="lead">/wp-admin/tools.php?page=azwp-passkeys-diagnostics. Log view polls every 5 seconds while logging is on.</p>
+<!-- ============ LOGS ============ -->
+<section class="screen" id="logs" data-title="Logs" data-group="Admin">
+<h2>Passkey Logs</h2>
+<p class="lead">/wp-admin/tools.php?page=azwp-passkeys-logs. Log view polls every 5 seconds while logging is on.</p>
 <div class="demo"><div class="chips"></div><div class="stage">
 <div data-v="Logging on" class="on">
-<h3 style="margin-top:0">Passkey diagnostics</h3>
-<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l1" checked> Enable</label><label><input type="radio" name="l1"> Disable</label><p class="desc">Save diagnostic entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
+<h3 style="margin-top:0">Passkey Logs</h3>
+<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l1" checked> Enable</label><label><input type="radio" name="l1"> Disable</label><p class="desc">Save log entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
 <p><button class="btn primary">Save changes</button></p>
 <p><b>4</b> entries</p>
 <pre>{"event":"authentication","result":"ok","actor_id":null,"target_id":3,"correlation_id":"9f2c…"}

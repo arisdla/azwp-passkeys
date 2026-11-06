@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-05T22:56:12+00:00\n"
+"POT-Creation-Date: 2026-11-06T22:12:11+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: azwp-passkeys\n"
@@ -33,183 +33,490 @@ msgstr ""
 msgid "Arthur Z."
 msgstr ""
 
-#: src/class-ajax.php:115
+#: src/class-ajax.php:123
 msgid "Check the fields and try again."
 msgstr ""
 
-#: src/class-ajax.php:116
+#: src/class-ajax.php:124
 msgid "You do not have permission to do this."
 msgstr ""
 
-#: src/class-ajax.php:117
+#: src/class-ajax.php:125
 msgid "The request could not be accepted. Refresh the page and try again."
 msgstr ""
 
-#: src/class-ajax.php:118
+#: src/class-ajax.php:126
 msgid "This passkey request expired or was already used. Start again."
 msgstr ""
 
-#: src/class-ajax.php:119
+#: src/class-ajax.php:127
 msgid "This passkey has already been added. Nothing was replaced."
 msgstr ""
 
-#: src/class-ajax.php:120
+#: src/class-ajax.php:128
 msgid "Add another usable passkey or restore another sign-in method before removing this passkey."
 msgstr ""
 
-#: src/class-ajax.php:121
+#: src/class-ajax.php:129
 msgid "Your sign-in session or site settings changed. Start again."
 msgstr ""
 
-#: src/class-ajax.php:122
+#: src/class-ajax.php:130
 msgid "No passkey is available for this account."
 msgstr ""
 
-#: src/class-ajax.php:123
+#: src/class-ajax.php:131
 msgid "Too many sign-in attempts. Wait a minute and try again."
 msgstr ""
 
-#: src/class-ajax.php:124
+#: src/class-ajax.php:132
 msgid "Passkeys are unavailable. Contact the site administrator."
 msgstr ""
 
-#: src/class-ajax.php:125
+#: src/class-ajax.php:133
 msgid "The email could not be sent. Try again."
 msgstr ""
 
-#: src/class-ajax.php:126
+#: src/class-ajax.php:134
 #: assets/js/client.js:34
 msgid "The result could not be confirmed. Refresh to check."
 msgstr ""
 
-#: src/class-ajax.php:127
+#: src/class-ajax.php:135
 #: src/class-screens.php:156
 msgid "The change could not be saved. Try again."
 msgstr ""
 
-#: src/class-ajax.php:128
+#: src/class-ajax.php:136
 #: assets/js/client.js:122
 msgid "The passkey could not be verified. Try again."
 msgstr ""
 
-#: src/class-authentication.php:392
+#: src/class-authentication.php:388
 #, php-format
 msgid "Username: %s"
 msgstr ""
 
-#: src/class-authentication.php:393
+#: src/class-authentication.php:389
 msgid "Accounts on this site sign in with passkeys only, so there is no password to set. Ask a site administrator to send you a passkey setup link."
 msgstr ""
 
-#: src/class-authentication.php:442
+#: src/class-authentication.php:438
 #: assets/js/client.js:116
 msgid "Passkey verified."
 msgstr ""
 
-#: src/class-authentication.php:455
-#: src/class-authentication.php:461
+#: src/class-authentication.php:452
+#: src/class-authentication.php:458
 msgid "Sign-in failed. Please try again."
 msgstr ""
 
-#: src/class-lifecycle.php:50
+#: src/class-events.php:29
+#: views/settings-network.php:4
+#: views/settings-site.php:10
+msgid "Sign-in"
+msgstr ""
+
+#: src/class-events.php:30
+#: src/class-events.php:46
+#: src/class-events.php:75
+#: src/class-events.php:140
+#: src/class-passkeys.php:184
+msgid "Passkey"
+msgstr ""
+
+#: src/class-events.php:31
+msgid "Admin"
+msgstr ""
+
+#: src/class-events.php:32
+#: src/class-events.php:162
+#: src/class-screens.php:77
+msgid "Settings"
+msgstr ""
+
+#: src/class-events.php:39
+#, php-format
+msgid "%s: added"
+msgstr ""
+
+#. translators: 1: passkey, 2: username of the account it was added to.
+#: src/class-events.php:41
+#, php-format
+msgid "%1$s: added for %2$s"
+msgstr ""
+
+#. translators: %s: failure reason.
+#: src/class-events.php:43
+#, php-format
+msgid "Adding failed: %s"
+msgstr ""
+
+#: src/class-events.php:47
+#, php-format
+msgid "%s: signed in"
+msgstr ""
+
+#: src/class-events.php:48
+#: src/class-events.php:52
+#, php-format
+msgid "Sign-in failed: %s"
+msgstr ""
+
+#: src/class-events.php:50
+msgid "New registration"
+msgstr ""
+
+#: src/class-events.php:51
+msgid "Signed in after registering"
+msgstr ""
+
+#. translators: 1: account, such as "User #42 (marie)", 2: failure reason.
+#: src/class-events.php:54
+#, php-format
+msgid "%1$s sign-in failed: %2$s"
+msgstr ""
+
+#: src/class-events.php:56
+#: views/credential-list.php:3
+#: assets/js/client.js:65
+msgid "Added"
+msgstr ""
+
+#: src/class-events.php:57
+msgid "Added by link"
+msgstr ""
+
+#: src/class-events.php:58
+msgid "Tested"
+msgstr ""
+
+#: src/class-events.php:59
+#, php-format
+msgid "%s: tested"
+msgstr ""
+
+#: src/class-events.php:60
+#, php-format
+msgid "%1$s: tested for %2$s"
+msgstr ""
+
+#. translators: 1: passkey, 2: failure reason.
+#: src/class-events.php:62
+#, php-format
+msgid "%1$s test failed: %2$s"
+msgstr ""
+
+#. translators: 1: passkey, 2: username of the account it belongs to, 3: failure reason.
+#: src/class-events.php:64
+#, php-format
+msgid "%1$s test failed for %2$s: %3$s"
+msgstr ""
+
+#: src/class-events.php:65
+#, php-format
+msgid "Test failed: %s"
+msgstr ""
+
+#: src/class-events.php:67
+msgid "Renamed"
+msgstr ""
+
+#. translators: 1: passkey with its old name, 2: new name.
+#: src/class-events.php:69
+#, php-format
+msgid "%1$s: renamed to %2$s"
+msgstr ""
+
+#. translators: 1: passkey with its old name, 2: new name, 3: username of the account it belongs to.
+#: src/class-events.php:71
+#, php-format
+msgid "%1$s: renamed to %2$s for %3$s"
+msgstr ""
+
+#: src/class-events.php:72
+#, php-format
+msgid "%1$s renaming failed: %2$s"
+msgstr ""
+
+#: src/class-events.php:73
+#, php-format
+msgid "%1$s renaming failed for %2$s: %3$s"
+msgstr ""
+
+#: src/class-events.php:74
+#, php-format
+msgid "Renaming failed: %s"
+msgstr ""
+
+#: src/class-events.php:76
+msgid "Deleted"
+msgstr ""
+
+#: src/class-events.php:77
+msgid "Passkey already deleted"
+msgstr ""
+
+#: src/class-events.php:79
+#, php-format
+msgid "%s: deleted"
+msgstr ""
+
+#: src/class-events.php:80
+#, php-format
+msgid "%1$s: deleted for %2$s"
+msgstr ""
+
+#: src/class-events.php:81
+#, php-format
+msgid "%1$s deletion failed: %2$s"
+msgstr ""
+
+#: src/class-events.php:82
+#, php-format
+msgid "%1$s deletion failed for %2$s: %3$s"
+msgstr ""
+
+#: src/class-events.php:83
+#, php-format
+msgid "Deletion failed: %s"
+msgstr ""
+
+#: src/class-events.php:85
+msgid "Account deleted"
+msgstr ""
+
+#: src/class-events.php:86
+#, php-format
+msgid "%1$s passkey deletion failed: %2$s"
+msgstr ""
+
+#. translators: 1: account, such as "User #42 (marie)", 2: number of passkeys.
+#: src/class-events.php:89
+#, php-format
+msgid "%1$s deleted with %2$d passkey"
+msgid_plural "%1$s deleted with %2$d passkeys"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/class-events.php:91
+msgid "Setup link"
+msgstr ""
+
+#: src/class-events.php:92
+#, php-format
+msgid "Setup link sent to %s"
+msgstr ""
+
+#. translators: 1: username, 2: failure reason.
+#: src/class-events.php:94
+#, php-format
+msgid "Setup link to %1$s failed: %2$s"
+msgstr ""
+
+#: src/class-events.php:108
+msgid "passkey not recognized"
+msgstr ""
+
+#: src/class-events.php:109
+msgid "request expired or already used"
+msgstr ""
+
+#: src/class-events.php:110
+msgid "session or settings changed mid-request"
+msgstr ""
+
+#: src/class-events.php:111
+msgid "passkey already added"
+msgstr ""
+
+#: src/class-events.php:112
+msgid "would leave the account without a way to sign in"
+msgstr ""
+
+#: src/class-events.php:113
+msgid "not allowed"
+msgstr ""
+
+#: src/class-events.php:114
+msgid "bad request"
+msgstr ""
+
+#: src/class-events.php:115
+msgid "passkeys not set up on this site"
+msgstr ""
+
+#: src/class-events.php:116
+msgid "result not confirmed"
+msgstr ""
+
+#: src/class-events.php:117
+msgid "email not sent"
+msgstr ""
+
+#: src/class-events.php:118
+msgid "database error"
+msgstr ""
+
+#: src/class-events.php:119
+msgid "registered from another site"
+msgstr ""
+
+#: src/class-events.php:120
+msgid "blocked by another plugin"
+msgstr ""
+
+#: src/class-events.php:121
+msgid "sign-in cookie blocked"
+msgstr ""
+
+#. translators: 1: user ID, 2: username.
+#: src/class-events.php:129
+#: src/class-events.php:135
+#, php-format
+msgid "User #%d"
+msgstr ""
+
+#. translators: 1: user ID, 2: username.
+#: src/class-events.php:135
+#, php-format
+msgid "User #%1$d (%2$s)"
+msgstr ""
+
+#. translators: %s: setting name.
+#: src/class-events.php:165
+#, php-format
+msgid "%s turned on"
+msgstr ""
+
+#. translators: %s: setting name.
+#: src/class-events.php:165
+#, php-format
+msgid "%s turned off"
+msgstr ""
+
+#: src/class-events.php:168
+msgid "on"
+msgstr ""
+
+#: src/class-events.php:168
+msgid "off"
+msgstr ""
+
+#. translators: 1: setting name, 2: old value, 3: new value.
+#: src/class-events.php:174
+#, php-format
+msgid "%1$s changed: %2$s → %3$s"
+msgstr ""
+
+#: src/class-lifecycle.php:70
 msgid "Activate AZ's WP Passkeys for the network."
 msgstr ""
 
-#: src/class-lifecycle.php:53
+#: src/class-lifecycle.php:73
 msgid "Passkey storage could not be initialized. The database tables must use the InnoDB storage engine."
 msgstr ""
 
-#: src/class-lifecycle.php:54
+#: src/class-lifecycle.php:74
 msgid "Passkey storage could not be initialized."
 msgstr ""
 
-#: src/class-lifecycle.php:58
-#: src/class-lifecycle.php:64
-#: src/class-lifecycle.php:69
+#: src/class-lifecycle.php:78
+#: src/class-lifecycle.php:84
+#: src/class-lifecycle.php:89
 msgid "Passkey settings could not be initialized."
 msgstr ""
 
-#: src/class-lifecycle.php:139
+#: src/class-lifecycle.php:167
 msgid "Passkey data could not be completely removed. Try deleting the plugin again."
 msgstr ""
 
+#: src/class-logs.php:127
+msgid "system"
+msgstr ""
+
+#: src/class-logs.php:156
+msgid "Passkey log entries are kept with usernames and passkey names erased."
+msgstr ""
+
+#: src/class-logs.php:162
+msgid "Passkey logs could not be erased. Try again."
+msgstr ""
+
+#: src/class-logs.php:166
+#: src/class-screens.php:34
+#: views/logs.php:2
+#: views/settings-site.php:13
+msgid "Passkey Logs"
+msgstr ""
+
 #. translators: 1: browser name, 2: device name, such as "Chrome on Mac".
-#: src/class-passkeys.php:174
+#: src/class-passkeys.php:179
 #, php-format
 msgid "%1$s on %2$s"
 msgstr ""
 
-#: src/class-passkeys.php:179
-msgid "Passkey"
-msgstr ""
-
-#: src/class-passkeys.php:263
+#: src/class-passkeys.php:268
 #, php-format
 msgid "%1$s sent you a link to add a passkey to your account on %2$s."
 msgstr ""
 
-#: src/class-passkeys.php:264
+#: src/class-passkeys.php:269
 msgid "Open it on the device that will store the passkey. It works once and expires in one hour."
 msgstr ""
 
-#: src/class-passkeys.php:266
+#: src/class-passkeys.php:271
 msgid "If you did not expect this, ignore this email. Nothing changes until the link is used."
 msgstr ""
 
-#: src/class-passkeys.php:268
+#: src/class-passkeys.php:273
 #, php-format
 msgid "[%s] Add a passkey to your account"
 msgstr ""
 
-#: src/class-passkeys.php:355
+#: src/class-passkeys.php:360
 #, php-format
 msgid "A passkey from an unknown authenticator (named “%1$s”) was added to your account on %2$s."
 msgstr ""
 
-#: src/class-passkeys.php:356
+#: src/class-passkeys.php:361
 #, php-format
 msgid "A passkey from %1$s (named “%2$s”) was added to your account on %3$s."
 msgstr ""
 
-#: src/class-passkeys.php:357
+#: src/class-passkeys.php:362
 #, php-format
 msgid "It was added with a setup link sent by %s."
 msgstr ""
 
-#: src/class-passkeys.php:357
+#: src/class-passkeys.php:362
 #, php-format
 msgid "It was added by %s."
 msgstr ""
 
-#: src/class-passkeys.php:357
+#: src/class-passkeys.php:362
 msgid "It was added while you were signed in."
 msgstr ""
 
-#: src/class-passkeys.php:359
+#: src/class-passkeys.php:364
 msgid "If you did not expect this, remove the passkey and tell a site administrator:"
 msgstr ""
 
-#: src/class-passkeys.php:360
+#: src/class-passkeys.php:365
 msgid "If you did not expect this, remove the passkey and change your password:"
 msgstr ""
 
-#: src/class-passkeys.php:363
+#: src/class-passkeys.php:368
 #, php-format
 msgid "[%s] A passkey was added to your account"
 msgstr ""
 
-#: src/class-passkeys.php:454
+#: src/class-passkeys.php:462
 msgid "This passkey is unavailable under the current site settings."
 msgstr ""
 
 #: src/class-screens.php:16
 msgid "Passkey added. Sign in with it now."
-msgstr ""
-
-#: src/class-screens.php:34
-#: views/diagnostics.php:2
-#: views/settings-site.php:13
-msgid "Passkey diagnostics"
 msgstr ""
 
 #: src/class-screens.php:63
@@ -237,10 +544,6 @@ msgstr ""
 
 #: src/class-screens.php:72
 msgid "I understand these accounts cannot sign in."
-msgstr ""
-
-#: src/class-screens.php:77
-msgid "Settings"
 msgstr ""
 
 #: src/class-screens.php:143
@@ -278,7 +581,7 @@ msgid "You do not have permission to manage these settings."
 msgstr ""
 
 #: src/class-screens.php:200
-msgid "You do not have permission to view diagnostics."
+msgid "You do not have permission to view logs."
 msgstr ""
 
 #: src/class-screens.php:202
@@ -309,98 +612,110 @@ msgstr ""
 msgid "Settings could not be saved."
 msgstr ""
 
-#: src/class-screens.php:249
+#: src/class-screens.php:250
+msgid "Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain."
+msgstr ""
+
+#: src/class-screens.php:251
+msgid "Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked."
+msgstr ""
+
+#: src/class-screens.php:252
+msgid "Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles."
+msgstr ""
+
+#: src/class-screens.php:253
+msgid "New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in."
+msgstr ""
+
+#: src/class-screens.php:254
+msgid "Save log entries for troubleshooting. Entries remain until you clear them."
+msgstr ""
+
+#: src/class-screens.php:259
+msgid "Set in network settings:"
+msgstr ""
+
+#: src/class-screens.php:259
+msgid "Enabled"
+msgstr ""
+
+#: src/class-screens.php:259
+msgid "Disabled"
+msgstr ""
+
+#: src/class-screens.php:259
+msgid "Network settings"
+msgstr ""
+
+#: src/class-screens.php:262
+msgid "Enable"
+msgstr ""
+
+#: src/class-screens.php:262
+msgid "Disable"
+msgstr ""
+
+#: src/class-screens.php:271
+msgid "Passkey only mode is on, so password resets are blocked for everyone."
+msgstr ""
+
+#: src/class-screens.php:272
+msgid "This has no effect until Anyone can register is turned on in General settings."
+msgstr ""
+
+#: src/class-settings.php:24
+msgid "Website name"
+msgstr ""
+
+#: src/class-settings.php:25
+msgid "Passkey domain"
+msgstr ""
+
+#: src/class-settings.php:26
 #: views/profile.php:5
 msgid "Passkey only mode"
 msgstr ""
 
-#: src/class-screens.php:249
-msgid "Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain."
-msgstr ""
-
-#: src/class-screens.php:250
+#: src/class-settings.php:27
 #: views/login.php:6
 msgid "Remember me"
 msgstr ""
 
-#: src/class-screens.php:250
-msgid "Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked."
-msgstr ""
-
-#: src/class-screens.php:251
+#: src/class-settings.php:28
 msgid "Block password resets"
 msgstr ""
 
-#: src/class-screens.php:251
-msgid "No"
-msgstr ""
-
-#: src/class-screens.php:251
-msgid "Except for administrators"
-msgstr ""
-
-#: src/class-screens.php:251
-msgid "For everyone"
-msgstr ""
-
-#: src/class-screens.php:251
-msgid "Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles."
-msgstr ""
-
-#: src/class-screens.php:252
+#: src/class-settings.php:29
 msgid "After registration"
 msgstr ""
 
-#: src/class-screens.php:252
-msgid "WordPress default"
-msgstr ""
-
-#: src/class-screens.php:252
-msgid "Sign in and add a passkey"
-msgstr ""
-
-#: src/class-screens.php:252
-msgid "New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in."
-msgstr ""
-
-#: src/class-screens.php:253
+#: src/class-settings.php:30
 msgid "Logging"
 msgstr ""
 
-#: src/class-screens.php:253
-msgid "Save diagnostic entries for troubleshooting. Entries remain until you clear them."
+#: src/class-settings.php:31
+msgid "Related origins"
 msgstr ""
 
-#: src/class-screens.php:258
-msgid "Set in network settings:"
+#: src/class-settings.php:34
+msgid "No"
 msgstr ""
 
-#: src/class-screens.php:258
-msgid "Enabled"
+#: src/class-settings.php:34
+msgid "Except for administrators"
 msgstr ""
 
-#: src/class-screens.php:258
-msgid "Disabled"
+#: src/class-settings.php:34
+msgid "For everyone"
 msgstr ""
 
-#: src/class-screens.php:258
-msgid "Network settings"
+#: src/class-settings.php:35
+msgid "WordPress default"
 msgstr ""
 
-#: src/class-screens.php:261
-msgid "Enable"
-msgstr ""
-
-#: src/class-screens.php:261
-msgid "Disable"
-msgstr ""
-
-#: src/class-screens.php:270
-msgid "Passkey only mode is on, so password resets are blocked for everyone."
-msgstr ""
-
-#: src/class-screens.php:271
-msgid "This has no effect until Anyone can register is turned on in General settings."
+#: src/class-settings.php:35
+msgid "Sign in and add a passkey"
 msgstr ""
 
 #: views/credential-list.php:3
@@ -415,11 +730,6 @@ msgstr ""
 
 #: views/credential-list.php:3
 #: assets/js/client.js:65
-msgid "Added"
-msgstr ""
-
-#: views/credential-list.php:3
-#: assets/js/client.js:65
 msgid "Last used"
 msgstr ""
 
@@ -429,7 +739,7 @@ msgid "Actions"
 msgstr ""
 
 #: views/credential-list.php:3
-#: views/diagnostics.php:4
+#: views/logs.php:10
 msgid "Loading…"
 msgstr ""
 
@@ -443,28 +753,6 @@ msgstr ""
 #: views/frontend-register.php:3
 #: views/frontend-test.php:3
 msgid "Sign in to manage your passkeys."
-msgstr ""
-
-#: views/diagnostics.php:3
-#: views/settings-network.php:4
-#: views/settings-site.php:12
-msgid "Save changes"
-msgstr ""
-
-#: views/diagnostics.php:4
-msgid "entries"
-msgstr ""
-
-#: views/diagnostics.php:4
-msgid "Clear logs"
-msgstr ""
-
-#: views/diagnostics.php:4
-msgid "Logs remain until cleared. Passwords and passkey responses are not logged."
-msgstr ""
-
-#: views/diagnostics.php:4
-msgid "Back to settings"
 msgstr ""
 
 #: views/frontend-register.php:4
@@ -492,6 +780,79 @@ msgstr ""
 msgid "Sign in with a passkey"
 msgstr ""
 
+#: views/logs.php:3
+#: views/settings-network.php:4
+#: views/settings-site.php:12
+msgid "Save changes"
+msgstr ""
+
+#: views/logs.php:5
+msgid "Category"
+msgstr ""
+
+#: views/logs.php:5
+msgid "All"
+msgstr ""
+
+#: views/logs.php:6
+#: views/logs.php:9
+msgid "Result"
+msgstr ""
+
+#: views/logs.php:6
+msgid "Any"
+msgstr ""
+
+#: views/logs.php:6
+#: assets/js/settings.js:50
+msgid "Succeeded"
+msgstr ""
+
+#: views/logs.php:6
+#: assets/js/settings.js:50
+msgid "Failed"
+msgstr ""
+
+#: views/logs.php:8
+msgid "Passkey log entries, newest first"
+msgstr ""
+
+#: views/logs.php:9
+msgid "#ID"
+msgstr ""
+
+#: views/logs.php:9
+msgid "Event"
+msgstr ""
+
+#: views/logs.php:9
+msgid "User"
+msgstr ""
+
+#: views/logs.php:9
+msgid "Details"
+msgstr ""
+
+#: views/logs.php:9
+msgid "Time"
+msgstr ""
+
+#: views/logs.php:9
+msgid "IP address"
+msgstr ""
+
+#: views/logs.php:12
+msgid "Clear logs"
+msgstr ""
+
+#: views/logs.php:12
+msgid "Logs remain until cleared. Usernames, passkey names and IP addresses are stored. Passwords and passkey responses are not logged."
+msgstr ""
+
+#: views/logs.php:12
+msgid "Back to settings"
+msgstr ""
+
 #: views/profile.php:2
 msgid "Passkeys"
 msgstr ""
@@ -517,21 +878,8 @@ msgstr ""
 msgid "Send passkey setup link"
 msgstr ""
 
-#: views/settings-network.php:4
-#: views/settings-site.php:10
-msgid "Sign-in"
-msgstr ""
-
 #: views/settings-site.php:7
 msgid "Website"
-msgstr ""
-
-#: views/settings-site.php:8
-msgid "Website name"
-msgstr ""
-
-#: views/settings-site.php:8
-msgid "Passkey domain"
 msgstr ""
 
 #: views/settings-site.php:9
@@ -703,14 +1051,55 @@ msgid_plural "%d accounts have no working passkey and will not be able to sign i
 msgstr[0] ""
 msgstr[1] ""
 
-#: assets/js/settings.js:24
+#: assets/js/settings.js:45
+msgid ": "
+msgstr ""
+
+#: assets/js/settings.js:65
+#, js-format
+msgid "%s item"
+msgid_plural "%s items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/js/settings.js:71
+#: assets/js/settings.js:79
+#, js-format
+msgid "%1$s of %2$s"
+msgstr ""
+
+#: assets/js/settings.js:74
+msgid "Current page"
+msgstr ""
+
+#: assets/js/settings.js:82
+msgid "First page"
+msgstr ""
+
+#: assets/js/settings.js:83
+msgid "Previous page"
+msgstr ""
+
+#: assets/js/settings.js:85
+msgid "Next page"
+msgstr ""
+
+#: assets/js/settings.js:86
+msgid "Last page"
+msgstr ""
+
+#: assets/js/settings.js:97
 msgid "No log entries."
 msgstr ""
 
-#: assets/js/settings.js:27
+#: assets/js/settings.js:97
+msgid "No log entries match these filters."
+msgstr ""
+
+#: assets/js/settings.js:111
 msgid "Could not load logs."
 msgstr ""
 
-#: assets/js/settings.js:31
+#: assets/js/settings.js:135
 msgid "Logs cleared."
 msgstr ""

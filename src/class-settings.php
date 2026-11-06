@@ -3,9 +3,9 @@
 namespace AZWP\Passkeys;
 
 final class Settings {
-    private Storage $storage;
-    public function __construct(Storage $storage) { $this->storage = $storage; }
-    public function definitions(): array {
+    public function __construct(private Storage $storage, private Logs $logs) {}
+    /** Free of translation calls, because determine_current_user reaches it before init loads the text domain. */
+    public static function definitions(): array {
         return [
             'rp_name' => ['scope' => 'site', 'type' => 'string', 'default' => ''],
             'rp_id' => ['scope' => 'site', 'type' => 'host', 'default' => ''],
@@ -13,8 +13,27 @@ final class Settings {
             'remember_login' => ['scope' => 'site', 'type' => 'boolean', 'default' => false],
             'reset_restriction' => ['scope' => 'site', 'type' => 'choice', 'default' => 'off', 'choices' => ['off','except_admin','everyone']],
             'after_registration' => ['scope' => 'site', 'type' => 'choice', 'default' => 'default', 'choices' => ['default','add_passkey'], 'single_site' => true],
-            'logging' => ['scope' => 'site', 'type' => 'boolean', 'default' => false],
+            'logging' => ['scope' => 'site', 'type' => 'boolean', 'default' => true],
             'related_origins' => ['scope' => 'network', 'type' => 'origins', 'default' => []],
+        ];
+    }
+    /** Setting and choice labels for the settings screens and the log. Call only after init. */
+    public static function labels(): array {
+        return [
+            'settings' => [
+                'rp_name' => __('Website name', 'azwp-passkeys'),
+                'rp_id' => __('Passkey domain', 'azwp-passkeys'),
+                'passkey_only' => __('Passkey only mode', 'azwp-passkeys'),
+                'remember_login' => __('Remember me', 'azwp-passkeys'),
+                'reset_restriction' => __('Block password resets', 'azwp-passkeys'),
+                'after_registration' => __('After registration', 'azwp-passkeys'),
+                'logging' => __('Logging', 'azwp-passkeys'),
+                'related_origins' => __('Related origins', 'azwp-passkeys'),
+            ],
+            'choices' => [
+                'reset_restriction' => ['off' => __('No', 'azwp-passkeys'), 'except_admin' => __('Except for administrators', 'azwp-passkeys'), 'everyone' => __('For everyone', 'azwp-passkeys')],
+                'after_registration' => ['default' => __('WordPress default', 'azwp-passkeys'), 'add_passkey' => __('Sign in and add a passkey', 'azwp-passkeys')],
+            ],
         ];
     }
     private function defaults(int $site_id): array {
@@ -100,7 +119,7 @@ final class Settings {
         }
         return $this->save(is_multisite() ? 'network' : 'site', is_multisite() ? get_current_network_id() : get_current_blog_id(), $values);
     }
-    public function save_diagnostics(array $input): array {
+    public function save_logs(array $input): array {
         [$valid, $logging] = $this->parse('logging', $input['logging'] ?? null);
         if (!$valid) { return self::failure(['logging']); }
         return $this->save('site', get_current_blog_id(), ['logging' => $logging]);
@@ -111,33 +130,12 @@ final class Settings {
         $result = $this->storage->save_settings($scope, $scope_id, $values);
         if (!$result['ok']) { return $result; }
         $correlation = bin2hex(random_bytes(16));
-        $after = array_replace($before_effective, $values);
-        // Diagnostics are best-effort after the confirmed configuration commit.
-        try {
-        $base = ['actor_id' => get_current_user_id(), 'result' => 'ok', 'correlation_id' => $correlation];
-        if (!$before_effective['logging'] && $after['logging']) {
-            $versions = ['plugin_version' => AZWP_PASSKEYS_VERSION, 'php_version' => PHP_VERSION, 'wordpress_version' => (string) ($GLOBALS['wp_version'] ?? ''), 'library_version' => WebAuthn::LIBRARY_VERSION];
-            $this->storage->append_log($site_id, $base + ['event' => 'log_initialized', 'detail' => $versions]);
-            foreach ($before_effective as $key => $value) {
-                $this->storage->append_log($site_id, $base + ['event' => 'log_initialized', 'detail' => ['setting' => $key, 'value' => $value]]);
-            }
-            $entries = apply_filters('azwp_passkeys_log_initialization', []);
-            if (is_array($entries)) {
-                foreach ($entries as $entry) {
-                    if (is_string($entry)) { $this->storage->append_log($site_id, $base + ['event' => 'log_initialized', 'detail' => ['initialization' => $entry]]); }
-                }
-            }
-        }
-        if ($after['logging']) {
-            foreach ($values as $key => $value) {
-                $old = $result['data']['previous'][$key] ?? $this->definitions()[$key]['default'];
-                if ($old !== $value) {
-                    $this->storage->append_log($site_id, $base + ['event' => 'settings_saved', 'detail' => ['setting' => $key, 'previous' => $old, 'value' => $value]]);
-                }
-            }
-        }
-        } catch (\Throwable $error) {
-            // A logging failure never changes a successful settings result.
+        // Turning logging on or off writes its own row, so a save is logged when logging was on before or after it.
+        $enabled = !empty($before_effective['logging']) || !empty($values['logging'] ?? $before_effective['logging']);
+        foreach ($values as $key => $value) {
+            $old = $result['data']['previous'][$key] ?? $this->definitions()[$key]['default'];
+            if ($old === $value) { continue; }
+            $this->logs->record('settings.changed', ['actor_id' => get_current_user_id(), 'correlation_id' => $correlation, 'enabled' => $enabled, 'data' => ['setting' => $key, 'previous' => $old, 'value' => $value]]);
         }
         if ($scope === 'site') { do_action('azwp_passkeys_settings_saved', $correlation); }
         $result['data']['correlation_id'] = $correlation;

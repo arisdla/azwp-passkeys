@@ -21,7 +21,8 @@ $actor_before = get_current_user_id();
 $cookie_before = $_COOKIE[LOGGED_IN_COOKIE] ?? null;
 $users = [];
 $storage = new Storage($GLOBALS['wpdb']);
-$settings = new Settings($storage);
+$logs = new \AZWP\Passkeys\Logs($storage);
+$settings = new Settings($storage, $logs);
 $passkeys = new Passkeys($settings, $storage, new WebAuthn());
 $authentication = null;
 foreach (($GLOBALS['wp_filter']['authenticate']->callbacks ?? []) as $entries) {
@@ -30,7 +31,7 @@ foreach (($GLOBALS['wp_filter']['authenticate']->callbacks ?? []) as $entries) {
         if (is_array($callback) && ($callback[0] ?? null) instanceof Authentication) { $authentication = $callback[0]; break 2; }
     }
 }
-if (!$authentication) { $authentication = new Authentication($settings, $passkeys, $storage); $authentication->register_hooks(); }
+if (!$authentication) { $authentication = new Authentication($settings, $passkeys, $logs); $authentication->register_hooks(); }
 $read_issued = static function (string $attempt_id) use ($storage): array {
     $attempt = $storage->read_attempt($attempt_id)['data']['attempt'];
     $issued = $attempt['issued']; $issued['challenge'] = $attempt['challenge'];

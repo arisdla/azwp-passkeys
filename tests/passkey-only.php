@@ -9,7 +9,7 @@ require_once __DIR__ . '/fixtures.php';
 use AZWP\Passkeys\{Storage, Settings, Passkeys, WebAuthn, Screens};
 
 $storage = new Storage($GLOBALS['wpdb']);
-$settings = new Settings($storage);
+$settings = new Settings($storage, new \AZWP\Passkeys\Logs($storage));
 $passkeys = new Passkeys($settings, $storage, new WebAuthn());
 $screens = new Screens($settings, $passkeys, $storage);
 $site = (int) get_current_blog_id();

@@ -5,7 +5,9 @@ namespace AZWP\Passkeys;
 final class Lifecycle {
     private const CRON_HOOK = 'azwp_passkeys_cleanup';
     private const REWRITE = '^\\.well-known/webauthn/?$';
-    public function __construct(private Settings $settings, private Storage $storage) {}
+    public const SCHEMA_OPTION = 'azwp_passkeys_schema_version';
+    public const UPGRADE_RETRY = 'azwp_passkeys_upgrade_retry';
+    public function __construct(private Settings $settings, private Storage $storage, private Logs $logs) {}
 
     public function register_hooks(): void {
         add_action('init', [$this, 'register_route']);
@@ -13,8 +15,10 @@ final class Lifecycle {
         add_action('template_redirect', [$this, 'render_related_origins']);
         add_action('wp_initialize_site', [$this, 'initialize_site'], 100);
         add_action('remove_user_from_blog', [$this, 'remove_membership'], 10, 2);
-        add_action('wpmu_delete_user', [$this, 'early_delete_account']);
-        add_action('deleted_user', [$this, 'delete_account']);
+        add_action('wpmu_delete_user', [$this, 'early_delete_account'], 10, 2);
+        add_action('deleted_user', [$this, 'delete_account'], 10, 3);
+        add_action('plugins_loaded', [$this, 'upgrade']);
+        add_filter('wp_privacy_personal_data_erasers', [$this->logs, 'register_eraser']);
         add_action(self::CRON_HOOK, [$this, 'cleanup_attempts']);
         add_filter('azwp_passkeys_version', static fn(string $version): string => AZWP_PASSKEYS_VERSION);
     }
@@ -45,11 +49,27 @@ final class Lifecycle {
         }
         return $result;
     }
+    /** Every step repeats safely: create missing tables, drop the 0.3.0 logs table, then store the version. */
+    private function install_tables(): array {
+        $schema = $this->storage->install_schema();
+        if (!$schema['ok']) { return $schema; }
+        if (!$this->storage->drop_legacy_logs()) { return ['ok' => false, 'code' => 'storage_failed', 'data' => [], 'message' => '']; }
+        // The tables are shared by every network, so the version lives on the main one.
+        update_network_option(get_main_network_id(), self::SCHEMA_OPTION, Storage::SCHEMA_VERSION);
+        return $schema;
+    }
+    /** Updates through the update metadata skip activation, so a schema change installs on the next request. */
+    public function upgrade(): void {
+        if ((int) get_network_option(get_main_network_id(), self::SCHEMA_OPTION, 1) >= Storage::SCHEMA_VERSION || get_site_transient(self::UPGRADE_RETRY)) { return; }
+        $this->storage->with_upgrade_lock(function (): void {
+            if (!$this->install_tables()['ok']) { set_site_transient(self::UPGRADE_RETRY, 1, 5 * MINUTE_IN_SECONDS); }
+        });
+    }
     public function activate(bool $network_wide): void {
         if (is_multisite() && !$network_wide) {
             wp_die(esc_html__('Activate AZ\'s WP Passkeys for the network.', 'azwp-passkeys'));
         }
-        $schema = $this->storage->install_schema();
+        $schema = $this->install_tables();
         if ($schema['code'] === 'storage_engine') { wp_die(esc_html__('Passkey storage could not be initialized. The database tables must use the InnoDB storage engine.', 'azwp-passkeys')); }
         if (!$schema['ok']) { wp_die(esc_html__('Passkey storage could not be initialized.', 'azwp-passkeys')); }
         if (is_multisite()) {
@@ -75,12 +95,7 @@ final class Lifecycle {
         flush_rewrite_rules(false);
     }
     public function initialize_site(\WP_Site $site): void {
-        $this->on_site((int) $site->blog_id, function (): void {
-            $result = $this->initialize_current_site();
-            if (!$result['ok']) {
-                $this->storage->append_log(get_current_blog_id(), ['event'=>'configuration_error','result'=>'storage_failed']);
-            }
-        });
+        $this->on_site((int) $site->blog_id, fn() => $this->initialize_current_site());
     }
     public function deactivate(bool $network_wide = false): void {
         if (!is_multisite() || $network_wide) {
@@ -90,20 +105,28 @@ final class Lifecycle {
         if (isset($wp_rewrite->extra_rules_top[self::REWRITE])) { unset($wp_rewrite->extra_rules_top[self::REWRITE]); }
         flush_rewrite_rules(false);
     }
-    public function early_delete_account(int $user_id): void {
-        $result = $this->storage->cleanup_user($user_id);
-        $this->storage->append_log(get_current_blog_id(), ['event'=>'account_cleanup','target_id'=>$user_id,'result'=>$result['ok']?'ok':$result['code']]);
+    public function early_delete_account(int $user_id, mixed $user = null): void {
+        $this->record_cleanup($user_id, $user, $this->storage->cleanup_user($user_id));
     }
-    public function delete_account(int $user_id): void {
+    public function delete_account(int $user_id, mixed $reassign = null, mixed $user = null): void {
         // deleted_user can represent a membership-only operation on multisite.
         $result = $this->storage->cleanup_user($user_id, null, true);
-        if (empty($result['data']['unchanged'])) {
-            $this->storage->append_log(get_current_blog_id(), ['event'=>'account_cleanup','target_id'=>$user_id,'result'=>$result['ok']?'ok':$result['code']]);
+        if (empty($result['data']['unchanged'])) { $this->record_cleanup($user_id, $user, $result); }
+    }
+    /** One row per site that held passkeys, in that site's log. On multisite only the first of the two cleanup passes finds any. */
+    private function record_cleanup(int $user_id, mixed $user, array $result): void {
+        // WordPress deletes the user row before deleted_user, so the login comes from the hook's user object.
+        $fields = ['target_id' => $user_id, 'target_login' => $user instanceof \WP_User ? $user->user_login : null];
+        if (!$result['ok']) {
+            $this->logs->record('passkey.account_deleted', $fields + ['ok' => false, 'code' => $result['code']]);
+            return;
+        }
+        foreach ($result['data']['counts'] ?? [] as $site_id => $count) {
+            if ($count > 0) { $this->logs->record('passkey.account_deleted', $fields + ['site_id' => (int) $site_id, 'data' => ['count' => $count]]); }
         }
     }
     public function remove_membership(int $user_id, int $site_id): void {
-        $result = $this->storage->cleanup_user($user_id, $site_id);
-        $this->storage->append_log($site_id, ['event'=>'membership_cleanup','target_id'=>$user_id,'result'=>$result['ok']?'ok':$result['code']]);
+        $this->storage->cleanup_user($user_id, $site_id);
     }
     public function cleanup_attempts(): void { $this->storage->cleanup_attempts(); }
     public function render_related_origins(): void {
@@ -128,13 +151,18 @@ final class Lifecycle {
             foreach (get_networks(['fields'=>'ids','number'=>0]) as $network_id) {
                 delete_network_option((int) $network_id, 'azwp_passkeys_network_settings');
             }
+            delete_network_option(get_main_network_id(), self::SCHEMA_OPTION);
             $offset = 0;
             do {
                 $sites = get_sites(['fields'=>'ids','number'=>100,'offset'=>$offset]);
                 foreach ($sites as $site_id) { $this->on_site((int) $site_id, fn() => $this->delete_site_options()); }
                 $offset += count($sites);
             } while (count($sites) === 100);
-        } else { $this->delete_site_options(); }
+        } else {
+            $this->delete_site_options();
+            delete_option(self::SCHEMA_OPTION);
+        }
+        delete_site_transient(self::UPGRADE_RETRY);
         $result = $this->storage->uninstall();
         if (!$result['ok']) { wp_die(esc_html__('Passkey data could not be completely removed. Try deleting the plugin again.', 'azwp-passkeys')); }
     }

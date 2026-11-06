@@ -15,10 +15,10 @@ $assert = static function (bool $condition, string $label) use (&$checks): void 
     ++$checks;
 };
 $storage = new Storage($GLOBALS['wpdb']);
-$settings = new Settings($storage);
+$settings = new Settings($storage, new \AZWP\Passkeys\Logs($storage));
 $assert($storage->install_schema()['ok'], 'Transactional schema installs');
 $assert($storage->install_schema()['ok'], 'Schema installation is idempotent');
-$logs_table = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_logs';
+$logs_table = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_events';
 $GLOBALS['wpdb']->query("ALTER TABLE `$logs_table` ENGINE=MyISAM");
 try {
     $assert($storage->install_schema()['code'] === 'storage_engine', 'A MyISAM table reports the storage engine');
@@ -73,8 +73,8 @@ try {
     $storage->delete_attempt($attempt_id);
     $flag = $storage->save_password_policy($user_id, true);
     $assert($flag['ok'] && $storage->password_disabled($user_id), 'Password flag persistence confirmed');
-    $diag = $settings->save_diagnostics(['logging'=>'1']);
-    $assert($diag['ok'], 'Diagnostics save accepts declared form representation');
+    $diag = $settings->save_logs(['logging'=>'1']);
+    $assert($diag['ok'], 'Log page save accepts declared form representation');
     $before = $settings->get_effective($site_id);
     $form = ['rp_name'=>'Test site','rp_id'=>'example.test','passkey_only'=>'0','remember_login'=>'1','reset_restriction'=>'off','after_registration'=>'add_passkey'];
     $settings_result = $settings->save_site($form);
@@ -83,7 +83,7 @@ try {
         $missing = $settings->save_site(array_diff_key($form, ['after_registration'=>true]));
         $assert(!$missing['ok'] && in_array('after_registration', $missing['data']['invalid'], true), 'Single-site save requires After registration');
     }
-    $assert($settings_result['ok'] && $settings->get_effective($site_id)['logging'] === true, 'Site settings retain diagnostics state');
+    $assert($settings_result['ok'] && $settings->get_effective($site_id)['logging'] === true, 'Site settings retain the logging state');
     foreach (['127.0.0.1', '10.0.0.5', '2130706433'] as $ip) {
         $rejected = $settings->save_site(array_replace($form, ['rp_id'=>$ip]));
         $assert(!$rejected['ok'] && in_array('rp_id', $rejected['data']['invalid'], true), "Passkey domain rejects IP address $ip");
@@ -92,10 +92,14 @@ try {
     $settings->save_site($form);
     $invalid = $settings->save_site(array_replace($form, ['remember_login'=>'invalid']));
     $assert(!$invalid['ok'] && $settings->get_effective($site_id)['remember_login'] === true, 'Invalid site save does not overwrite stored state');
-    $storage->append_log($site_id, ['event'=>'authentication','result'=>'ok','detail'=>['password'=>'secret','code'=>'ok']]);
-    $logs = $storage->read_logs($site_id);
-    $last = end($logs['data']['entries']);
-    $assert($logs['ok'] && !array_key_exists('password', $last['detail']) && $last['detail']['code'] === 'ok', 'Log fields are allow-listed');
+    $event = ['site_id'=>$site_id,'occurred_at'=>time(),'event'=>'passkey.tested','ok'=>1,'code'=>'ok','correlation_id'=>bin2hex(random_bytes(16)),'actor_id'=>$user_id,'actor_login'=>null,'target_id'=>null,'target_login'=>null,'passkey_id'=>$record_id,'passkey_name'=>'Test passkey','passkey_aaguid'=>str_repeat("\0",16),'data'=>null];
+    $locked = $storage->with_owner_lock($user_id, static fn(Storage $store): array => ['ok'=>$store->insert_event($event),'code'=>'ok','data'=>[],'message'=>'']);
+    $assert($locked['ok'] === false, 'An event write inside an owner transaction is skipped');
+    $assert($storage->insert_event($event) && $storage->insert_event(['event'=>'passkey.deleted'] + $event), 'Event writes outside a transaction succeed');
+    $page = $storage->read_events($site_id, ['passkey.tested','passkey.deleted'], true, 1, 20);
+    $newest = $page['data']['rows'][0] ?? null;
+    $assert($page['ok'] && $newest['event'] === 'passkey.deleted' && $page['data']['rows'][1]['event'] === 'passkey.tested' && $newest['actor_id'] === $user_id && $newest['passkey_aaguid'] === str_repeat("\0",16) && $newest['ok'] === true && $newest['data'] === [], 'Events read newest first with typed IDs and raw AAGUID');
+    $GLOBALS['wpdb']->query($GLOBALS['wpdb']->prepare("DELETE FROM `$logs_table` WHERE correlation_id=%s", $event['correlation_id']));
     $removed = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->delete_credential($record_id));
     $assert($removed['ok'] && $storage->get_credential($record_id)['data']['credential'] === null, 'Deletion confirms absence');
     echo "Storage integration: $checks checks passed.\n";

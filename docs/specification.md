@@ -23,8 +23,8 @@ The plugin name is **AZ's WP Passkeys**. Its slug and translation text domain ar
 | WordPress interfaces     | Login, own profile, user-edit page, site/network settings and plugin-list links                                                                                    |
 | Frontend                 | Login, registration, test and list shortcodes and equivalent Gutenberg blocks                                                                                      |
 | Multisite                | Network policies, site settings, shared credential storage and compatible cross-site authentication                                                                |
-| Diagnostics              | Configuration warnings and optional logs with manual clearing                                                                                                      |
-| Extensions               | Settings rendering/save notification, logger initialization and version query                                                               |
+| Logs                     | Configuration warnings and the Passkey Logs page: a filtered, paged table of sign-in, passkey, admin and settings events, on by default, with manual clearing and a personal-data eraser |
+| Extensions               | Settings rendering/save notification and version query                                                               |
 | Lifecycle                | Activation, new-site initialization, deactivation, account/site cleanup and uninstall                                                                              |
 
 Credential registration applies to existing accounts; it does not create WordPress accounts. WordPress creates accounts; the optional after-registration setting in section 4 only signs in a newly created account and opens passkey enrollment. The plugin does not delete credentials from devices or password managers, provide enterprise attestation, operate a cloud service or send account-registration emails.
@@ -41,7 +41,7 @@ Settings have typed values and explicit site or network scope. On single-site in
 | Remember me                       | Disabled                                    | Site            |
 | Block password resets                | No                                          | Site            |
 | After registration                   | WordPress default                           | Single-site only; not offered on multisite |
-| Logging                              | Disabled                                    | Site            |
+| Logging                              | Enabled                                     | Site            |
 | Related origins                      | Empty; settings control hidden              | Network         |
 
 The two network settings are Passkey only mode and Related origins. Other settings apply to individual sites.
@@ -176,7 +176,7 @@ The profile account-password checkbox is saved through normal authorized profile
 
 Site settings require `manage_options`; network settings require `manage_network_options`. Operations on another account require `edit_user` for that target and appropriate profile access. Self-management requires an authenticated account with read capability. Authorization depends on capabilities rather than role names.
 
-An authorized administrator can list, enroll, rename, remove and test credentials for another account, and change its password-login policy. The interface identifies the target account. Actor and target remain distinct throughout authorization, ceremony completion and diagnostics.
+An authorized administrator can list, enroll, rename, remove and test credentials for another account, and change its password-login policy. The interface identifies the target account. Actor and target remain distinct throughout authorization, ceremony completion and logs.
 
 Administrator add/delete operations have no recent-authentication requirement. Removal uses confirmation and the same usable-access rule as self-service. Enrollment has no additional confirmation prompt; the account owner receives the section 4 notification email.
 
@@ -192,11 +192,11 @@ A placeholder password or client-supplied user identity is not authentication pr
 
 The explicit authentication-plugin integration is Two-Factor.
 
-## 9. Diagnostics page
+## 9. Passkey Logs page
 
-The Tools menu in site administration contains Passkey diagnostics, with page slug `azwp-passkeys-diagnostics` and title "Passkey diagnostics". Access requires `manage_options` for the current site. The page contains the logging control, its Save changes button, existing environment/configuration warnings, entry count, log viewer and Clear logs action. Logs remain site-scoped in multisite; there is no network-wide log viewer.
+The Tools menu in site administration contains Passkey Logs, with page slug `azwp-passkeys-logs` and title "Passkey Logs". Access requires `manage_options` for the current site. The page contains the logging control, its Save changes button, existing environment/configuration warnings, the category and result filters, the paged log table and the Clear logs action. Logs remain site-scoped in multisite; there is no network-wide log viewer.
 
-The site settings page links to Passkey diagnostics, and the diagnostics page links back to site settings. Logging controls and log entries appear only on the diagnostics page. Contextual warnings next to affected login, enrollment and policy controls remain in place. Diagnostic behavior, redaction and retention follow section 15.
+The site settings page links to Passkey Logs, and the Passkey Logs page links back to site settings. Logging controls and log entries appear only on the Passkey Logs page. Contextual warnings next to affected login, enrollment and policy controls remain in place. Log retention and privacy follow sections 14 and 15; the log events, table and viewer follow section 25.
 
 ## 10. Frontend shortcodes and blocks
 
@@ -313,19 +313,21 @@ Settings changes affect newly issued ceremonies immediately. Credential lists an
 | Credential  | Internal ID, owner, enrollment site, RP, binary credential ID, COSE public key and derived PEM key, credential/attestation types, empty trust path, received AAGUID, nullable auxiliary UI data, algorithm, counter, transports, backup flags, label and timestamps |
 | Ceremony    | Identifier, purpose, user/enrollment context, options/challenge and expiry                                                                                                                                                                                                                                      |
 | Settings    | Typed site/network policies                                                                                                                                                                                                                                                                  |
-| Diagnostics | Actor/subject, event/result, correlation identifier and timestamp, without raw authentication proofs                                                                                                                                                                                                            |
+| Log events  | Event key, result and failure code, correlation identifier, timestamp and request IP address; actor and target user IDs with their usernames copied at write time; for passkey events, the passkey ID, its name and the raw authenticator AAGUID; event-specific fields the registry declares. No raw authentication proofs |
 
 Registration and last-use timestamps use the site's WordPress local time in YYYY-MM-DD HH:MM:SS form and are displayed as stored. The plugin does not store biometric data, private keys, unnecessary raw attestation payloads or avatar-derived identity data. It sends no third-party telemetry. Its only outbound request is the update check described in section 26, which fetches release metadata from the project's GitHub releases and sends WordPress's normal update-request details.
 
 Deactivation retains plugin data. Uninstall removes stored credentials, settings and other plugin-owned data; there is no retention-on-uninstall setting. Account, membership and site cleanup follow section 11.
 
+Log entries keep usernames, passkey names and IP addresses so an entry still reads correctly after its account is deleted. A WordPress personal-data eraser keeps the rows and replaces that user's usernames, the names of passkeys the user owns, the user's IP addresses and the registry's personal fields with `erased`, on every site (section 25). An account that is already deleted has no email address to erase from, so its `passkey.account_deleted` entry keeps its username until the log is cleared.
+
 Temporary ceremony state expires after 90 seconds in the transactional attempt store defined in section 21; successful and handled failed ceremonies delete their rows. WordPress transient read/delete is not the authority for single-use consumption.
 
-## 15. Diagnostics, localization and accessibility
+## 15. Logs, localization and accessibility
 
-Logging is disabled by default. Enabled logs remain until manually cleared, with no automatic age-based expiry or automatic disabling. The viewer provides a count and a manual clear action, disabled when the log is empty. It refreshes every five seconds while logging is enabled; retained logs displayed with logging off do not start automatic refresh. Log read/clear requires manage_options and an administrator nonce.
+Logging is enabled by default. Log entries remain until manually cleared, with no automatic age-based expiry or automatic disabling. The viewer lists the current site's entries newest first, 20 per page, with category and result filters and a Clear logs action that is disabled when the site has no entries. While logging is enabled, page 1 refreshes every five seconds; later pages and disabled logging do not refresh automatically. Log read/clear requires `manage_options` and an administrator nonce.
 
-Enabling logging appends initialization entries for environment versions, configuration and extension-provided information. Disabling logging retains entries. Logs redact authentication responses, tokens, sensitive headers, secrets and unnecessary identifying data. Configuration, dependency and HTTPS warnings provide actionable failure information and correlation identifiers without exposing authentication material.
+Turning logging on or off writes one entry; disabling logging retains entries. A log entry holds only the typed columns and the event fields its registry entry declares. Usernames, passkey names and IP addresses are stored. Passwords, cookies, tokens, challenges, public keys, request headers, user agents and raw SQL are never logged. Passkey names and stored text fields pass a central redaction filter. Configuration, dependency and HTTPS warnings provide actionable failure information and correlation identifiers without exposing authentication material.
 
 English is the source language and default fallback; no separate English translation catalog is required. French is packaged for exactly two additional locales: `fr_CA` and `fr_FR`. English and both French locales cover all user-facing strings, including PHP, administration, native login, frontend JavaScript, shortcodes, Gutenberg editor controls, notices and operation/error messages. WordPress selects the applicable site or user locale through its standard localization mechanisms; regional formatting follows that active WordPress locale. The plugin neither forces `fr_FR` globally nor adds a language-switching interface. A shared neutral French translation source may supply both separately packaged locale catalogs. Other French locales have no implicit French-catalog fallback; missing translations fall back to the English source string.
 
@@ -333,11 +335,11 @@ Interfaces use labeled form controls and textual progress/success/failure messag
 
 ## 16. Operations and extension contracts
 
-The operation interface exposes login options/completion, enrollment options/completion, test options/completion, credential listing/rename/removal, authorized target-account operations, and diagnostic read/clear operations.
+The operation interface exposes login options/completion, enrollment options/completion, test options/completion, credential listing/rename/removal, authorized target-account operations, and log read/clear operations.
 
 Browser options are returned as JSON. Completion and management operations return success or error outcomes. Section 22 defines action names and payloads; anonymous and authenticated completion use the AJAX contract. AJAX completion adds no separate confirmation step after the browser passkey prompt.
 
-Extension contracts cover additional settings UI, notification after settings saving, logger initialization and loaded-version queries. Extension hooks do not provide a cryptographic-verification bypass.
+Extension contracts cover additional settings UI, notification after settings saving and loaded-version queries. Extension hooks do not provide a cryptographic-verification bypass.
 
 Native and frontend interfaces use the same verification and policy rules. WordPress supplies account, capability, session and lifecycle handling. WebAuthn responses and requested operations are validated on the server before their results are applied.
 
@@ -352,7 +354,7 @@ Native and frontend interfaces use the same verification and policy rules. WordP
 | Test options/completion | Authorized actor; selected target; completion in the initiating browser and WordPress session | Target verification; no session change  |
 | List                    | Authorized actor and target in current site                                                            | Ordered credential summaries and effective availability flags                        |
 | Rename/remove           | Authorized actor, target and credential ID; name for rename                                            | Updated summary or confirmed removal                                                 |
-| Diagnostics read/clear  | Settings administrator for the current scope                                                           | Redacted entries/count or confirmed clear                                            |
+| Log read/clear          | Settings administrator for the current site; optional page, category and result filters               | One page of entries, newest first, with counts, or confirmed clear                   |
 | Send setup link         | Actor with `edit_user` for another target; target                                                      | Emailed one-time link, or `mail_failed`                                              |
 | Setup options/completion | Signed-out browser, or the link's own account; account ID, token, then ceremony ID and response       | Confirmed persisted credential and sign-in page URL; link used up in the same transaction |
 
@@ -362,7 +364,7 @@ Enrollment, listing, rename/removal and log actions carry their WordPress nonce.
 
 The site settings extension action runs at the additional-settings location with no arguments and permits rendering extra settings content. The site-settings-saved action runs after core values are saved, receives the save correlation identifier, and has no return value. Extensions manage validation and persistence of their own fields. These actions run in the authorized settings request.
 
-Logger initialization filters an initially empty list. Each returned item becomes an additional initialization log entry, subject to diagnostic redaction. Version query returns the plugin header's version.
+Version query returns the plugin header's version.
 
 ### Error and interaction outcomes
 
@@ -414,7 +416,7 @@ Browser capability detection determines available passkey features and policy-pe
 
 | Scenario                                                               | Required observable outcome                                                                                                                                                                                                                   |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| New installation                                                       | Settings match section 2; no credentials or diagnostic entries exist; logging is off                                                                                                                                                          |
+| New installation                                                       | Settings match section 2; no credentials or log entries exist; logging is on                                                                                                                                                                  |
 | Usernameless login | Credential verified for its owning account; logged-out browser receives its session; logged-in browser retains its existing session |
 | Passkey picker cancelled or empty | Passkey button remains available; the message suggests a password when global policy permits password sign-in |
 | HTTPS and browser capability                                           | Server uses WordPress's configured HTTPS interpretation; browser capability checks remain separate; RP/origin/proof verification remains mandatory; the HTTP development exception applies only to localhost                                  |
@@ -440,7 +442,7 @@ Browser capability detection determines available passkey features and policy-pe
 | Policy change                                                          | Field-specific issuance/completion timing follows section 13, including remember-setting rejection                                                                                                                                                                                 |
 | Concurrent credential deletion and authentication                      | Atomic server ordering governs completion: deletion first rejects authentication; acceptance first permits completion; deletion does not terminate existing or already-accepted sessions                                                      |
 | Lost response                                                          | Error feedback distinguishes uncertainty from confirmed failure; management list refresh remains available; the same claimed attempt cannot be reused                                                                                         |
-| Diagnostics                                                            | Opt-in, redacted, permission-controlled, manually cleared; no automatic expiry or disabling                                                                                                                                                   |
+| Logs                                                                   | On by default, permission-controlled, manually cleared, no automatic expiry or disabling; entries keep usernames, passkey names and IP addresses; the WordPress personal-data eraser replaces them with `erased` and keeps the rows |
 | Translation and focus                                                 | English source/fallback and both `fr_CA` and `fr_FR` across every interface, with the described control-focus behavior                                                                                              |
 | Related-origin publication                                             | Public origins document produced without expanding authentication origins                                                                                                                                                                     |
 
@@ -467,6 +469,8 @@ src/
   class-screens.php
   class-lifecycle.php
   class-authenticators.php
+  class-events.php
+  class-logs.php
 data/
   authenticator-metadata-catalog.json
 views/
@@ -478,7 +482,7 @@ views/
   frontend-register.php
   frontend-test.php
   credential-list.php
-  diagnostics.php
+  logs.php
   setup.php
 assets/
   js/
@@ -512,25 +516,27 @@ README.md
 | Class / file | Owned responsibility and internal public methods |
 | --- | --- |
 | `Plugin` / `class-plugin.php` | Composition and hook registration only: `register_hooks(): void`. Constructs the concrete dependencies once; no singleton registry or service locator. |
-| `Settings` / `class-settings.php` | One definition map for keys, scope, types, defaults and control choices: `definitions(): array`, `get_site(int $site_id): array`, `get_network(int $network_id): array`, `get_effective(int $site_id): array`, `save_site(array $input): array`, `save_network(array $input): array`, `save_diagnostics(array $input): array`. Owns settings validation and effective policy; delegates coordinated writes to Storage. |
+| `Settings` / `class-settings.php` | One definition map for keys, scope, types, defaults and control choices: `static definitions(): array`, free of translation calls because `determine_current_user` reaches it before `init`; `static labels(): array` supplies the translated setting and choice labels for the settings screens and the log; `get_site(int $site_id): array`, `get_network(int $network_id): array`, `get_effective(int $site_id): array`, `save_site(array $input): array`, `save_network(array $input): array`, `save_logs(array $input): array`. Owns settings validation and effective policy; delegates coordinated writes to Storage and records `settings.changed` through Logs. |
 | `Passkeys` / `class-passkeys.php` | Account/target authorization, credential eligibility, ceremonies, tests, and checks that removal leaves a usable sign-in or recovery method: `registration_options(array $context, array $input): array`, `registration_target(array $context, string $attempt_id): array`, `complete_registration(array $context, array $input): array`, `assertion_options(array $context, array $input): array`, `verify_assertion(array $context, array $input): array`, `accept_assertion(array $proof): array`, `complete_test(array $context, array $input): array`, `list_credentials(array $context, int $target_id): array`, `rename_credential(array $context, int $target_id, int $record_id, string $name): array`, `remove_credential(array $context, int $target_id, int $record_id): array`, `has_usable_credential(int $user_id, int $site_id): bool`, `set_password_disabled(int $target_id, bool $disabled): array`. `set_password_disabled` refuses turning password login off without a usable passkey, checked under the owner lock. Does not issue cookies or render HTML. `send_setup_link(array $context, int $target): array`, `setup_link_valid(int $target, mixed $token, int $site_id): bool`, `setup_options(array $context, array $input): array`, `complete_setup(array $context, array $input): array` and `members_without_passkey(int $site_id): ?array` serve the setup link and the readiness warning. |
 | `Authenticators` / `class-authenticators.php` | Display names for authenticator models: `static name(string $aaguid): ?string`. Reads the bundled catalog once per request; a missing or malformed catalog yields no names and never affects a credential. |
-| `Storage` / `class-storage.php` | Sole owner of SQL, schema names, binding-state persistence, locks, transactions, read-back confirmation and cache invalidation: `create_attempt(array $attempt): array`, `claim_attempt(string $attempt_id, array $binding): array`, `with_owner_lock(int $user_id, callable $operation): array`, `save_settings(string $scope, int $scope_id, array $values): array`, `save_password_policy(int $user_id, bool $disabled, ?callable $guard = null): array` (the guard runs under the owner lock only when turning password login off, and may veto it), `append_log(int $site_id, array $entry): array`, `read_logs(int $site_id): array`, `clear_logs(int $site_id): array`. `with_owner_lock` supplies the active Storage instance to its callback; transaction-bound `insert_credential`, `update_credential` and `delete_credential` methods accept validated record values and operate only for the locked owner. Outside that transaction these methods return an operation error, and raw SQL helpers remain private. The owner transaction first provisions or reads its identity row, then acquires its row lock; this initial identity-row insertion is permitted before the row lock. Credential/identity mutations otherwise occur only inside the owner transaction; Settings uses the coordinated settings/account-policy save methods. The callback cannot issue WordPress hooks, cookies, network calls or nested transactions. Storage owns commit/rollback, so callers cannot independently commit pieces of an operation. `save_setup_link(int $user_id, array $link): array`, `get_setup_link(int $user_id): ?array`, transaction-bound `consume_setup_link(int $user_id, string $hash, int $site_id): ?array` and `members_without_passkey(int $site_id, string $rp_id): array` own the setup-link metadata and the readiness query. |
+| `Storage` / `class-storage.php` | Sole owner of SQL, schema names, binding-state persistence, locks, transactions, read-back confirmation and cache invalidation: `create_attempt(array $attempt): array`, `claim_attempt(string $attempt_id, array $binding): array`, `with_owner_lock(int $user_id, callable $operation): array`, `save_settings(string $scope, int $scope_id, array $values): array`, `save_password_policy(int $user_id, bool $disabled, ?callable $guard = null): array` (the guard runs under the owner lock only when turning password login off, and may veto it), `insert_event(array $row): bool`, `read_events(int $site_id, ?array $events, ?bool $ok, int $paged, int $per_page): array`, `clear_events(int $site_id): array`, `erase_event_logins(int $user_id): array`, `erase_event_data(int $user_id, array $personal, int $page, int $per_page): array`, `count_user_events(int $user_id): ?int`, `with_upgrade_lock(callable $operation): mixed` and `drop_legacy_logs(): bool`. Storage holds the log SQL only; it owns no log presentation. `with_owner_lock` supplies the active Storage instance to its callback; transaction-bound `insert_credential`, `update_credential` and `delete_credential` methods accept validated record values and operate only for the locked owner. Outside that transaction these methods return an operation error, and raw SQL helpers remain private. The owner transaction first provisions or reads its identity row, then acquires its row lock; this initial identity-row insertion is permitted before the row lock. Credential/identity mutations otherwise occur only inside the owner transaction; Settings uses the coordinated settings/account-policy save methods. The callback cannot issue WordPress hooks, cookies, network calls or nested transactions. Storage owns commit/rollback, so callers cannot independently commit pieces of an operation. `save_setup_link(int $user_id, array $link): array`, `get_setup_link(int $user_id): ?array`, transaction-bound `consume_setup_link(int $user_id, string $hash, int $site_id): ?array` and `members_without_passkey(int $site_id, string $rp_id): array` own the setup-link metadata and the readiness query. |
+| `Events` / `class-events.php` | The only list of log types: `static schema(): array` (keys, types and flags, with no translation calls, so writing is safe before `init`), `static categories(): array`, `static all(): array` (adds the translated action and the Details builder), `static reason(string $code): string`. |
+| `Logs` / `class-logs.php` | Log writing, reading, clearing and erasure against the Events registry: `record(string $event, array $fields = []): void`, `read(int $site_id, array $request): array`, `clear(int $site_id): array`, `erase(string $email, int $page = 1): array\|\WP_Error`, `register_eraser(array $erasers): array`. Built from Storage alone. |
 | `WebAuthn` / `class-webauthn.php` | Protocol boundary and pinned-library adapter: `creation_options(array $issued): array`, `request_options(array $issued): array`, `verify_registration(array $attempt, array $response): array`, `verify_assertion(array $attempt, array $credential, array $response): array`. Owns binary parsing, canonical origins, protocol checks and library exception conversion; no WordPress globals, database access or cookies. Receives configured origins as values. |
 | `Authentication` / `class-authentication.php` | WordPress authentication/password/reset/Two-Factor hooks, the after-registration `register_new_user` sign-in, session creation and post-login redirects: `register_hooks(): void`, `complete_login(array $context, array $input): array`. Keeps request-private proof context; neither supplies proof from request identity fields nor duplicates cryptographic validation. |
 | `Ajax` / `class-ajax.php` | Section 22 action registration and transport boundary: `register_hooks(): void`, action-specific callbacks such as `handle_login_options(): void`, `handle_login_complete(): void`, `handle_register_complete(): void`, `handle_remove(): void`. Owns POST decoding, nonce checks, request-context construction and the single JSON response envelope. Passkeys rechecks operation authorization independently of presentation. No SQL, HTML rendering or signature verification in callbacks. |
-| `Screens` / `class-screens.php` | Menus, settings form callbacks, profile/native-login hooks including the after-registration profile marker, shortcodes, blocks, assets and presentation: `register_hooks(): void`, `register_menus(): void`, `register_blocks(): void`, `render_site_settings(): void`, `render_network_settings(): void`, `render_diagnostics(): void`, `render_profile(\WP_User $user): void`, `render_login(): void`, `render_shortcode(array\|string $attributes, ?string $content = null, string $tag = ''): string`. Authorized settings/profile submissions call Settings; view templates contain escaped presentation only. `render_setup(): void` renders the setup page and `filter_missing_passkey_users(array $args): array` filters the Users screen for the readiness link. |
-| `Lifecycle` / `class-lifecycle.php` | Activation, new-site initialization, deactivation, account/membership cleanup, expiry cleanup, uninstall and related-origin routing: `register_hooks(): void`, `activate(bool $network_wide): void`, `deactivate(bool $network_wide): void`, `initialize_site(\WP_Site $site): void`, `delete_account(int $user_id): void`, `remove_membership(int $user_id, int $site_id): void`, `cleanup_attempts(): void`, `uninstall(): void`. Uses Storage and Settings; registration/flush of routing is lifecycle-owned, public JSON publication uses the configured origins publication values only. |
+| `Screens` / `class-screens.php` | Menus, settings form callbacks, profile/native-login hooks including the after-registration profile marker, shortcodes, blocks, assets and presentation: `register_hooks(): void`, `register_menus(): void`, `register_blocks(): void`, `render_site_settings(): void`, `render_network_settings(): void`, `render_logs(): void`, `render_profile(\WP_User $user): void`, `render_login(): void`, `render_shortcode(array\|string $attributes, ?string $content = null, string $tag = ''): string`. Authorized settings/profile submissions call Settings; view templates contain escaped presentation only. `render_setup(): void` renders the setup page and `filter_missing_passkey_users(array $args): array` filters the Users screen for the readiness link. |
+| `Lifecycle` / `class-lifecycle.php` | Activation, new-site initialization, deactivation, account/membership cleanup, expiry cleanup, uninstall and related-origin routing: `register_hooks(): void`, `activate(bool $network_wide): void`, `upgrade(): void`, `deactivate(bool $network_wide): void`, `initialize_site(\WP_Site $site): void`, `early_delete_account(int $user_id, mixed $user = null): void`, `delete_account(int $user_id, mixed $reassign = null, mixed $user = null): void`, `remove_membership(int $user_id, int $site_id): void`, `cleanup_attempts(): void`, `uninstall(): void`. Uses Storage, Settings and Logs, and registers the log eraser; registration/flush of routing is lifecycle-owned, public JSON publication uses the configured origins publication values only. |
 
 Method signatures describe internal module contracts, not public extension APIs. The extension APIs are the hooks in section 22. Named value shapes are validated arrays, not an additional class hierarchy: `Result` is `{ok: bool, code: string, data: array, message: string}`; `RequestContext` holds `site_id`, `network_id`, `actor_id` (0 when anonymous), browser/session bindings and purpose. `Attempt`, `Credential`, `VerifiedCredential`, `VerifiedAssertion` follow the fields in sections 20 to 23. These shapes are documented in the module responsible for validating them. Local variables and private helpers are not compatibility contracts.
 
-Module dependencies are as follows: Ajax and Screens call Settings/Passkeys/Authentication; Ajax also calls Storage for authorized diagnostic read/clear only; Authentication calls Passkeys and uses Storage only for its diagnostic append; Passkeys calls Settings/Storage/WebAuthn; Settings calls Storage; Lifecycle calls Settings/Storage. Plugin wires these dependencies explicitly. Storage retains no application-module dependencies. Its bounded owner-transaction callback is the sole exception to inward calls; it runs only the credential/policy decision and transaction-bound storage operations defined in its contract. WebAuthn never calls application modules. Templates receive prepared view data and never query credentials, authorize mutations or write settings. There is no container, ORM, generic repository interface, event bus or configurable pipeline.
+Module dependencies are as follows: Ajax and Screens call Settings/Passkeys/Authentication; Ajax also calls Logs to record operation results and for authorized log read/clear; Authentication calls Passkeys and Logs; Passkeys calls Settings/Storage/WebAuthn; Settings calls Storage and Logs; Lifecycle calls Settings/Storage/Logs; Logs calls Storage and Events, and reads labels through the static `Settings::labels()`. Plugin wires these dependencies explicitly. Storage retains no application-module dependencies. Its bounded owner-transaction callback is the sole exception to inward calls; it runs only the credential/policy decision and transaction-bound storage operations defined in its contract. WebAuthn never calls application modules. Templates receive prepared view data and never query credentials, authorize mutations or write settings. There is no container, ORM, generic repository interface, event bus or configurable pipeline.
 
 The split between assertion verification and acceptance exists solely for WordPress's authentication callback boundary. `Passkeys::verify_assertion` claims the attempt and produces server-private verified proof without authorizing a session. `Authentication::complete_login` applies the specified WordPress sign-on checks and invokes `Passkeys::accept_assertion` at the final acceptance point in section 24. Authenticated login and `Passkeys::complete_test` use that same acceptance operation without sign-on. The private acceptance proof is a validated array containing `attempt_id`, `site_id`, `purpose`, `actor_id`, `target_id`, `browser_hash`, `session_hash`, `issued_options`, `record_id`, binary `credential_id`, `owner_id`, verified `rp_id`, verified `public_key_cose` and `public_key_pem`, issued allow-list and mandatory UV requirement within `issued_options`, verified `sign_count`, stored `backup_eligible` and verified `backed_up`. The resolved record identity, owner, RP and public-key bytes are the snapshot used for signature verification; they are not reloaded later and relabeled as the verified snapshot. The existing bound attempt supplies the context; this is not a second persisted attempt record. Final acceptance compares the locked record against that snapshot, applies section 13's policy timing, and validates the counter/backup transition against current stored state. The protocol adapter's narrower `VerifiedAssertion` return is combined with this server-held context by Passkeys. Proof is scoped to the current request, never returned to JavaScript or treated as a reusable token. Passkeys does not depend on Authentication, and no second component implements counter, revocation or remaining-access rules.
 
-Ajax callback names are `handle_` plus the action suffix in section 22: for example, `azwp_passkeys_register_options` maps to `Ajax::handle_register_options`. Login options call `Passkeys::assertion_options`; login completion calls `Authentication::complete_login`. Registration, tests and management call the corresponding Passkeys methods. Registration completion first obtains its bound target through `Passkeys::registration_target`, which reads and validates the actor/browser/session attempt context without claiming it. Ajax verifies the target-specific nonce against that returned target; `complete_registration` rechecks permission and claims only afterwards. No client replacement target supplies this nonce context. Diagnostic callbacks enforce their stated capability/nonce and call Storage. No additional routes arise from the module split. Settings/diagnostics/profile save callbacks in Screens call Settings after their native form authorization; their business rules do not live in templates. Settings, Passkeys, Authentication and Lifecycle submit their existing diagnostic events through `Storage::append_log`; no separate logging module is introduced. Storage validates the event shape and applies the diagnostic field allow-list/redaction centrally before writing. Append runs only after the operation transaction has committed or rolled back and locks have been released, never inside the owner callback. A diagnostic append failure does not change the operation/authentication result and does not recursively log itself. Settings owns the disabled-to-enabled initialization event and invokes `azwp_passkeys_log_initialization` outside the transaction. It captures the pre-save configuration for those entries and appends them after a confirmed successful enable save, before subsequent setting-change entries. Disabling retains logs and suppresses the subsequent change entries as specified in section 25.
+Ajax callback names are `handle_` plus the action suffix in section 22: for example, `azwp_passkeys_register_options` maps to `Ajax::handle_register_options`. Login options call `Passkeys::assertion_options`; login completion calls `Authentication::complete_login`. Registration, tests and management call the corresponding Passkeys methods. Registration completion first obtains its bound target through `Passkeys::registration_target`, which reads and validates the actor/browser/session attempt context without claiming it. Ajax verifies the target-specific nonce against that returned target; `complete_registration` rechecks permission and claims only afterwards. No client replacement target supplies this nonce context. Log callbacks enforce their stated capability/nonce and call Logs. No additional routes arise from the module split. Settings/log page/profile save callbacks in Screens call Settings after their native form authorization; their business rules do not live in templates. Ajax, Settings, Authentication and Lifecycle write log events through `Logs::record()`, which validates them against the Events registry and calls `Storage::insert_event()`. Storage skips the insert inside an owner transaction, so a log write never joins an operation's transaction or holds its locks. A logging failure does not change the operation or authentication result and does not log itself.
 
-Each view is a template in `views/` named after its screen: `settings-site`, `settings-network`, `profile`, `login`, `frontend-login`, `frontend-register`, `frontend-test`, `credential-list` and `diagnostics`. These are internal view names, not query parameters or public routes. `Screens::view()` passes the screen's prepared values to its template as named variables, including `target_id` where relevant, non-secret policy and availability flags and nonces where authorized. Each template escapes for its output context; prepared text is not implicitly trusted HTML. Components carry a `data-azwp-passkeys` role of `login`, `register`, `test`, `list` or `diagnostics`. Rendering the list on multiple pages or components uses the same `credential-list.php` view and shared client renderer.
+Each view is a template in `views/` named after its screen: `settings-site`, `settings-network`, `profile`, `login`, `frontend-login`, `frontend-register`, `frontend-test`, `credential-list` and `logs`. These are internal view names, not query parameters or public routes. `Screens::view()` passes the screen's prepared values to its template as named variables, including `target_id` where relevant, non-secret policy and availability flags and nonces where authorized. Each template escapes for its output context; prepared text is not implicitly trusted HTML. Components carry a `data-azwp-passkeys` role of `login`, `register`, `test`, `list` or `logs`. Rendering the list on multiple pages or components uses the same `credential-list.php` view and shared client renderer.
 
 ### Naming and shared values
 
@@ -569,17 +575,17 @@ Each constant belongs to the module owning its meaning. Browser configuration re
 
 ### Browser and screen boundaries
 
-`client.js` owns base64url/ArrayBuffer conversion, AJAX envelopes, browser capability queries, the single page-level pending state and reusable credential-list rendering. Its internal browser methods use camelCase: `requestAction`, `createCredential`, `getAssertion`, `refreshCredentialList`, `setPagePending`. JavaScript uses `const` for unchanged bindings, named local variables and no unprefixed global helpers. Server-side authorization remains authoritative. `login.js` owns switching between password and passkey forms on the native login page; `profile.js` focuses the Add passkey button after the registration continuation; `frontend.js` owns shortcode interactions and the specified shared-page behavior; `settings.js` owns dependent controls and diagnostic polling; `blocks.js` owns editor controls and shortcode serialization. These files use shared operations rather than duplicating protocol serialization or registration/list logic.
+`client.js` owns base64url/ArrayBuffer conversion, AJAX envelopes, browser capability queries, the single page-level pending state and reusable credential-list rendering. Its internal browser methods use camelCase: `requestAction`, `createCredential`, `getAssertion`, `refreshCredentialList`, `setPagePending`. JavaScript uses `const` for unchanged bindings, named local variables and no unprefixed global helpers. Server-side authorization remains authoritative. `login.js` owns switching between password and passkey forms on the native login page; `profile.js` focuses the Add passkey button after the registration continuation; `frontend.js` owns shortcode interactions and the specified shared-page behavior; `settings.js` owns dependent controls and the log viewer; `blocks.js` owns editor controls and shortcode serialization. These files use shared operations rather than duplicating protocol serialization or registration/list logic.
 
 Script handles are `azwp-passkeys-client`, `azwp-passkeys-login`, `azwp-passkeys-profile`, `azwp-passkeys-frontend`, `azwp-passkeys-settings`, `azwp-passkeys-blocks`. Page-specific scripts depend on the client where used; all translated scripts declare `wp-i18n`. Block controls use WordPress's registered editor dependencies. Style handles are `azwp-passkeys-admin`, `azwp-passkeys-login`, `azwp-passkeys-frontend`; sharing a script/style handle name is safe because WordPress registers those asset types separately. Only the assets required by the page or component load, as specified in section 25. Runtime and editor translations use the same text domain and selected locales.
 
-Screens owns the site settings, network settings and site diagnostics page registrations and retains their returned hook suffixes for conditional asset loading. It uses the returned values rather than guessing WordPress-generated screen IDs. Site settings remains under Settings, network settings under Settings in Network Admin; both retain page/menu slug `azwp-passkeys` and title AZ's WP Passkeys. Profile, user-edit and native-login screens are existing WordPress screens, not new menu pages. Diagnostics is the Passkey diagnostics page under Tools, with slug `azwp-passkeys-diagnostics` and `manage_options`, as defined in section 9. Frontend components add no menu item. Templates share the credential-list and diagnostics presentation without introducing a template engine. The exact page controls, capability checks, labels and states remain those in section 25.
+Screens owns the site settings, network settings and Passkey Logs page registrations and retains their returned hook suffixes for conditional asset loading. It uses the returned values rather than guessing WordPress-generated screen IDs. Site settings remains under Settings, network settings under Settings in Network Admin; both retain page/menu slug `azwp-passkeys` and title AZ's WP Passkeys. Profile, user-edit and native-login screens are existing WordPress screens, not new menu pages. Passkey Logs is the page under Tools, with slug `azwp-passkeys-logs` and `manage_options`, as defined in section 9. Frontend components add no menu item. Templates share the credential-list presentation without introducing a template engine. The exact page controls, capability checks, labels and states remain those in section 25.
 
 ## 20. Persistent configuration and records
 
 ### WordPress keys
 
-`azwp_passkeys_settings` is a site option with autoload disabled. `azwp_passkeys_network_settings` is a network option; single-site installations store the same network-policy keys in `azwp_passkeys_settings`. Missing keys use defaults; unknown keys are not reflected into browser configuration. User metadata `azwp_passkeys_password_disabled` is stored as integer 0 or 1, with absent equivalent to 0. User metadata `azwp_passkeys_setup_link` holds at most one pending setup link as JSON `{hash, expires_at, issued_by, site_id}`; account cleanup and uninstall remove it. User handles are stored only in the identity table, not duplicated in metadata.
+`azwp_passkeys_settings` is a site option with autoload disabled. `azwp_passkeys_network_settings` is a network option; single-site installations store the same network-policy keys in `azwp_passkeys_settings`. Missing keys use defaults; unknown keys are not reflected into browser configuration. User metadata `azwp_passkeys_password_disabled` is stored as integer 0 or 1, with absent equivalent to 0. User metadata `azwp_passkeys_setup_link` holds at most one pending setup link as JSON `{hash, expires_at, issued_by, site_id}`; account cleanup and uninstall remove it. User handles are stored only in the identity table, not duplicated in metadata. The network option `azwp_passkeys_schema_version`, stored on the main network because the tables are shared by every network, holds the installed table schema version; a missing value counts as 1 (section 24).
 
 | Key                  | Stored type and allowed values                    | Default       | Site save / network save                                |
 | -------------------- | ------------------------------------------------- | ------------- | ------------------------------------------------------- |
@@ -589,10 +595,10 @@ Screens owns the site settings, network settings and site diagnostics page regis
 | `remember_login`     | Boolean                                           | false         | Required / absent                                       |
 | `reset_restriction`  | `off`, `except_admin`, `everyone`                 | `off`         | Required / absent                                       |
 | `after_registration` | `default` or `add_passkey`                        | `default`     | Required on single-site, absent on multisite / absent   |
-| `logging`            | Boolean                                           | false         | Diagnostics form only / absent                                       |
+| `logging`            | Boolean                                           | true          | Log page form only / absent                                          |
 | `related_origins`    | Array of strings                                  | []            | Optional, retained if omitted / optional, [] if omitted |
 
-Boolean settings use Enable/Disable radio groups submitting `1` or `0`; only these form values are accepted. Network policy controls do not appear in multisite site-save submissions. Unexpected network-policy fields in that submission are ignored, never persisted as site overrides. An invalid/missing required site field rejects the entire settings save. Invalid/missing network choice fields use the defined defaults. Empty RP fields remain saveable and produce not-configured enrollment failures. Related origins remain stored without a visible control, as specified. Each settings save is all-or-nothing for its submitted fields. Site settings saves retain `logging` unchanged. The diagnostics form accepts only the required Boolean `logging` field; unrelated fields cannot change site settings. Both forms merge their fields with the latest stored option record inside the coordinated transaction, so saving either page cannot overwrite changes made on the other page. Saving an unchanged value is success after read-back equality, not a write error. Account metadata saving uses the normal profile nonce and target permission, not the settings-save nonce.
+Boolean settings use Enable/Disable radio groups submitting `1` or `0`; only these form values are accepted. Network policy controls do not appear in multisite site-save submissions. Unexpected network-policy fields in that submission are ignored, never persisted as site overrides. An invalid/missing required site field rejects the entire settings save. Invalid/missing network choice fields use the defined defaults. Empty RP fields remain saveable and produce not-configured enrollment failures. Related origins remain stored without a visible control, as specified. Each settings save is all-or-nothing for its submitted fields. Site settings saves retain `logging` unchanged. The log page form accepts only the required Boolean `logging` field; unrelated fields cannot change site settings. Both forms merge their fields with the latest stored option record inside the coordinated transaction, so saving either page cannot overwrite changes made on the other page. Saving an unchanged value is success after read-back equality, not a write error. Account metadata saving uses the normal profile nonce and target permission, not the settings-save nonce.
 
 ### Tables and types
 
@@ -603,7 +609,32 @@ Tables use `$wpdb->base_prefix` plus the names below and InnoDB transactions. Wo
 | `azwp_passkeys_identities`  | `user_id BIGINT UNSIGNED`; `handle BINARY(64)`; `enrollment_initialized TINYINT UNSIGNED` default 0; `created_at BIGINT UNSIGNED`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Primary `user_id`; unique `handle`                                                                           |
 | `azwp_passkeys_credentials` | `id BIGINT UNSIGNED AUTO_INCREMENT`; `user_id`, `site_id BIGINT UNSIGNED`; `credential_hash BINARY(32)`; `credential_id BLOB`; `rp_id VARCHAR(253)` ASCII binary collation; `public_key_pem TEXT` PEM; `public_key_cose BLOB`; `credential_type VARCHAR(10)`; `attestation_type VARCHAR(32)`; `trust_path TEXT` JSON; `aaguid BINARY(16) NOT NULL`; `other_ui TEXT NULL`; `algorithm SMALLINT`; `sign_count BIGINT UNSIGNED`; `backup_eligible`, `backed_up TINYINT UNSIGNED`; `transports TEXT` JSON array; `name TEXT`; `created_at BIGINT UNSIGNED`; `created_local DATETIME`; `last_used_local DATETIME NULL` | Primary `id`; unique `credential_hash`; index `(user_id, site_id, created_at, id)`; index `(user_id, rp_id)` |
 | `azwp_passkeys_attempts`    | `id BINARY(32)`; `site_id BIGINT UNSIGNED`; `purpose VARCHAR(16)`; `actor_id`, `target_id BIGINT UNSIGNED NULL`; `browser_hash`, `session_hash BINARY(32) NULL`; `challenge BINARY(32)`; `issued TEXT` JSON; `status VARCHAR(8)` (`pending` or `claimed`); `created_at`, `expires_at BIGINT UNSIGNED`                                                                                                                                                                                                                                                                                                                                                                           | Primary `id`; index `expires_at`                                                                             |
-| `azwp_passkeys_logs`        | `id BIGINT UNSIGNED AUTO_INCREMENT`; `site_id BIGINT UNSIGNED`; `occurred_at BIGINT UNSIGNED`; `event VARCHAR(48)`; `actor_id`, `target_id BIGINT UNSIGNED NULL`; `result VARCHAR(32)`; `correlation_id CHAR(32)` ASCII; `detail TEXT` redacted JSON                                                                                                                                                                                                                                                                                                                                                                                                   | Primary `id`; index `(site_id, id)`                                                                          |
+| `azwp_passkeys_events`      | `id BIGINT UNSIGNED AUTO_INCREMENT`; `site_id BIGINT UNSIGNED`; `occurred_at BIGINT UNSIGNED`; `event VARCHAR(48)` ASCII; `ok TINYINT UNSIGNED`; `code VARCHAR(32)` ASCII; `correlation_id CHAR(32)` ASCII; `actor_id BIGINT UNSIGNED NULL`; `actor_login VARCHAR(60) NULL`; `target_id BIGINT UNSIGNED NULL`; `target_login VARCHAR(60) NULL`; `passkey_id BIGINT UNSIGNED NULL`; `passkey_name VARCHAR(255) NULL`; `passkey_aaguid BINARY(16) NULL`; `ip VARCHAR(45)` ASCII `NULL`; `data TEXT NULL` JSON | Primary `id`; index `(site_id, id)`; index `(site_id, event, id)`; index `actor_id`; index `target_id` |
+
+The events table holds the log. Its columns mean:
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | `BIGINT UNSIGNED AUTO_INCREMENT` | Primary key. Gaps are normal. |
+| `site_id` | `BIGINT UNSIGNED` | Site the event belongs to |
+| `occurred_at` | `BIGINT UNSIGNED` | Unix time, UTC |
+| `event` | `VARCHAR(48)` ASCII | Dotted key from the registry |
+| `ok` | `TINYINT UNSIGNED` | 1 for success, 0 for failure |
+| `code` | `VARCHAR(32)` ASCII | `ok`, or the failure code |
+| `correlation_id` | `CHAR(32)` ASCII | The ID the AJAX error response returns |
+| `actor_id` | `BIGINT UNSIGNED NULL` | Signed-in user who acted |
+| `actor_login` | `VARCHAR(60) NULL` | `user_login` of the actor when written |
+| `target_id` | `BIGINT UNSIGNED NULL` | Account the event happened to |
+| `target_login` | `VARCHAR(60) NULL` | `user_login` of the target when written |
+| `passkey_id` | `BIGINT UNSIGNED NULL` | Row ID in the credentials table. Not a foreign key, because the passkey may be deleted. |
+| `passkey_name` | `VARCHAR(255) NULL` | The passkey's name when the event happened |
+| `passkey_aaguid` | `BINARY(16) NULL` | The authenticator model ID, raw |
+| `ip` | `VARCHAR(45)` ASCII `NULL` | The request's `REMOTE_ADDR`, when it is a valid IPv4 or IPv6 address. Reverse proxies must supply the real address, as for the sign-in rate limit. |
+| `data` | `TEXT NULL` | JSON object with the event's own extra fields |
+
+Indexes. Primary `id`. `site_id_id (site_id, id)` serves the newest-first list. `site_event (site_id, event, id)` serves the category filter. `actor (actor_id)` and `target (target_id)` serve the eraser.
+
+The `passkey_*` columns are set only for events whose registry entry declares `passkey`. The log stores the AAGUID and never the authenticator's name. The reader calls `Authenticators::name()` on the raw bytes, the same lookup the passkey list uses. A catalog update therefore fixes old rows, and an AAGUID missing from the catalog shows no authenticator. `passkey_id` is not a foreign key, because the passkey may be deleted. The events table is left out of the transactional-engine check that guards passkey operations, so a missing events table never blocks one.
 
 A credential hash is SHA-256 of the full binary credential ID. A lookup compares the full bytes after hash lookup; collision never transfers ownership. A duplicate hash with unequal bytes fails safely without overwriting either credential. A duplicate exact ID is rejected regardless of owning user/site. Credential ID lengths obey WebAuthn representation limits, not an arbitrary per-user credential cap. Names have no additional product length limit beyond transport/database bounds. `sign_count` is the unsigned 32-bit protocol value held in a wider column; 0 is stored explicitly. `transports` accepts a JSON array of strings; another shape fails with `invalid_request`. It retains the browser-reported transport strings from a successfully validated registration, deduplicated as a JSON array; absent metadata is an empty array. These strings are optional browser-selection hints, not proof of ownership, storage location or authorization. No requested device category is stored. Descriptor transport handling follows section 23.
 
@@ -629,7 +660,7 @@ Normal owner-state mutations perform a fresh database check that the account sti
 
 To determine whether a usable sign-in or recovery method remains, the plugin checks server-observable facts: credential existence/owner, RP compatibility with the current management site's configured origins, account/site availability, and effective password/reset policy. It cannot establish whether a device or security key is lost or whether a user remembers a password; the UI does not claim those facts. A password method requires a nonempty WordPress password hash and permitted password authentication. A reset method also requires effective permission to complete reset and use the resulting password. Operator database access is not counted as user recovery. The assessment protects access on the current management site under its effective policies. All remaining credentials belonging to the target are considered, including those enrolled on other sites, but only credentials usable on this site count. Access available solely on another incompatible site is insufficient. This assessment does not require a network-wide enumeration of sites or claim to guarantee access to every network site.
 
-`azwp_passkeys_cleanup` is scheduled once on the installation main site, with no arguments, and runs through WordPress cron hourly, removing only expired ceremony rows; request-time expiry remains authoritative. It never expires diagnostics. Network deactivation (or single-site deactivation) unschedules that main-site event and retains data. Site initialization does not schedule another cleanup event; reactivation schedules it only if absent. Lifecycle credential cleanup uses the same owner serialization but bypasses the voluntary-removal safeguard solely for the authorized lifecycle events in section 11.
+`azwp_passkeys_cleanup` is scheduled once on the installation main site, with no arguments, and runs through WordPress cron hourly, removing only expired ceremony rows; request-time expiry remains authoritative. It never expires log entries. Network deactivation (or single-site deactivation) unschedules that main-site event and retains data. Site initialization does not schedule another cleanup event; reactivation schedules it only if absent. Lifecycle credential cleanup uses the same owner serialization but bypasses the voluntary-removal safeguard solely for the authorized lifecycle events in section 11.
 
 ## 22. Transport and extension interfaces
 
@@ -648,7 +679,7 @@ Native AJAX uses `admin_url('admin-ajax.php')`. Each action is POST form data wi
 | `azwp_passkeys_list`              | `target_id`                                              | `credentials: []` summaries in required order                                                           |
 | `azwp_passkeys_rename`            | `target_id`, `record_id` internal decimal ID, `name` | `credential`, `unchanged: bool`                                                                         |
 | `azwp_passkeys_remove`            | `target_id`, `record_id` internal decimal ID         | `removed: bool`, `already_absent: bool`                                                                 |
-| `azwp_passkeys_log_read`          | Empty object                                             | `entries`, `count` for current site                                                                     |
+| `azwp_passkeys_log_read`          | Optional `paged`, `category`, `ok` (section 25)          | `total`, `matched`, `paged`, `per_page`, `total_pages`, `categories`, `entries` for the current site    |
 | `azwp_passkeys_log_clear`         | Empty object                                             | `count: 0` after confirmed deletion                                                                     |
 | `azwp_passkeys_send_setup`       | `target_id` | `sent: true` |
 | `azwp_passkeys_setup_options`    | `user_id`, `token` | `attempt_id`, `publicKey` |
@@ -658,7 +689,7 @@ Native and frontend passkey forms use AJAX completion: `completion_mode=ajax` an
 
 `credential` is `{id, rawId, type:'public-key', response, clientExtensionResults}`. `id` and `rawId` decode to identical bytes. Registration response contains `clientDataJSON`, `attestationObject`, and optional `transports`; assertion response contains `clientDataJSON`, `authenticatorData`, `signature`, and nullable `userHandle`. All byte fields are canonical unpadded base64url strings, not numeric arrays; null handle and empty handle remain distinct and neither satisfies login ownership. Extension results are untrusted hints and do not authorize a user. Unknown envelope fields are ignored; missing required fields or wrong types fail before verification. Registration excludes existing binary credential IDs; assertions bind the ceremony shape fixed by their purpose. Login options omit `allowCredentials` and the issued state has no allow-list. Test options and issued state contain an explicit nonempty list; a target with no eligible credentials fails with `no_credentials` before options are issued. A missing test allow-list is invalid state, not permission to discover an account.
 
-AJAX uses `{success:true,data:{code,message,...result}}` or `{success:false,data:{code,message,retry,correlation_id}}`. `retry` is `fresh_attempt`, `refresh`, `none` or `uncertain`. Successful responses use HTTP 200 and code `ok`; operation-specific outcomes are carried in the listed result fields. Correlation IDs are 16 random bytes represented as 32 lowercase hexadecimal characters, matching the diagnostics column. They identify an operation, not an authentication capability. Error HTTP/code mapping is: 400 `invalid_request`; 401 `authentication_failed`; 403 `forbidden` or `invalid_nonce`; 409 `attempt_unavailable`, `credential_exists`, `access_required` or `state_changed`; 429 `rate_limited`; 503 `not_configured`, `storage_failed`, `outcome_unknown`, `mail_failed`. `no_credentials` uses HTTP 409 and is allowed only for authenticated management/tests; public login failures complete as `authentication_failed`. `cancelled`, `unsupported`, `network_error` are local UI conditions, not server verification claims. Error details, SQL and cryptographic internals are not exposed. Account/authentication `WP_Error` results are mapped to the same JSON failure envelope and translated inline message, without exposing internal error detail or introducing an error-code UI setting.
+AJAX uses `{success:true,data:{code,message,...result}}` or `{success:false,data:{code,message,retry,correlation_id}}`. `retry` is `fresh_attempt`, `refresh`, `none` or `uncertain`. Successful responses use HTTP 200 and code `ok`; operation-specific outcomes are carried in the listed result fields. Correlation IDs are 16 random bytes represented as 32 lowercase hexadecimal characters, matching the log's `correlation_id` column. They identify an operation, not an authentication capability. Error HTTP/code mapping is: 400 `invalid_request`; 401 `authentication_failed`; 403 `forbidden` or `invalid_nonce`; 409 `attempt_unavailable`, `credential_exists`, `access_required` or `state_changed`; 429 `rate_limited`; 503 `not_configured`, `storage_failed`, `outcome_unknown`, `mail_failed`. `no_credentials` uses HTTP 409 and is allowed only for authenticated management/tests; public login failures complete as `authentication_failed`. `cancelled`, `unsupported`, `network_error` are local UI conditions, not server verification claims. Error details, SQL and cryptographic internals are not exposed. Account/authentication `WP_Error` results are mapped to the same JSON failure envelope and translated inline message, without exposing internal error detail or introducing an error-code UI setting.
 
 Credential summaries contain `record_id`, `name`, nullable `authenticator` (the catalog model name), `synced` (the stored backed-up flag), `created_local`, nullable `last_used_local`, `available`, `unavailable_reason`, `can_rename`, `can_remove`. They never contain public keys, handles, counter details or credential proof. `available` indicates whether current policy permits this passkey; `can_remove` is an advisory snapshot and is checked atomically again on removal.
 
@@ -666,17 +697,16 @@ Credential summaries contain `record_id`, `name`, nullable `authenticator` (the 
 
 Management and test target resolution defaults to the actor only when `target_id` is omitted; an explicitly invalid target is not silently replaced. Authenticated management and tests require `read`; another target also requires `edit_user(target)`. Current-site management reads and mutates only that site's rows. Login options accept no target ID or account identifier.
 
-For registration completion, the target is read from the stored attempt before nonce/capability checks; it is not defaulted to the actor or taken from a replacement client target. Reading this context does not claim the attempt. Management nonce field `_ajax_nonce` uses action `azwp_passkeys_manage_{target_id}_{site_id}` for registration/list/rename/removal and sending a setup link; setup options and completion use the link token and the browser binding instead; diagnostics uses `azwp_passkeys_logs_{site_id}`. Settings forms use `_wpnonce` with `azwp_passkeys_save_site_{site_id}`, `azwp_passkeys_save_network_{network_id}` or `azwp_passkeys_save_diagnostics_{site_id}` for the respective form. Login/test options and completion use their browser/session bindings, not management nonces. Profile checkbox saving uses WordPress's `update-user_{target_id}` nonce. Failed nonce/capability checks occur before any database mutation or ceremony claim.
+For registration completion, the target is read from the stored attempt before nonce/capability checks; it is not defaulted to the actor or taken from a replacement client target. Reading this context does not claim the attempt. Management nonce field `_ajax_nonce` uses action `azwp_passkeys_manage_{target_id}_{site_id}` for registration/list/rename/removal and sending a setup link; setup options and completion use the link token and the browser binding instead; log read/clear uses `azwp_passkeys_logs_{site_id}`. Settings forms use `_wpnonce` with `azwp_passkeys_save_site_{site_id}`, `azwp_passkeys_save_network_{network_id}` or `azwp_passkeys_save_logs_{site_id}` for the respective form. Login/test options and completion use their browser/session bindings, not management nonces. Profile checkbox saving uses WordPress's `update-user_{target_id}` nonce. Failed nonce/capability checks occur before any database mutation or ceremony claim.
 
-Site settings submit to `admin-post.php?action=azwp_passkeys_save_site`, handled by `admin_post_azwp_passkeys_save_site`; network settings submit to `network_admin_url('edit.php?action=azwp_passkeys_save_network')`, handled by `network_admin_edit_azwp_passkeys_save_network`. The diagnostics logging form submits to `admin-post.php?action=azwp_passkeys_save_diagnostics`, handled by `admin_post_azwp_passkeys_save_diagnostics` with `manage_options`. Each handler verifies its section 22 nonce/capability, applies the section 20 save schema and safely redirects to its own page with fixed `settings_saved` or `settings_failed` status. The redirect may carry `invalid` as a comma-separated list of known field keys; rendering accepts only keys from the settings definition map. Posted values and secrets are never placed in the redirect URL. Site save failure is atomic, network invalid-choice defaulting is not labeled a validation failure.
+Site settings submit to `admin-post.php?action=azwp_passkeys_save_site`, handled by `admin_post_azwp_passkeys_save_site`; network settings submit to `network_admin_url('edit.php?action=azwp_passkeys_save_network')`, handled by `network_admin_edit_azwp_passkeys_save_network`. The Passkey Logs logging form submits to `admin-post.php?action=azwp_passkeys_save_logs`, handled by `admin_post_azwp_passkeys_save_logs` with `manage_options`. Each handler verifies its section 22 nonce/capability, applies the section 20 save schema and safely redirects to its own page with fixed `settings_saved` or `settings_failed` status. The redirect may carry `invalid` as a comma-separated list of known field keys; rendering accepts only keys from the settings definition map. Posted values and secrets are never placed in the redirect URL. Site save failure is atomic, network invalid-choice defaulting is not labeled a validation failure.
 
 ### Public hooks
 
 | Hook                                       | Kind and arguments                            | Contract                                                                                                             |
 | ------------------------------------------ | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `azwp_passkeys_settings_extra`             | Action, no arguments                          | Additional site-settings markup in the authorized form                                                               |
-| `azwp_passkeys_settings_saved`             | Action `(string $correlationId)`              | Runs after confirmed site settings or diagnostics option save, including unchanged valid save; extensions own their input validation/storage |
-| `azwp_passkeys_log_initialization`         | Filter `(array $entries)` starting []         | Each returned plain string becomes redacted initialization detail; invalid entries ignored                           |
+| `azwp_passkeys_settings_saved`             | Action `(string $correlationId)`              | Runs after confirmed site settings or log page option save, including unchanged valid save; extensions own their input validation/storage |
 | `azwp_passkeys_version`                    | Filter `(string $version)`                    | Plugin callback supplies the plugin header version; callers query with `apply_filters`                        |
 
 No hook accepts an authorization approval as a substitute for cryptographic verification.
@@ -729,13 +759,22 @@ WordPress owns account registration, welcome emails and registration continuatio
 4. Fire `wp_login` once with the account login and `WP_User`. A Two-Factor handler that takes over the request here keeps control, and step 5 does not run.
 5. Call `wp_safe_redirect(add_query_arg('azwp_passkeys_registered', '1', admin_url('profile.php')) . '#azwp-passkeys')` and exit.
 
-`registration_redirect` and the register form's `redirect_to` are not applied. Every failure path returns without output, so WordPress continues to `wp-login.php?checkemail=registered`. The outcome is logged as `registration_sign_in` with `result` `ok`, `cross_origin`, `denied` or `cookies_suppressed`.
+`registration_redirect` and the register form's `redirect_to` are not applied. Every failure path returns without output, so WordPress continues to `wp-login.php?checkemail=registered`. The outcome is logged as `signin.registration` with code `ok`, `cross_origin`, `denied` or `cookies_suppressed`.
 
 ### Lifecycle
 
 Activation registers schema with `dbDelta`, verifies transactional engine/required indexes, initializes defaults without overwriting existing values, and schedules cleanup. Multisite activation requires network activation and initializes the shared tables plus site options; `wp_initialize_site` applies defaults to new sites. An incomplete schema makes operations unavailable with an administrator diagnostic rather than partially writing credentials.
 
-`remove_user_from_blog` deletes only the removed membership's enrollment-site rows. Final `deleted_user` handling runs on both single-site and multisite. Under owner serialization, a fresh database read must confirm that the WordPress user row no longer exists before full cleanup removes that owner's credentials, attempts, handle and plugin user metadata. If the user still exists, this event performs no account-wide cleanup: site membership cleanup remains solely the site-scoped `remove_user_from_blog` operation, and other-site credentials, the handle and global account flag remain intact. Multisite `wpmu_delete_user` may perform the same idempotent early cleanup but does not replace final cleanup after WordPress removes the account. If an enrollment commits between early cleanup and account deletion, final cleanup removes it; if final cleanup completes first, the owner-state transaction's fresh account-existence check rejects recreation of credentials, handles, bound attempts or account metadata. Cleanup does not recreate enrollment state or preserve credentials for a deleted account. There is no separate `wp_delete_site` sweep of shared credential rows. Deactivation unschedules cleanup and retains data. Uninstall removes the four shared tables, plugin site/network options across the installation, plugin user metadata, scheduled cleanup and related-origin routing state. Only plugin-owned data is removed. Browser cookies cannot be removed from every device by uninstall; they contain no credential authority without server state.
+An update through the update metadata does not run activation, so a schema change also installs on the next request after the update:
+
+1. **Schema version.** `Storage::SCHEMA_VERSION` is 2: version 2 replaced the 0.3.0 logs table with the events table. A network-wide option `azwp_passkeys_schema_version` stores the installed version. Installs from 0.3.0 and earlier have no option, which counts as version 1.
+2. **Upgrade check.** `Lifecycle::upgrade()` runs on `plugins_loaded`. When the stored version is lower than the constant, it takes a MySQL named lock with `GET_LOCK(name, 0)`. A request that does not get the lock skips the upgrade and continues, so two requests cannot upgrade at once and none waits. It runs outside any owner transaction, because `DROP TABLE` commits implicitly. The option is read from the main network with `get_network_option(get_main_network_id(), …)`, because the tables are shared by every network.
+3. **Steps.** Run `install_schema()`, which creates `azwp_passkeys_events` through `dbDelta`. Then run `DROP TABLE IF EXISTS azwp_passkeys_logs`. Then store the new version. Every step can repeat safely. A failure leaves the version unchanged and sets the site transient `azwp_passkeys_upgrade_retry` for five minutes. The check skips the upgrade while that transient exists, so a lasting failure such as a MyISAM table does not rerun `dbDelta` on every request.
+4. **No data copy.** Log history from 0.3.0 and earlier is deleted with the old table.
+5. **Activation.** `activate()` runs the same steps as the upgrade: `install_schema()`, drop the legacy table, store the version. A fresh install never needs the upgrade, and reactivating after an update also removes the old table.
+6. **Removed hook.** The `azwp_passkeys_log_initialization` filter no longer exists. A plugin that still adds a callback to it is not harmed, because the filter never runs.
+
+`remove_user_from_blog` deletes only the removed membership's enrollment-site rows. Final `deleted_user` handling runs on both single-site and multisite. Under owner serialization, a fresh database read must confirm that the WordPress user row no longer exists before full cleanup removes that owner's credentials, attempts, handle and plugin user metadata. If the user still exists, this event performs no account-wide cleanup: site membership cleanup remains solely the site-scoped `remove_user_from_blog` operation, and other-site credentials, the handle and global account flag remain intact. Multisite `wpmu_delete_user` may perform the same idempotent early cleanup but does not replace final cleanup after WordPress removes the account. If an enrollment commits between early cleanup and account deletion, final cleanup removes it; if final cleanup completes first, the owner-state transaction's fresh account-existence check rejects recreation of credentials, handles, bound attempts or account metadata. Cleanup does not recreate enrollment state or preserve credentials for a deleted account. Cleanup logs one `passkey.account_deleted` entry in each site's log that held passkeys, with that site's count, and one failure entry in the current site's log when cleanup fails (section 25); membership removal writes no entry. There is no separate `wp_delete_site` sweep of shared credential rows. Deactivation unschedules cleanup and retains data. Uninstall removes the four shared tables, the 0.3.0 `azwp_passkeys_logs` table if it still exists, plugin site/network options across the installation including `azwp_passkeys_schema_version`, the `azwp_passkeys_upgrade_retry` transient, plugin user metadata, scheduled cleanup and related-origin routing state. Only plugin-owned data is removed. Browser cookies cannot be removed from every device by uninstall; they contain no credential authority without server state.
 
 The public `/.well-known/webauthn` response uses a WordPress rewrite/query handler (`azwp_passkeys_related_origins=1`), JSON `{origins:[...]}`, `Content-Type: application/json` and `Access-Control-Allow-Origin: *`. It accepts GET without credentials. Invalid entries are omitted, paths are stripped from stored URL entries for publication, and an empty array remains valid. Activation and deactivation flush rewrite rules. Site initialization and uninstall delete the stored rules so WordPress regenerates them on the next request. Ordinary requests never flush them. This publication does not supply the authentication origin allow-list.
 
@@ -745,8 +784,8 @@ The public `/.well-known/webauthn` response uses a WordPress rewrite/query handl
 
 | Screen                     | Placement/navigation                                          | Contents and access                                                                                                                                                                        |
 | -------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Site settings              | Settings menu, AZ's WP Passkeys page; slug `azwp-passkeys`        | `manage_options`; RP and local controls; global controls on single-site; link to the diagnostics page                                                                                        |
-| Passkey diagnostics | Tools menu, Passkey diagnostics page; slug `azwp-passkeys-diagnostics` | Current-site `manage_options`; logging setting, environment/configuration warnings, log count/viewer and clear action |
+| Site settings              | Settings menu, AZ's WP Passkeys page; slug `azwp-passkeys`        | `manage_options`; RP and local controls; global controls on single-site; link to the Passkey Logs page                                                                                        |
+| Passkey Logs        | Tools menu, Passkey Logs page; slug `azwp-passkeys-logs`      | Current-site `manage_options`; logging setting, environment/configuration warnings, filters, paged log table and clear action |
 | Network settings           | Network Admin Settings menu, AZ's WP Passkeys page; same slug   | `manage_network_options`; the Passkey only mode control with its per-site readiness warning; Related origins, the other network setting, has no control                                                                                                                |
 | Plugin list                | Settings action link and project/documentation metadata links | Correct site/network settings destination; project/documentation links use actual packaged public URLs when available, never invented destinations; these links perform no update checking |
 | Own profile                | Section heading "Passkeys", anchor `azwp-passkeys`            | Account password checkbox, policy notices, credential list, Add/Test controls; the `azwp_passkeys_registered=1` marker focuses Add passkey and shows the after-registration message                    |
@@ -756,11 +795,11 @@ The public `/.well-known/webauthn` response uses a WordPress rewrite/query handl
 | Frontend shortcode content | Containing page                                               | Corresponding components; no unrelated admin navigation                                                                                                            |
 | Block editor               | Widgets category; AZ's WP Passkeys blocks                     | Attribute controls and descriptive placeholder; no live credential actions in editor                                                                                                       |
 
-Assets load only on relevant login/profile/settings/diagnostics screens, block editor or pages containing rendered components. Browser configuration exposes receiving-site endpoint/login URLs, translated text, policy flags and management nonce where authorized. It does not expose hidden network configuration, user credential IDs before authorized options issuance, other users' handles or raw logs. Settings pages use native WordPress table/form/button styles; frontend components have scoped styles and inherit readable theme typography. No external font, CDN asset or analytics request is required.
+Assets load only on relevant login/profile/settings/log screens, block editor or pages containing rendered components. Browser configuration exposes receiving-site endpoint/login URLs, translated text, policy flags and management nonce where authorized. It does not expose hidden network configuration, user credential IDs before authorized options issuance, other users' handles or raw logs. Settings pages use native WordPress table/form/button styles; frontend components have scoped styles and inherit readable theme typography. No external font, CDN asset or analytics request is required.
 
 ### Settings controls
 
-Site settings group headings are "Website" and "Sign-in". "Website name" and "Passkey domain" are browser-required text inputs; direct server submissions can still save empty strings as specified in section 2, except that a save leaving Passkey only mode on cannot empty the Website name or change the Passkey domain (section 6). Website name help says "The name shown when you use a passkey." Domain help says "Use the site's domain or a valid parent domain, without https://, a path or a port." "Passkey only mode" uses an Enable/Disable radio group. Its help says "Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain." "Remember me" uses an Enable/Disable radio group. Remember me help says "Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked." "Block password resets" offers "No", "Except for administrators" and "For everyone". Its help explains that restricted modes close the public password-reset pages for everyone; the administrator exception applies to authorized reset operations, and password changes in WordPress profiles remain available. On single-site installations, "After registration" offers "WordPress default" and "Sign in and add a passkey", with help "New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in." When "Anyone can register" is off, a notice beside the control says it has no effect until registration is enabled. Related-origin storage has no visible control. Network settings contain only network-owned visible controls with the same labels/defaults. Site pages show inherited values with their displayed labels and a link to network settings. Site settings link to the current user's passkeys and to Passkey diagnostics.
+Site settings group headings are "Website" and "Sign-in". "Website name" and "Passkey domain" are browser-required text inputs; direct server submissions can still save empty strings as specified in section 2, except that a save leaving Passkey only mode on cannot empty the Website name or change the Passkey domain (section 6). Website name help says "The name shown when you use a passkey." Domain help says "Use the site's domain or a valid parent domain, without https://, a path or a port." "Passkey only mode" uses an Enable/Disable radio group. Its help says "Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain." "Remember me" uses an Enable/Disable radio group. Remember me help says "Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked." "Block password resets" offers "No", "Except for administrators" and "For everyone". Its help explains that restricted modes close the public password-reset pages for everyone; the administrator exception applies to authorized reset operations, and password changes in WordPress profiles remain available. On single-site installations, "After registration" offers "WordPress default" and "Sign in and add a passkey", with help "New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in." When "Anyone can register" is off, a notice beside the control says it has no effect until registration is enabled. Related-origin storage has no visible control. Network settings contain only network-owned visible controls with the same labels/defaults. Site pages show inherited values with their displayed labels and a link to network settings. Site settings link to the current user's passkeys and to Passkey Logs.
 
 
 Settings help explains Website name and Passkey domain, the risk of losing account access when password sign-in is disabled and device verification. Enrollment, sign-in and test help states: "Confirm with your fingerprint, face, or device PIN. This is required to continue." Devices without this capability receive an operation error and cannot complete the action. Credential-name help explains that the label does not affect authentication, and enrollment help identifies the target account and permits multiple credentials.
@@ -769,7 +808,298 @@ When the configured environment lacks required OpenSSL capabilities or a permitt
 
 The button is "Save changes". A successful save shows "Settings saved". A failed save shows "Settings could not be saved." The form retains persisted values and identifies invalid fields without exposing internals. Empty-field warnings appear beside Website name and Passkey domain. Passkey only mode notices explain that a usable passkey is needed; they do not add a confirmation gate or prevent the specified save. No logs are automatically cleared by a settings save.
 
-The dedicated diagnostics page has the "Logging" Enable/Disable radio group and its own "Save changes" button, an entry count, a chronological text viewer and "Clear logs"; clear is disabled when empty. Enabled logging refreshes every five seconds; disabled logging displays retained entries without polling. A failed refresh replaces viewer text with a loading-failure message; stored entries are unchanged and a later successful refresh restores them. The viewer scrolls to its end after initial load or changed fetched text; unchanged polling preserves its scroll position. Clear success resets count/view after confirmed deletion. Initial events include plugin/PHP/WordPress/library versions and non-secret effective configuration. Event keys are `log_initialized`, `settings_saved`, `registration`, `authentication`, `credential_test`, `credential_renamed`, `credential_removed`, `registration_sign_in`, `storage_error`, `configuration_error`, `account_cleanup`, `membership_cleanup`; each records result and correlation, not proof payloads, passwords, cookies, tokens, challenge values, public-key material, request headers or raw SQL. Log detail uses a fixed allow-list of fields, not wholesale request serialization. Settings-change entries identify each changed nonsecret setting and its previous/new values. Initialization entries occur only on a disabled-to-enabled logging transition and describe the pre-save configuration. Logging is enabled before recording subsequent setting changes and disabled before processing subsequent changes when turned off. Network setting changes log in the current site's diagnostic scope. Account and membership cleanup record their lifecycle outcome without raw usernames or credential proofs.
+### Passkey Logs
+
+The Passkey Logs page has the "Logging" Enable/Disable radio group and its own "Save changes" button, the log table described below and "Clear logs". Network setting changes log in the current site's log.
+
+#### Event registry
+
+`Events` is a class of static definitions. It is the only place that lists log types. The writer, the reader, the viewer's category filter and the eraser all read it.
+
+PHP cannot call `__()` in a constant or property initializer, so `Events::all()` is a static method that builds the array. The writer needs only keys, types and flags. It reads them through `Events::schema()`, which calls no translation function, so `record()` is safe before `init`. Labels and Details builders are built only when the reader asks.
+
+```php
+'passkey.renamed' => [
+    'category' => 'passkey',
+    'action'   => __('Renamed', 'azwp-passkeys'),   // null for settings.changed
+    'user'     => 'actor',                          // actor | verified | system
+    'passkey'  => true,                             // fills the passkey_* columns
+    'data'     => ['previous_name' => 'string'],    // allowed keys and their types
+    'personal' => ['previous_name' => 'target'],    // keys the eraser blanks, and whose data each is
+    'details'  => fn(array $e): string => /* Details text below */,
+],
+```
+
+Categories are defined once, next to the events.
+
+| Category key | Label |
+|---|---|
+| `signin` | Sign-in |
+| `passkey` | Passkey |
+| `admin` | Admin |
+| `settings` | Settings |
+
+##### The ten events
+
+| Event key | Action | User rule | Passkey columns | `data` keys | Written by |
+|---|---|---|---|---|---|
+| `signin.passkey` | Passkey | verified | yes | none | `Ajax::dispatch`, `login_complete` |
+| `signin.registration` | New registration | verified | no | none | `Authentication::registration_outcome` |
+| `passkey.added` | Added | actor | yes | none | `Ajax::dispatch`, `register_complete` |
+| `passkey.added_by_link` | Added by link | verified | yes | none | `Ajax::dispatch`, `setup_complete` |
+| `passkey.tested` | Tested | actor | yes | none | `Ajax::dispatch`, `test_complete` |
+| `passkey.renamed` | Renamed | actor | yes | `previous_name` | `Ajax::dispatch`, `rename` |
+| `passkey.deleted` | Deleted | actor | yes | none | `Ajax::dispatch`, `remove` |
+| `passkey.account_deleted` | Account deleted | system | no | `count` | `Lifecycle` |
+| `admin.setup_link` | Setup link | actor | no | none | `Ajax::dispatch`, `send_setup` |
+| `settings.changed` | none | actor | no | `setting` (`string`), `previous` and `value` (`setting_value`) | `Settings::save` |
+
+The Event cell shows `Category: Action`, for example `Passkey: Deleted`. `settings.changed` has no action, so its cell shows just `Settings`. Turning logging on or off is one `settings.changed` row.
+
+##### User column
+
+The `user` field of the registry entry picks the rule.
+
+| Rule | Shows |
+|---|---|
+| `actor` | `actor_login`, or `—` when there is no actor |
+| `verified` | `actor_login` when set. Otherwise `target_login` when the result is `ok`, because the server proves the account only after the passkey verifies. Otherwise `—`. |
+| `system` | `system` |
+
+When the rule picks a login that is `NULL`, for example a `deleted_user` call without the user object, the cell shows `User #42` from the matching ID.
+
+##### Adding a log type later
+
+| Step | Work |
+|---|---|
+| 1 | Add one registry entry, and a category if it is new. |
+| 2 | Call `Logs::record('password.signin', [...])` where it happens. |
+| 3 | Nothing else. No schema change, no migration, no new allowlist. The viewer's category filter and the eraser pick it up from the registry. |
+
+A type needing a field that every type could use, such as a user agent, is the only case that adds a column. That is a schema version bump.
+
+Rules that keep old rows readable as types change.
+
+- **Keys are never reused.** A retired event keeps its key out of use forever. A renamed event gets a new key, and old rows keep the old one.
+- **Retired keys still render.** The reader shows a row whose key has left the registry with the raw key in the Event cell, and the stored `code` in Details. User shows `actor_login`, otherwise `target_login`, otherwise `—`. In the response, `category` is an empty string and `action` is the raw key. It appears under All and in no category.
+- **Missing `data` keys.** A Details builder treats every `data` key as possibly absent, because rows written before a key was added lack it.
+- **Personal data needs an owner.** Each `personal` key names whose data it is, `target` or `actor`, and the eraser matches on that ID. Personal data with no user ID cannot be erased, so a type must not store it.
+- **High-volume types need pruning.** Current types are low-volume, so logs stay until cleared. A type that can fire per request, such as password failures or rate-limit hits, must ship with pruning, for example keeping the newest 10,000 rows per site from the existing hourly cron.
+
+#### Details text
+
+Each registry entry supplies a `details` builder. It receives the stored row and returns a plain string. The server escapes nothing, because the browser inserts it with `textContent`. All fixed text goes through `__()`.
+
+Placeholders. `{name}` is `passkey_name`. `{auth}` is the authenticator name. `{reason}` is from the failure reasons table. `{target}` is `target_login`. `{who}` is `User #{target_id} ({target_login})`, or `User #{target_id}` alone when `target_login` is NULL. Write `{name} ({auth})` as `{name}` alone when the authenticator is unknown.
+
+##### Templates
+
+| Event | Result ok | Result failed, passkey known | Result failed, passkey unknown |
+|---|---|---|---|
+| `signin.passkey` | `{name} ({auth}): signed in` | none | `Sign-in failed: {reason}` |
+| `signin.registration` | `Signed in after registering` | none | `{who} sign-in failed: {reason}` |
+| `passkey.added` | `{name} ({auth}): added` | none | `Adding failed: {reason}` |
+| `passkey.added_by_link` | `{name} ({auth}): added` | none | `Adding failed: {reason}` |
+| `passkey.tested` | `{name} ({auth}): tested` | `{name} ({auth}) test failed: {reason}` | `Test failed: {reason}` |
+| `passkey.renamed` | `{previous_name} ({auth}): renamed to {name}` | `{name} ({auth}) renaming failed: {reason}` | `Renaming failed: {reason}` |
+| `passkey.deleted` | `{name} ({auth}): deleted`, or `Passkey already deleted` when the result has no passkey | `{name} ({auth}) deletion failed: {reason}` | `Deletion failed: {reason}` |
+| `passkey.account_deleted` | `{who} deleted with {count} passkeys` | none | `{who} passkey deletion failed: {reason}` |
+| `admin.setup_link` | `Setup link sent to {target}` | none | `Setup link to {target} failed: {reason}` |
+| `settings.changed` | `{setting} turned on` or `{setting} turned off` for a boolean setting, otherwise `{setting} changed: {previous} → {value}` | none | no row |
+
+Rules that apply across the table.
+
+- **Acting on another account.** For `passkey.added`, `passkey.tested`, `passkey.renamed` and `passkey.deleted`, when `target_id` is set and differs from `actor_id`, append ` for {target}`. On success it follows the action (`Work phone (iCloud Keychain): tested for marie`). On a failure with a known passkey it follows the verb (`YubiKey deletion failed for marie: {reason}`).
+- **Count.** `deleted with 1 passkey` uses the singular through `_n()`.
+- **Turning logging on.** It writes one row, `Logging turned on`, and nothing else.
+- **Turning logging off.** It writes one row, `Logging turned off`.
+- **Network settings.** A network settings save logs in the current site's log, under that site's Logging setting.
+- **While logging is on.** Each setting that changes writes one row. A save that changes nothing writes none.
+- **Setting labels.** A static `Settings::labels()` supplies a translatable label for each key and for each choice value. `Screens` and `views/settings-site.php` read the same labels, so each label exists once. `related_origins` has no control and has the label `Related origins`. Choice values show their labels, for example `Block password resets changed: No → For everyone`. `Settings::labels()` is called only by the log reader and `Screens`, both after `init`. `definitions()` stays free of `__()`, because `determine_current_user` reaches it before `init`, when the text domain is not loaded yet. Boolean values show `on` and `off`. A list value shows its items joined by `, `.
+
+##### Failure reasons
+
+| Stored `code` | Text in `{reason}` |
+|---|---|
+| `authentication_failed` | passkey not recognized |
+| `attempt_unavailable` | request expired or already used |
+| `state_changed` | session or settings changed mid-request |
+| `credential_exists` | passkey already added |
+| `access_required` | would leave the account without a way to sign in |
+| `forbidden` | not allowed |
+| `invalid_request` | bad request |
+| `not_configured` | passkeys not set up on this site |
+| `outcome_unknown` | result not confirmed |
+| `mail_failed` | email not sent |
+| `storage_failed` | database error |
+| `cross_origin` | registered from another site |
+| `denied` | blocked by another plugin |
+| `cookies_suppressed` | sign-in cookie blocked |
+| any other code | the code with underscores replaced by spaces |
+
+The Result column shows `✓` for `ok` and `✗` for a failure. Screen readers get `Succeeded` or `Failed` as hidden text.
+
+#### Writing
+
+##### The write call
+
+```php
+$logs->record(string $event, array $fields = []): void
+```
+
+`Logs` is an instance built in `Plugin` from `Storage` alone. `Settings`, `Ajax`, `Authentication` and `Lifecycle` take it as a constructor argument. `Logs` reads setting labels through a static `Settings::labels()`, so `Settings` and `Logs` do not depend on each other. Elsewhere this specification writes `Logs::record()` for this method.
+
+| Field | Meaning |
+|---|---|
+| `ok` | Bool, default true |
+| `code` | Failure code. `ok` when successful. |
+| `actor_id`, `target_id` | User IDs |
+| `actor_login`, `target_login` | Optional. When absent, `record()` reads `user_login` with `get_userdata()`. Cleanup passes `target_login` explicitly. |
+| `passkey` | `['id' => int, 'name' => string, 'aaguid' => raw 16 bytes]`, for events that declare `passkey` |
+| `data` | The event's own keys |
+| `correlation_id` | Defaults to a new random one |
+| `site_id` | Defaults to the current site. Cleanup sets it to the site that held the passkeys. |
+| `enabled` | Overrides the stored Logging setting. `Settings::save` uses it, as the Details rules require. |
+
+`record()` returns nothing and never throws. It does nothing when logging is off for the site. It does nothing inside an owner transaction. `Storage::insert_event()` makes that check, because only `Storage` knows the transaction state. An unknown event, or a failed insert, is dropped silently. A logging failure never changes the result of the operation being logged.
+
+SQL stays in `Storage`. `Logs::record()` validates against `Events`, fills the logins and calls `Storage::insert_event()`.
+
+##### Passkey fields
+
+The passkey methods return a top-level `log` array next to `subject_id`. Its passkey carries the owner's `user_id`. `respond()` does not send it to the browser. `dispatch` passes it to `record()` as `passkey` and `data`. When `log` carries a passkey, `dispatch` also sets `target_id` to the passkey's owner, so the eraser finds the row even when the operation failed.
+
+| Method | `log` contents | Returned on |
+|---|---|---|
+| `Passkeys::complete_registration` | passkey | success |
+| `Passkeys::complete_setup` | passkey | success |
+| `Passkeys::complete_test` | passkey | success, and failure once the credential is confirmed to belong to the attempt's target. The credential ID comes from the browser, so an earlier failure must not log another account's passkey. |
+| `Authentication::complete_login` | passkey | success |
+| `Passkeys::rename_credential` | On success, passkey with the new name and `data.previous_name`. On failure, passkey with its current name and no `data`, because the rename did not apply. | success, and failure once the row is found |
+| `Passkeys::remove_credential` | passkey | success, and `access_required` failure. Read the row before it is deleted. An `already_absent` success has no row, so it returns no `log`. |
+
+A failure before the credential is looked up returns no `log`, and the row shows the "passkey unknown" template.
+
+`dispatch` maps its action to the event key.
+
+| Action | Event |
+|---|---|
+| `login_complete` | `signin.passkey` |
+| `register_complete` | `passkey.added` |
+| `setup_complete` | `passkey.added_by_link` |
+| `test_complete` | `passkey.tested` |
+| `rename` | `passkey.renamed` |
+| `remove` | `passkey.deleted` |
+| `send_setup` | `admin.setup_link` |
+
+##### Write rules
+
+- Strings are cut at 500 characters, except `passkey_name` at 255.
+- The central redaction filter runs on `passkey_name` and on every string in `data`. A passkey named `token=abc` is stored as `[redacted]`.
+- A `data` key not declared in the event's registry entry is dropped. A value of the wrong type is dropped.
+- The registry types are `string`, `int`, `bool` and `setting_value`. A `setting_value` is a bool, a string, or a list of strings, because `previous` and `value` take the type of the setting that changed.
+- A list value in `data` is stored as a JSON array of strings. Related origins are reduced to scheme, host and port first.
+
+##### Which fields get a column
+
+A field becomes a typed column when several event types use it, or when the eraser or a filter needs it. Everything else goes in `data`. This keeps the table narrow while future types still fit.
+
+| Typed column | Why |
+|---|---|
+| actor, target, logins | Every type has them, and the eraser finds rows by ID |
+| `ok`, `code` | The Result filter and column |
+| `passkey_*` | Six passkey events use them, and the eraser blanks the name |
+| `ip` | Every type has it, and the eraser blanks it |
+| `data` | `setting`, `previous`, `value` for settings. `count` and `previous_name` for one event each. Any future type's own fields. |
+
+#### Account deletion logging
+
+Account cleanup writes only `passkey.account_deleted`, when passkeys were deleted or when the cleanup failed.
+
+1. `Storage::cleanup_user` returns the number of credential rows it deleted per site, as `data.counts`, a map of site ID to count. It reads `SELECT site_id, COUNT(*) … GROUP BY site_id` under the owner lock, before the delete.
+2. `Lifecycle::early_delete_account` and `Lifecycle::delete_account` record one success row in each site's log that had passkeys, with that site's `data.count`. A site with no deleted passkeys gets no row. Each row follows that site's Logging setting, as every log write does. A failed cleanup always records one failure row in the current site's log, with no `count`, because the rollback leaves passkeys behind and an administrator needs to see it.
+3. `remove_user_from_blog` deletes that site's passkeys and writes no entry.
+4. WordPress deletes the user row before `deleted_user` runs, but it passes the `WP_User` object as the hook's third argument. The plugin requires WordPress 6.9, so the argument is always there. `Lifecycle` registers `deleted_user` with three arguments and passes `$user->user_login` as `target_login`. `wpmu_delete_user` also passes the object, before the row is deleted. If the object is missing, `target_login` is `NULL`.
+5. On multisite, `wpmu_delete_user` and `deleted_user` both run cleanup. Only the pass that deleted passkeys logs, so one deletion writes one row per site that held passkeys. `wpmu_delete_user` runs from network admin, where the current site is the main site. Rows still go to the sites that held the passkeys, through `Logs::record()`'s `site_id` field.
+
+#### Read contract
+
+`azwp_passkeys_log_read` takes a request object and returns the current site's entries, **newest first**.
+
+| Request field | Meaning |
+|---|---|
+| `paged` | Page number, default 1. A number past the last page returns the last page. |
+| `category` | A category key from the registry. Matches `event IN (…)` with that category's event keys from the registry. |
+| `ok` | Bool. Filters on the `ok` column. |
+
+All fields are optional. An unknown `category`, a non-bool `ok`, or a `paged` that is not a positive integer is an invalid request.
+
+```json
+{
+  "total": 19,
+  "matched": 19,
+  "paged": 1,
+  "per_page": 20,
+  "total_pages": 1,
+  "categories": [{"key": "signin", "label": "Sign-in"}, {"key": "passkey", "label": "Passkey"}],
+  "entries": [
+    {
+      "id": 138,
+      "occurred_at": 1762439520,
+      "time": "November 6, 2026 2:32 pm",
+      "event": "signin.passkey",
+      "category": "Sign-in",
+      "action": "Passkey",
+      "user": "marie",
+      "ok": true,
+      "code": "ok",
+      "details": "iPhone Safari (iCloud Keychain): signed in",
+      "correlation_id": "7f3a91c2e0b44d1a9c05b6a8e2d3f401",
+      "ip": "203.0.113.24"
+    }
+  ]
+}
+```
+
+- `matched` counts the entries that pass the filters. `total` counts all of the site's entries. The page size is fixed at 20, WordPress's default for list screens. There is no Screen Options control.
+- `total_pages` is at least 1. With no matching entries, it is 1, `paged` is 1 and `entries` is empty.
+- The query uses `LIMIT 20 OFFSET (paged - 1) * 20` on the `(site_id, id)` index.
+- The response has no HTML and no raw `data`, `passkey_aaguid` or logins. `ip` is the stored address, or `-` when there is none.
+- `Logs::read()` calls `Storage::read_events()`, which returns raw rows, and builds `time`, `category`, `action`, `user` and `details`. `action` is the translated action, or `null` for `settings.changed`. `time` uses `wp_date()` with the site's timezone and the site's `date_format` and `time_format` options joined by a space, so it includes the year.
+- Read checks that each stored ID fits in a PHP integer, as section 20 requires.
+- Read and clear require `manage_options` and the nonce `azwp_passkeys_logs_{site_id}`.
+- Clear deletes the site's rows.
+
+#### Viewer
+
+`views/logs.php` renders the log as a table in a scrolling wrapper that reuses the `widefat striped` styling and `.azwp-passkeys-table-wrap` from the passkey list.
+
+| Part | Behavior |
+|---|---|
+| Columns | `#ID`, `Event`, `User`, `Result`, `Details`, `Time`, `IP address`. Rows are one line. Long Details text wraps. |
+| Event cell | Built from `category` and `action`: the muted category, `: `, then the action. When `action` is `null`, the category alone. When `category` is empty, the action alone. The `: ` separator is a translatable string. |
+| Filters | A category select built from `categories` in the response, plus All. A result select (Any, Succeeded, Failed). Changing either fetches page 1 with the filter applied. |
+| Pagination | The standard WordPress `tablenav` above and below the table: `N items` (from `matched`), then `« ‹ 1 of 5 › »` with the `tablenav-pages` classes. The current page number is an input, as in core. A single page shows only the count. The first and previous links are disabled on page 1, and the next and last links on the last page. |
+| Page links | Each link is an anchor with `href` set to the page URL plus `paged=N` and the active filters as `category` and `result` (`ok` or `failed`), so it opens in a new tab with the same view and works from the keyboard. JavaScript intercepts the click, fetches that page and updates the address with `history.replaceState`. Changing a filter updates the address the same way. Loading the page URL with these parameters opens that view. |
+| Row hover | The row `title` shows the correlation ID. |
+| Rendering | Cells are built with `textContent`. Nothing from the log goes through `innerHTML`. |
+| Polling | Every five seconds while logging is enabled, on page 1 only. Each poll refetches page 1 with the current filters and redraws when the newest entry ID or `matched` changed. On other pages polling is off, because new rows would shift the page under the reader. The filters and the scroll position survive a redraw. |
+| Empty | `No log entries.` when the site has none, or `No log entries match these filters.` when a filter is active. A failed load keeps the old rows and shows `Could not load logs.` in the status region. |
+| Clear | The Clear logs button, disabled when the site has no entries. After a clear, the viewer loads page 1 and drops `paged` from the address. |
+| Corrected page | When the response's `paged` differs from the one requested, for example past the end, the viewer shows the returned page and rewrites `paged` in the address. |
+| Accessibility | The table has a visually hidden caption. Headers use `scope="col"`. Result uses visible `✓` or `✗` plus hidden `Succeeded` or `Failed`. Status messages use `role="status"`. |
+
+The footer sentence is `Logs remain until cleared. Usernames, passkey names and IP addresses are stored. Passwords and passkey responses are not logged.`
+
+#### Eraser
+
+`Lifecycle` registers `Logs::erase` as a `wp_privacy_personal_data_erasers` callback. For the requested email's account it keeps the rows and runs these steps on every site's rows, because a WordPress account and its username are shared across the network.
+
+1. `UPDATE` sets `actor_login`, and `ip` when set, to `erased` where `actor_id` is that user.
+2. `UPDATE` sets `target_login` to `erased` where `target_id` is that user, and `passkey_name` to `erased` where `target_id` is that user and `passkey_name IS NOT NULL`. A row without a passkey keeps its NULL name, so its Details text stays correct. Where `actor_id` is NULL, the request came from the target, such as a sign-in, so `ip` is also set to `erased`. The passkey belongs to its owner, so an administrator's own rows keep other people's passkey names.
+3. For each event whose registry entry lists `personal` keys, it reads rows where that key's owner ID (`target_id` or `actor_id`) is that user, 100 per eraser page, replaces those keys in `data` with `erased` and writes them back. In the registry that is `passkey.renamed` and `previous_name`, owned by the target.
+
+Steps 1 and 2 run on page 1. Step 3 handles 100 rows per page, using WordPress's `$page` argument. The callback returns `done` once a page finds fewer than 100 rows, `items_removed` true when it changed a row, and `items_retained` true with the message `Passkey log entries are kept with usernames and passkey names erased.` when the user has rows.
 
 ### Profile and list controls
 
@@ -824,7 +1154,7 @@ Acceptance is observable behavior, not an assertion that a named method was call
 
 | Requirement family                          | Contract sections | Observable acceptance                                                                                                                                                                                                                                                                                              |
 | ------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Settings/defaults/scopes                    | 2, 20, 25         | Every default, missing/invalid site/network value, unchanged save and inherited control matches its row; diagnostics saves change only logging and site settings saves retain it                                                                                                                                                                |
+| Settings/defaults/scopes                    | 2, 20, 25         | Every default, missing/invalid site/network value, unchanged save and inherited control matches its row; log page saves change only logging and site settings saves retain it                                                                                                                                                                |
 | Credential identity/storage                 | 14, 20, 23        | Binary IDs round-trip without truncation/collation changes; numeric IDs reject out-of-range conversion; duplicates never change owner; hash collision fails safely; opaque handle stable across sites; COSE/PEM key equivalence; received nonzero and all-zero AAGUID bytes retained unchanged; all-zero identity unknown and distinct from absence; AAGUID never grants trust or authorization; source fields survive login/test/rename and disappear on credential cleanup |
 | Login and test authentication | 3, 13, 22 to 24 | Account resolved from credential and handle; allow-list and handle mismatches rejected; tests with no eligible credentials fail; all ceremonies require UV |
 | Enrollment and tests | 4 to 5, 21 to 23 | Actor/target/session match; admin target test verifies the selected account; resident key always required; missing UV rejected in every ceremony |
@@ -840,7 +1170,7 @@ Acceptance is observable behavior, not an assertion that a named method was call
 | Screens/components                          | 10, 15, 25        | Required controls, defaults, labels, columns, logged-out states and multi-instance behavior; state transitions restore usable controls/focus                                                                                                                                                           |
 | Blocks                                      | 10, 25            | Four identifiers; exact defaults; serialized attributes round-trip; editor cannot override policy                                                                                                                                                                                                                  |
 | Lifecycle/multisite                         | 11, 20 to 24         | New-site defaults; shared owner handles; site-scoped management; membership-only deleted_user events preserve global account state; specified cleanup only; final deleted-account cleanup cannot leave a concurrent enrollment behind; deactivation retention; complete plugin-owned uninstall                                                                                                                                                                   |
-| Diagnostics/privacy                         | 15, 22, 25        | Dedicated current-site diagnostics page; off by default, manual clear, no age expiry; authorized site scope; centralized fixed-field redaction; append occurs outside operation transactions; logging failure does not change operation/authentication result                                                                                                                                                                           |
+| Logs/privacy                                | 14, 15, 22, 25    | Current-site Passkey Logs page; on by default, manual clear, no age expiry; authorized site scope; registry-declared fields only, with central redaction; writes occur outside operation transactions; logging failure does not change the operation/authentication result; newest first, paged and filtered in SQL; the eraser keeps rows and erases the user's usernames, owned passkey names and IP addresses |
 | Packaging/platform                          | 17, 26            | Pinned dependency/notices; no other optional-extension reliance on required paths; no machine-specific paths or private environment material                                                                                                                                                                       |
 
 ## 28. Release selections

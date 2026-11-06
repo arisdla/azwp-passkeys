@@ -6,10 +6,11 @@ if (!defined('ABSPATH') || !defined('AZWP_PASSKEYS_TESTS') || AZWP_PASSKEYS_TEST
 require_once dirname(__DIR__) . '/autoload.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
 require_once __DIR__ . '/fixtures.php';
-use AZWP\Passkeys\{Storage, Settings, Passkeys, WebAuthn, Authentication};
+use AZWP\Passkeys\{Storage, Settings, Passkeys, WebAuthn, Authentication, Ajax};
 
 $storage = new Storage($GLOBALS['wpdb']);
-$settings = new Settings($storage);
+$logs = new \AZWP\Passkeys\Logs($storage);
+$settings = new Settings($storage, $logs);
 $passkeys = new Passkeys($settings, $storage, new WebAuthn());
 check('service schema available', $storage->install_schema()['ok']);
 $site = (int) get_current_blog_id();
@@ -22,7 +23,17 @@ $attempt_ids = [];
 $authentication = null;
 $owns_authentication_hooks = false;
 $granted_super_admin = null;
-$test_log_correlation = null;
+$events_table = $GLOBALS['wpdb']->base_prefix.'azwp_passkeys_events';
+/** Records an operation result as Ajax::dispatch does, then returns the stored row and the entry the reader builds from it. */
+$logged = static function (string $action, array $result, int $actor, ?int $target) use ($logs, $site, $events_table): array {
+    $correlation = bin2hex(random_bytes(16));
+    $logs->record(Ajax::EVENTS[$action], ['enabled'=>true] + Ajax::log_fields($action, $result, $actor, $target, $correlation));
+    $row = $GLOBALS['wpdb']->get_row($GLOBALS['wpdb']->prepare("SELECT * FROM `$events_table` WHERE correlation_id=%s", $correlation), ARRAY_A);
+    $entry = null;
+    foreach ($logs->read($site, [])['data']['entries'] ?? [] as $candidate) { if ($candidate['correlation_id'] === $correlation) { $entry = $candidate; } }
+    $GLOBALS['wpdb']->delete($events_table, ['correlation_id'=>$correlation]);
+    return ['row'=>$row ?: [], 'details'=>$entry['details'] ?? null];
+};
 $browser = hash('sha256', random_bytes(32), true);
 $become = static function (int $user) use ($site, $browser): array {
     wp_set_current_user($user);
@@ -72,6 +83,9 @@ try {
     $result = $passkeys->complete_registration($context,$input);
     remove_filter('pre_wp_mail', $capture, 10);
     check('real signed enrollment persists successfully', $result['ok']);
+    $added = $logged('register_complete', $result, $alice, $alice);
+    check('an added row carries the passkey columns', $added['row']['passkey_name']==='Passkey' && (int)$added['row']['passkey_id']>0 && $added['row']['passkey_aaguid']===$aaguid && (int)$added['row']['target_id']===$alice && $added['details']==='Passkey: added');
+    check('the browser response carries no log', !array_key_exists('log', $result['data']));
     check('owner is emailed about the new passkey', count($mails)===1 && $mails[0]['to']===get_userdata($alice)->user_email && str_contains($mails[0]['message'],'A passkey from an unknown authenticator (named “Passkey”) was added to your account on') && str_contains($mails[0]['message'],'while you were signed in') && str_contains($mails[0]['message'],'remove the passkey and change your password:'));
     check('enrollment completion replay rejected', !$passkeys->complete_registration($context,$input)['ok']);
     check('a passkey from an unrecognised device is named Passkey', $storage->find_credential($id)['data']['credential']['name'] === 'Passkey');
@@ -107,7 +121,10 @@ try {
     $record = (int) $stored['id'];
     check('database retains exact nonzero AAGUID and COSE', $stored['aaguid']===$aaguid && $stored['public_key_cose']===$cose);
     $stored['user_handle'] = $issued['user_handle'];
-    check('last passkey protected when password disabled', $storage->save_password_policy($alice,true)['ok'] && $passkeys->remove_credential($context,$alice,$record)['code']==='access_required');
+    $protected = $storage->save_password_policy($alice,true)['ok'] ? $passkeys->remove_credential($context,$alice,$record) : ['code'=>'storage_failed'];
+    check('last passkey protected when password disabled', $protected['code']==='access_required');
+    $denied = $logged('remove', $protected, $alice, $alice);
+    check('a delete refused for access_required carries the name', $denied['row']['passkey_name']==='Passkey' && $denied['details']==='Passkey deletion failed: would leave the account without a way to sign in');
     $without_password = $enroll($context, random_bytes(16));
     check('with password sign-in off, the email says to tell an administrator', str_contains($without_password['email'] ?? '','remove the passkey and tell a site administrator:') && !str_contains($without_password['email'] ?? '','change your password'));
     if ($without_password) { $passkeys->remove_credential($context,$alice,(int)$without_password['id']); }
@@ -143,9 +160,35 @@ try {
     $full_test = $passkeys->complete_test($test_context,['attempt_id'=>$test_id,'credential'=>assertion_fixture($read_issued($test_id),$stored,$key,5,2,$stored['user_handle'])]);
     check('full test completes with matching handle', $full_test['ok']);
     check('test result names the passkey that passed', ($full_test['data']['name'] ?? null) === $stored['name']);
+    $tested = $logged('test_complete', $full_test, $alice, $alice);
+    check('a tested row carries the passkey columns', $tested['row']['passkey_name']===$stored['name'] && (int)$tested['row']['passkey_id']===$record && (int)$tested['row']['target_id']===$alice && $tested['details']==='Passkey: tested');
+    $test = $passkeys->assertion_options($test_context,[]);
+    $attempt_ids[] = $test_id = $test['data']['attempt_id'];
+    $replayed = $passkeys->complete_test($test_context,['attempt_id'=>$test_id,'credential'=>assertion_fixture($read_issued($test_id),$stored,$key,5,2,$stored['user_handle'])]);
+    $own_failure = $logged('test_complete', $replayed, $alice, $alice);
+    check('a failed test of the actor\'s own passkey names it, with the owner as target and no " for "', !$replayed['ok'] && $own_failure['row']['passkey_name']===$stored['name'] && (int)$own_failure['row']['target_id']===$alice && $own_failure['details']==='Passkey test failed: passkey not recognized');
     $empty_context = array_replace($become($bob),['purpose'=>'test']);
     check('test without passkeys reports no credentials', $passkeys->assertion_options($empty_context,[])['code']==='no_credentials');
-    $become($alice);
+    $context = $become($alice);
+    $foreign = ['credential_id'=>random_bytes(32)] + array_diff_key($stored, ['id'=>1,'credential_hash'=>1]);
+    $foreign_saved = $storage->with_owner_lock($bob, static fn(Storage $store): array => $store->insert_credential(array_replace($foreign, ['user_id'=>$bob,'site_id'=>$site,'name'=>'Bob key','sign_count'=>0])));
+    $test = $passkeys->assertion_options($test_context,[]);
+    $attempt_ids[] = $test_id = $test['data']['attempt_id'];
+    $crossed = $passkeys->complete_test($test_context,['attempt_id'=>$test_id,'credential'=>assertion_fixture($read_issued($test_id),$foreign,$key,5,9)]);
+    $crossed_row = $logged('test_complete', $crossed, $alice, $alice);
+    check('a failed test of another account\'s credential ID logs no passkey', $foreign_saved['ok'] && !$crossed['ok'] && $crossed_row['row']['passkey_name']===null && $crossed_row['row']['target_id']===null);
+    $storage->cleanup_user($bob,$site);
+    $renamed = $passkeys->rename_credential($context,$alice,$record,'Work phone');
+    $rename_row = $logged('rename', $renamed, $alice, $alice);
+    check('a rename row carries the new name and the previous one', $renamed['ok'] && $rename_row['row']['passkey_name']==='Work phone' && json_decode((string)$rename_row['row']['data'],true)===['previous_name'=>'Passkey'] && $rename_row['details']==='Passkey: renamed to Work phone');
+    $break_update = static fn(string $query): string => str_starts_with($query, "UPDATE `{$GLOBALS['wpdb']->base_prefix}azwp_passkeys_credentials`") ? 'SELECT broken FROM' : $query;
+    add_filter('query', $break_update);
+    try { $rename_failed = $passkeys->rename_credential($context,$alice,$record,'Never saved'); }
+    finally { remove_filter('query', $break_update); }
+    $rename_failed_row = $logged('rename', $rename_failed, $alice, $alice);
+    check('a failed rename carries the current name and no data', !$rename_failed['ok'] && $rename_failed_row['row']['passkey_name']==='Work phone' && $rename_failed_row['row']['data']===null && $rename_failed_row['details']==='Work phone renaming failed: database error');
+    check('passkey renamed back', $passkeys->rename_credential($context,$alice,$record,'Passkey')['ok']);
+    $stored['name'] = 'Passkey';
     // Native WordPress authentication is exercised with real signed assertions.
     // The outer bootstrap buffers output before loading this test so cookie headers remain available.
     check('native login fixture has writable headers', !headers_sent());
@@ -169,7 +212,7 @@ try {
         }
     }
     if (!$authentication) {
-        $authentication = new Authentication($settings,$passkeys,$storage);
+        $authentication = new Authentication($settings,$passkeys,$logs);
         $authentication->register_hooks();
         $owns_authentication_hooks = true;
     }
@@ -180,6 +223,12 @@ try {
         $signed_in = $authentication->complete_login($anonymous,['attempt_id'=>$login_id,'credential'=>assertion_fixture($read_issued($login_id),$stored,$key,5,3,$stored['user_handle'])]);
         check('real WordPress sign-on accepts verified passkey', $signed_in['ok'] && $signed_in['data']['session_changed'] && get_current_user_id()===$alice);
         check('login subject is private verified owner context', $signed_in['subject_id']===$alice && !array_key_exists('subject_id',$signed_in['data']) && !array_key_exists('proof',$signed_in['data']));
+        $signin_row = $logged('login_complete', $signed_in, 0, null);
+        check('a sign-in row names the passkey and the verified account', $signin_row['row']['passkey_name']==='Passkey' && (int)$signin_row['row']['target_id']===$alice && $signin_row['row']['actor_id']===null && $signin_row['details']==='Passkey: signed in');
+        $replay = $passkeys->assertion_options($anonymous,$login_input);
+        $attempt_ids[] = $replay_id = $replay['data']['attempt_id'];
+        $failed_signin = $logged('login_complete', $authentication->complete_login($anonymous,['attempt_id'=>$replay_id,'credential'=>assertion_fixture($read_issued($replay_id),$stored,$key,5,3,$stored['user_handle'])]), 0, null);
+        check('a failed sign-in row names no passkey', $failed_signin['row']['ok']==='0' && $failed_signin['row']['passkey_name']===null && $failed_signin['row']['target_id']===null);
         check('real WordPress session cookie created for owner', count($cookies)===1 && $cookies[0]['user_id']===$alice && $cookies[0]['token']!=='');
         $resolve = static function (int $user, string $token): int {
             $_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($user, time() + 3600, 'logged_in', $token);
@@ -254,13 +303,8 @@ try {
     $attempt_ids[] = $admin_test_id = $admin_test['data']['attempt_id'];
     $admin_result = $passkeys->complete_test($admin_test_context,['attempt_id'=>$admin_test_id,'credential'=>assertion_fixture($read_issued($admin_test_id),$stored,$key,5,5)]);
     check('administrator test subject is verified target not actor', $admin_result['ok'] && $admin_result['subject_id']===$alice && $admin_result['subject_id']!==$admin && !array_key_exists('subject_id',$admin_result['data']) && !array_key_exists('proof',$admin_result['data']));
-    check('diagnostic fixture logging enabled', $storage->save_settings('site',$site,['logging'=>true])['ok']);
-    $test_log_correlation = $correlation = bin2hex(random_bytes(16));
-    check('diagnostic actor and subject recorded', $storage->append_log($site,['event'=>'credential_test','actor_id'=>$admin,'target_id'=>$admin_result['subject_id'],'result'=>'ok','correlation_id'=>$correlation,'detail'=>[]])['ok']);
-    $logs = $storage->read_logs($site);
-    $entry = null;
-    foreach ($logs['data']['entries'] ?? [] as $candidate) { if ($candidate['correlation_id']===$correlation) { $entry=$candidate; break; } }
-    check('authorized log reader retains distinct numeric actor and subject', $logs['ok'] && $entry!==null && $entry['actor_id']===$admin && $entry['target_id']===$alice);
+    $admin_row = $logged('test_complete', $admin_result, $admin, $alice);
+    check('an administrator test row names the owner after the action', (int)$admin_row['row']['actor_id']===$admin && (int)$admin_row['row']['target_id']===$alice && $admin_row['details']==='Passkey: tested for '.get_userdata($alice)->user_login);
 
     $context = $become($alice);
     $test_context = array_replace($context,['purpose'=>'test']);
@@ -279,10 +323,16 @@ try {
     check('account switch refused without a working passkey', $passkeys->set_password_disabled($bob,true)['code']==='access_required' && !$storage->password_disabled($bob));
     check('account already switched stays saveable without a passkey', $storage->save_password_policy($bob,true)['ok'] && $passkeys->set_password_disabled($bob,true)['ok'] && $storage->save_password_policy($bob,false)['ok']);
     check('administrator without a passkey cannot be the one to need one', !$passkeys->has_usable_credential($bob,$site) && $passkeys->has_usable_credential($alice,$site));
-    check('credential removal confirmed with alternative sign-in', $passkeys->remove_credential($context,$alice,$record)['ok']);
+    $removed = $passkeys->remove_credential($context,$alice,$record);
+    check('credential removal confirmed with alternative sign-in', $removed['ok']);
+    $deleted_row = $logged('remove', $removed, $alice, $alice);
+    check('a deleted row carries the passkey columns', $deleted_row['row']['passkey_name']==='Passkey' && (int)$deleted_row['row']['passkey_id']===$record && $deleted_row['details']==='Passkey: deleted');
     check('revocation before acceptance rejects verified proof', !$passkeys->accept_assertion($proof['data']['proof'])['ok']);
     check('credential absent after removal', $storage->find_credential($id)['data']['credential']===null);
-    check('already absent authorized removal is idempotent', $passkeys->remove_credential($context,$alice,$record)['ok']);
+    $absent = $passkeys->remove_credential($context,$alice,$record);
+    check('already absent authorized removal is idempotent', $absent['ok']);
+    $absent_row = $logged('remove', $absent, $alice, $alice);
+    check('deleting an already-deleted passkey writes an ok row with no passkey columns', $absent_row['row']['ok']==='1' && $absent_row['row']['passkey_id']===null && $absent_row['row']['passkey_name']===null && $absent_row['details']==='Passkey already deleted');
     $original_address = $_SERVER['REMOTE_ADDR'] ?? null;
     $_SERVER['REMOTE_ADDR'] = '192.0.2.'.random_int(1,254);
     $limited = null;
@@ -326,10 +376,6 @@ try {
                 }
             }
         }
-    }
-    if ($test_log_correlation !== null) {
-        $GLOBALS['wpdb']->delete($GLOBALS['wpdb']->base_prefix.'azwp_passkeys_logs',['correlation_id'=>$test_log_correlation]);
-        $storage->save_settings('site',$site,['logging'=>false]);
     }
     foreach ($attempt_ids as $attempt_id) { $storage->delete_attempt($attempt_id); }
     $storage->delete_rate_limits($site);

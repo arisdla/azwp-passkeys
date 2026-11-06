@@ -2,7 +2,7 @@
 /** Class loaders for the plugin and its pinned dependency. */
 declare(strict_types=1);
 spl_autoload_register(static function (string $class): void {
-    $classes = ['Plugin', 'Settings', 'Passkeys', 'Storage', 'WebAuthn', 'Authentication', 'Authenticators', 'Ajax', 'Screens', 'Lifecycle'];
+    $classes = ['Plugin', 'Settings', 'Passkeys', 'Storage', 'WebAuthn', 'Authentication', 'Authenticators', 'Ajax', 'Screens', 'Lifecycle', 'Events', 'Logs'];
     $prefix = 'AZWP\\Passkeys\\';
     if (str_starts_with($class, $prefix)) {
         $name = substr($class, strlen($prefix));

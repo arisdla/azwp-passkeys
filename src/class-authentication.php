@@ -20,7 +20,7 @@ final class Authentication
     public function __construct(
         private Settings $settings,
         private Passkeys $passkeys,
-        private Storage $storage
+        private Logs $logs
     ) {
     }
 
@@ -149,11 +149,7 @@ final class Authentication
 
     private function registration_outcome(int $user_id, string $result): string
     {
-        try {
-            $this->storage->append_log(get_current_blog_id(), ['event' => 'registration_sign_in', 'actor_id' => null, 'target_id' => $user_id, 'result' => $result, 'detail' => []]);
-        } catch (\Throwable) {
-            // Logging cannot change the registration outcome.
-        }
+        $this->logs->record('signin.registration', ['ok' => $result === 'ok', 'code' => $result, 'target_id' => $user_id]);
         return '';
     }
 
@@ -441,6 +437,7 @@ final class Authentication
             'code' => 'ok',
             'message' => __('Passkey verified.', 'azwp-passkeys'),
             'subject_id' => (int) $user->ID,
+            'log' => ['passkey' => ['id' => $proof['record_id'] ?? null, 'name' => $proof['name'] ?? null, 'aaguid' => $proof['aaguid'] ?? null, 'user_id' => (int) $user->ID]],
             'data' => [
                 'verified' => true,
                 'session_changed' => $session_changed,

@@ -10,6 +10,11 @@ final class Passkeys
     public const SETUP_LINK_TTL_SECONDS = 3600;
     public function __construct(private Settings $settings, private Storage $storage, private WebAuthn $webauthn) {}
     private function ok(array $data = []): array { return ['ok'=>true,'code'=>'ok','data'=>$data,'message'=>'']; }
+    /** The passkey fields a log row stores. Ajax::dispatch reads user_id as the row's target. */
+    private static function log_passkey(array $row): array
+    {
+        return ['passkey'=>['id'=>(int)$row['id'],'name'=>(string)$row['name'],'aaguid'=>(string)$row['aaguid'],'user_id'=>(int)$row['user_id']]];
+    }
     private function error(string $code): array { return ['ok'=>false,'code'=>$code,'data'=>[],'message'=>'']; }
     public static function numeric_id(mixed $value): ?int
     {
@@ -243,7 +248,7 @@ final class Passkeys
             });
             if (!$result['ok']) { return $result; }
             $this->notify_added($result['data']['credential'], (int) $context['actor_id'], !empty($config['data']['settings']['passkey_only']));
-            return $this->ok(['credential'=>$this->summary($result['data']['credential'], $config['data'], true)]);
+            return $this->ok(['credential'=>$this->summary($result['data']['credential'], $config['data'], true)]) + ['log'=>self::log_passkey($result['data']['credential'])];
         } finally { $this->storage->delete_attempt($input['attempt_id']); }
     }
     /** Emails the owner a one-time link that can only add a passkey. The admin never sees the link, so the admin cannot add their own device to the account. */
@@ -326,7 +331,7 @@ final class Passkeys
             });
             if (!$result['ok']) { return $result; }
             $this->notify_added($result['data']['credential'], (int) $link['issued_by'], !empty($config['data']['settings']['passkey_only']), true);
-            return ['ok'=>true,'code'=>'ok','message'=>'','subject_id'=>$target,'data'=>['redirect_to'=>add_query_arg('azwp_passkeys_setup', 'done', wp_login_url())]];
+            return ['ok'=>true,'code'=>'ok','message'=>'','subject_id'=>$target,'log'=>self::log_passkey($result['data']['credential']),'data'=>['redirect_to'=>add_query_arg('azwp_passkeys_setup', 'done', wp_login_url())]];
         } finally { $this->storage->delete_attempt($input['attempt_id']); }
     }
     /** Names the passkey from the account's saved names at insert time, under the owner lock. */
@@ -409,11 +414,13 @@ final class Passkeys
             $credential=$row['data']['credential'];
             if (!$credential || !$this->eligible($credential,$config['data']) || !get_userdata((int)$credential['user_id'])) { return $this->error('authentication_failed'); }
             if ($attempt['target_id'] && (int)$attempt['target_id'] !== (int)$credential['user_id']) { return $this->error('authentication_failed'); }
+            // The credential ID comes from the browser, so a test names the passkey only once it belongs to the attempt's target.
+            $log=$attempt['purpose']==='test' ? ['log'=>self::log_passkey($credential)] : [];
             $identity=$this->storage->get_identity((int)$credential['user_id']);
-            if (!$identity['ok'] || !$identity['data']['identity']) { return $this->error('authentication_failed'); }
+            if (!$identity['ok'] || !$identity['data']['identity']) { return $this->error('authentication_failed') + $log; }
             $credential['user_handle']=$identity['data']['identity']['handle'];
-            $verified=$this->webauthn->verify_assertion($attempt,$credential,$input['credential']); if (!$verified['ok']) { return $verified; }
-            $proof=['attempt_id'=>$input['attempt_id'],'site_id'=>$context['site_id'],'purpose'=>$context['purpose'],'actor_id'=>$context['actor_id'],'target_id'=>$attempt['target_id'],'browser_hash'=>$context['browser_hash'],'session_hash'=>$context['session_hash'],'issued_options'=>$attempt['issued'],'record_id'=>(int)$credential['id'],'name'=>(string)$credential['name'],'credential_id'=>$credential['credential_id'],'owner_id'=>(int)$credential['user_id'],'rp_id'=>$credential['rp_id'],'public_key_cose'=>$credential['public_key_cose'],'public_key_pem'=>$credential['public_key_pem'],'sign_count'=>$verified['data']['sign_count'],'backup_eligible'=>$verified['data']['backup_eligible'],'backed_up'=>$verified['data']['backed_up']];
+            $verified=$this->webauthn->verify_assertion($attempt,$credential,$input['credential']); if (!$verified['ok']) { return $verified + $log; }
+            $proof=['aaguid'=>(string)$credential['aaguid'],'attempt_id'=>$input['attempt_id'],'site_id'=>$context['site_id'],'purpose'=>$context['purpose'],'actor_id'=>$context['actor_id'],'target_id'=>$attempt['target_id'],'browser_hash'=>$context['browser_hash'],'session_hash'=>$context['session_hash'],'issued_options'=>$attempt['issued'],'record_id'=>(int)$credential['id'],'name'=>(string)$credential['name'],'credential_id'=>$credential['credential_id'],'owner_id'=>(int)$credential['user_id'],'rp_id'=>$credential['rp_id'],'public_key_cose'=>$credential['public_key_cose'],'public_key_pem'=>$credential['public_key_pem'],'sign_count'=>$verified['data']['sign_count'],'backup_eligible'=>$verified['data']['backup_eligible'],'backed_up'=>$verified['data']['backed_up']];
             return $this->ok(['proof'=>$proof]);
         } finally { $this->storage->delete_attempt($input['attempt_id']); }
     }
@@ -441,10 +448,11 @@ final class Passkeys
     {
         $context['purpose']='test'; $verified=$this->verify_assertion($context,$input);
         if (!$verified['ok']) { return $verified; }
-        $result = $this->accept_assertion($verified['data']['proof']);
+        $proof = $verified['data']['proof'];
+        $result = $this->accept_assertion($proof) + ['log'=>self::log_passkey(['id'=>$proof['record_id'],'name'=>$proof['name'],'aaguid'=>$proof['aaguid'],'user_id'=>$proof['owner_id']])];
         if ($result['ok']) {
-            $result['subject_id'] = (int) $verified['data']['proof']['owner_id'];
-            $result['data']['name'] = $verified['data']['proof']['name'];
+            $result['subject_id'] = (int) $proof['owner_id'];
+            $result['data']['name'] = $proof['name'];
         }
         return $result;
     }
@@ -502,8 +510,10 @@ final class Passkeys
             foreach($rows['data']['credentials'] as $row) {
                 if ((int)$row['id']!==$record_id || (int)$row['site_id']!==$context['site_id']) { continue; }
                 $unchanged=$name===$row['name'];
-                $updated=$storage->update_credential($record_id,['name'=>$name]); if (!$updated['ok']) { return $updated; }
-                return $this->ok(['credential'=>$updated['data']['credential'],'unchanged'=>$unchanged]);
+                $updated=$storage->update_credential($record_id,['name'=>$name]);
+                // A failed rename did not apply, so it logs the current name and no previous name.
+                if (!$updated['ok']) { return $updated + ['log'=>self::log_passkey($row)]; }
+                return $this->ok(['credential'=>$updated['data']['credential'],'unchanged'=>$unchanged]) + ['log'=>self::log_passkey($updated['data']['credential']) + ['data'=>['previous_name'=>$row['name']]]];
             }
             return $this->error('forbidden');
         });
@@ -523,6 +533,7 @@ final class Passkeys
             $row_result=$storage->get_credential($record_id); if (!$row_result['ok']) { return $row_result; } $row=$row_result['data']['credential'];
             if (!$row) { return $this->ok(['removed'=>false,'already_absent'=>true]); }
             if ((int)$row['user_id']!==$target_id || (int)$row['site_id']!==$context['site_id']) { return $this->error('forbidden'); }
+            $log=['log'=>self::log_passkey($row)];
             $config=$this->locked_configuration($storage, $inputs);
             if ($config['ok']) { $configuration=$config['data']; }
             else {
@@ -530,8 +541,8 @@ final class Passkeys
                 $settings=$this->locked_settings($storage, $inputs);
                 $configuration=['rp_id'=>'','settings'=>$settings];
             }
-            if (!$this->usable_after_removal($target_id,$record_id,$rows['data']['credentials'],$configuration)) { return $this->error('access_required'); }
-            $deleted=$storage->delete_credential($record_id); return $deleted['ok']?$this->ok(['removed'=>true,'already_absent'=>false]):$deleted;
+            if (!$this->usable_after_removal($target_id,$record_id,$rows['data']['credentials'],$configuration)) { return $this->error('access_required') + $log; }
+            $deleted=$storage->delete_credential($record_id); return $deleted['ok']?$this->ok(['removed'=>true,'already_absent'=>false]) + $log:$deleted;
         });
     }
 }
