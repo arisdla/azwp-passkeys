@@ -27,7 +27,9 @@ $wp = static function (string $code, string $flags = '') use ($base): mixed {
     $marker = 'AZWP_WATCHDOG_RESULT:';
     $script = 'require_once ABSPATH . "wp-admin/includes/plugin.php"; echo "\n' . $marker . '", wp_json_encode((static function () { ' . $code . ' })());';
     exec("$base $flags eval " . escapeshellarg($script) . ' 2>&1', $output, $status);
-    foreach ($output as $line) { if (str_starts_with($line, $marker)) { return json_decode(substr($line, strlen($marker)), true); } }
+    if ($status === 0) {
+        foreach ($output as $line) { if (str_starts_with($line, $marker)) { return json_decode(substr($line, strlen($marker)), true, 512, JSON_THROW_ON_ERROR); } }
+    }
     throw new RuntimeException("wp $flags eval failed: " . implode("\n", $output));
 };
 $probe = static fn(string $flags = ''): array => $wp('$plugin = ' . var_export($plugin, true) . '; return ["active" => ' . ($network ? 'is_plugin_active_for_network($plugin)' : 'is_plugin_active($plugin)') . ', "loaded" => defined("AZWP_PASSKEYS_VERSION"), "guard" => get_site_option("azwp_passkeys_watchdog"), "file" => is_file(WPMU_PLUGIN_DIR . "/azwp-passkeys-watchdog.php"), "retry" => (bool) get_site_transient("azwp_passkeys_watchdog_retry")];', $flags);
@@ -49,7 +51,7 @@ $users = [];
 try {
     $cli("plugin deactivate azwp-passkeys$network_flag");
     $state = $probe();
-    $assert(!$state['active'] && $state['guard'] === false && !$state['file'], 'Intentional deactivation removes the watchdog and its guard');
+    $assert(!$state['active'] && $state['guard'] === false && $state['file'] === $network, 'Intentional deactivation disarms the watchdog and keeps the shared file on multisite');
     $state = $probe();
     $assert(!$state['active'] && !$state['loaded'], 'After intentional deactivation the plugin stays inactive');
     $cli("plugin activate azwp-passkeys$network_flag");
@@ -106,6 +108,7 @@ try {
     $assert($state['guard'] === $guard, 'A loaded plugin rearms a guard left by another version');
 
     $cli("plugin deactivate azwp-passkeys$network_flag");
+    if ($network) { unlink($installed); }
     $cli("--require=" . escapeshellarg($require) . " plugin activate azwp-passkeys$network_flag");
     $state = $probe('--require=' . escapeshellarg($require));
     $assert($state['active'] && $state['loaded'] && !$state['file'] && $state['guard'] === false && $state['retry'], 'A failed watchdog install does not block activation and sets the retry delay');
@@ -117,10 +120,12 @@ try {
     $assert($state['file'] && $state['guard'] === $guard && !$state['retry'], 'The install succeeds after the retry delay');
     $assert(!str_contains($admin_notices(), 'Deactivation protection'), 'The deactivation protection notice clears once the watchdog is installed');
 
-    $cli("plugin deactivate azwp-passkeys$network_flag");
-    $wp('update_site_option("azwp_passkeys_watchdog", ' . var_export($guard, true) . '); copy(' . var_export($source, true) . ', WPMU_PLUGIN_DIR . "/azwp-passkeys-watchdog.php"); uninstall_plugin(' . var_export($plugin, true) . '); return true;');
-    $state = $probe();
-    $assert(!$state['active'] && $state['guard'] === false && !$state['file'], 'Uninstall removes the watchdog and its guard');
+    if (!$network) {
+        $cli("plugin deactivate azwp-passkeys$network_flag");
+        $wp('update_site_option("azwp_passkeys_watchdog", ' . var_export($guard, true) . '); copy(' . var_export($source, true) . ', WPMU_PLUGIN_DIR . "/azwp-passkeys-watchdog.php"); uninstall_plugin(' . var_export($plugin, true) . '); return true;');
+        $state = $probe();
+        $assert(!$state['active'] && $state['guard'] === false && !$state['file'], 'Uninstall removes the watchdog and its guard');
+    }
     echo "Watchdog integration: $checks checks passed.\n";
 } finally {
     if (!$wp('return is_plugin_active(' . var_export($plugin, true) . ');')) { $cli("plugin activate azwp-passkeys$network_flag"); }

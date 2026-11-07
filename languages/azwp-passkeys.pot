@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: AZ's WP Passkeys 0.3.0\n"
+"Project-Id-Version: AZ's WP Passkeys 0.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/azwp-passkeys\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-07T05:41:37+00:00\n"
+"POT-Creation-Date: 2026-11-07T06:39:32+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: azwp-passkeys\n"
@@ -83,31 +83,31 @@ msgid "The result could not be confirmed. Refresh to check."
 msgstr ""
 
 #: src/class-ajax.php:135
-#: src/class-screens.php:156
+#: src/class-screens.php:141
 msgid "The change could not be saved. Try again."
 msgstr ""
 
 #: src/class-ajax.php:136
-#: assets/js/client.js:122
+#: assets/js/client.js:124
 msgid "The passkey could not be verified. Try again."
 msgstr ""
 
-#: src/class-authentication.php:388
+#: src/class-authentication.php:397
 #, php-format
 msgid "Username: %s"
 msgstr ""
 
-#: src/class-authentication.php:389
+#: src/class-authentication.php:398
 msgid "Accounts on this site sign in with passkeys only, so there is no password to set. Ask a site administrator to send you a passkey setup link."
 msgstr ""
 
-#: src/class-authentication.php:438
-#: assets/js/client.js:116
+#: src/class-authentication.php:447
+#: assets/js/client.js:118
 msgid "Passkey verified."
 msgstr ""
 
-#: src/class-authentication.php:452
-#: src/class-authentication.php:458
+#: src/class-authentication.php:461
+#: src/class-authentication.php:467
 #: watchdog/azwp-passkeys-watchdog.php:62
 msgid "Sign-in failed. Please try again."
 msgstr ""
@@ -122,7 +122,7 @@ msgstr ""
 #: src/class-events.php:47
 #: src/class-events.php:76
 #: src/class-events.php:148
-#: src/class-passkeys.php:184
+#: src/class-passkeys.php:181
 msgid "Passkey"
 msgstr ""
 
@@ -132,7 +132,7 @@ msgstr ""
 
 #: src/class-events.php:33
 #: src/class-events.php:170
-#: src/class-screens.php:77
+#: src/class-screens.php:62
 msgid "Settings"
 msgstr ""
 
@@ -428,29 +428,29 @@ msgstr ""
 msgid "%1$s changed: %2$s → %3$s"
 msgstr ""
 
-#: src/class-lifecycle.php:101
+#: src/class-lifecycle.php:96
 msgid "Deactivation protection for AZ's WP Passkeys is off because wp-content/mu-plugins is not writable."
 msgstr ""
 
-#: src/class-lifecycle.php:105
+#: src/class-lifecycle.php:100
 msgid "Activate AZ's WP Passkeys for the network."
 msgstr ""
 
-#: src/class-lifecycle.php:108
+#: src/class-lifecycle.php:103
 msgid "Passkey storage could not be initialized. The database tables must use the InnoDB storage engine."
 msgstr ""
 
-#: src/class-lifecycle.php:109
+#: src/class-lifecycle.php:104
 msgid "Passkey storage could not be initialized."
 msgstr ""
 
-#: src/class-lifecycle.php:113
+#: src/class-lifecycle.php:108
+#: src/class-lifecycle.php:114
 #: src/class-lifecycle.php:119
-#: src/class-lifecycle.php:124
 msgid "Passkey settings could not be initialized."
 msgstr ""
 
-#: src/class-lifecycle.php:209
+#: src/class-lifecycle.php:215
 msgid "Passkey data could not be completely removed. Try deleting the plugin again."
 msgstr ""
 
@@ -478,67 +478,67 @@ msgid "Passkey Logs"
 msgstr ""
 
 #. translators: 1: browser name, 2: device name, such as "Chrome on Mac".
-#: src/class-passkeys.php:179
+#: src/class-passkeys.php:176
 #, php-format
 msgid "%1$s on %2$s"
 msgstr ""
 
-#: src/class-passkeys.php:268
+#: src/class-passkeys.php:265
 #, php-format
 msgid "%1$s sent you a link to add a passkey to your account on %2$s."
 msgstr ""
 
-#: src/class-passkeys.php:269
+#: src/class-passkeys.php:266
 msgid "Open it on the device that will store the passkey. It works once and expires in one hour."
 msgstr ""
 
-#: src/class-passkeys.php:271
+#: src/class-passkeys.php:268
 msgid "If you did not expect this, ignore this email. Nothing changes until the link is used."
 msgstr ""
 
-#: src/class-passkeys.php:273
+#: src/class-passkeys.php:270
 #, php-format
 msgid "[%s] Add a passkey to your account"
 msgstr ""
 
-#: src/class-passkeys.php:365
+#: src/class-passkeys.php:363
 #, php-format
 msgid "A passkey from an unknown authenticator (named “%1$s”) was added to your account on %2$s."
 msgstr ""
 
-#: src/class-passkeys.php:366
+#: src/class-passkeys.php:364
 #, php-format
 msgid "A passkey from %1$s (named “%2$s”) was added to your account on %3$s."
 msgstr ""
 
-#: src/class-passkeys.php:367
+#: src/class-passkeys.php:365
 #, php-format
 msgid "It was added with a setup link sent by %s."
 msgstr ""
 
-#: src/class-passkeys.php:367
+#: src/class-passkeys.php:365
 #, php-format
 msgid "It was added by %s."
 msgstr ""
 
-#: src/class-passkeys.php:367
+#: src/class-passkeys.php:365
 msgid "It was added while you were signed in."
 msgstr ""
 
-#: src/class-passkeys.php:369
+#: src/class-passkeys.php:367
 msgid "If you did not expect this, remove the passkey and tell a site administrator:"
 msgstr ""
 
-#: src/class-passkeys.php:370
+#: src/class-passkeys.php:368
 msgid "If you did not expect this, remove the passkey and change your password:"
 msgstr ""
 
-#: src/class-passkeys.php:373
+#: src/class-passkeys.php:371
 #, php-format
 msgid "[%s] A passkey was added to your account"
 msgstr ""
 
-#: src/class-passkeys.php:467
+#: src/class-passkeys.php:470
 msgid "This passkey is unavailable under the current site settings."
 msgstr ""
 
@@ -546,39 +546,39 @@ msgstr ""
 msgid "Passkey added. Sign in with it now."
 msgstr ""
 
-#: src/class-screens.php:63
+#: src/class-screens.php:48
 #, php-format
 msgid "%d account has no working passkey on at least one site and cannot sign in there while Passkey only mode is on."
 msgid_plural "%d accounts have no working passkey on at least one site and cannot sign in there while Passkey only mode is on."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/class-screens.php:64
+#: src/class-screens.php:49
 #, php-format
 msgid "%d member has no working passkey for this site and cannot sign in while Passkey only mode is on."
 msgid_plural "%d members have no working passkey for this site and cannot sign in while Passkey only mode is on."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/class-screens.php:68
+#: src/class-screens.php:53
 #, php-format
 msgid "%1$s: %2$d"
 msgstr ""
 
-#: src/class-screens.php:68
+#: src/class-screens.php:53
 msgid "View these members"
 msgstr ""
 
-#: src/class-screens.php:72
+#: src/class-screens.php:57
 msgid "I understand these accounts cannot sign in."
 msgstr ""
 
-#: src/class-screens.php:143
+#: src/class-screens.php:128
 #, php-format
 msgid "Password sign-in is disabled for %s and no passkey has been added on this site."
 msgstr ""
 
-#: src/class-screens.php:143
+#: src/class-screens.php:128
 #: views/frontend-register.php:5
 #: views/profile.php:8
 #: views/setup.php:5
@@ -586,108 +586,108 @@ msgstr ""
 msgid "Add passkey"
 msgstr ""
 
-#: src/class-screens.php:144
+#: src/class-screens.php:129
 msgid "Passkeys from other sites in this network may still work."
 msgstr ""
 
-#: src/class-screens.php:149
+#: src/class-screens.php:134
 msgid "Passkeys are unavailable. Check that this site uses HTTPS and that the server supports OpenSSL, P-256 and SHA-256. HTTP is supported only on localhost."
 msgstr ""
 
-#: src/class-screens.php:156
+#: src/class-screens.php:141
 msgid "Add a working passkey before turning on Passkey only mode for this account."
 msgstr ""
 
-#: src/class-screens.php:162
+#: src/class-screens.php:147
 msgid "Add a passkey"
 msgstr ""
 
-#: src/class-screens.php:193
-#: src/class-screens.php:207
+#: src/class-screens.php:178
+#: src/class-screens.php:192
 msgid "You do not have permission to manage these settings."
 msgstr ""
 
-#: src/class-screens.php:200
+#: src/class-screens.php:185
 msgid "You do not have permission to view logs."
 msgstr ""
 
-#: src/class-screens.php:202
+#: src/class-screens.php:187
 msgid "Check Website name and Passkey domain in settings. The passkey domain must match this site."
 msgstr ""
 
-#: src/class-screens.php:239
+#: src/class-screens.php:207
 msgid "Passkey only mode is on, and changing this would stop every passkey from working. Turn Passkey only mode off first."
 msgstr ""
 
-#: src/class-screens.php:239
+#: src/class-screens.php:207
 msgid "Confirm that the accounts listed above will not be able to sign in, then save again."
 msgstr ""
 
-#: src/class-screens.php:239
+#: src/class-screens.php:207
 msgid "Add a working passkey to your own account before turning on Passkey only mode."
 msgstr ""
 
-#: src/class-screens.php:239
+#: src/class-screens.php:207
 msgid "Check this field and save again."
 msgstr ""
 
-#: src/class-screens.php:244
+#: src/class-screens.php:212
 msgid "Settings saved"
 msgstr ""
 
-#: src/class-screens.php:245
+#: src/class-screens.php:213
 msgid "Settings could not be saved."
 msgstr ""
 
-#: src/class-screens.php:250
+#: src/class-screens.php:218
 msgid "Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain."
 msgstr ""
 
-#: src/class-screens.php:251
+#: src/class-screens.php:219
 msgid "Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked."
 msgstr ""
 
-#: src/class-screens.php:252
+#: src/class-screens.php:220
 msgid "Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles."
 msgstr ""
 
-#: src/class-screens.php:253
+#: src/class-screens.php:221
 msgid "New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in."
 msgstr ""
 
-#: src/class-screens.php:254
+#: src/class-screens.php:222
 msgid "Save log entries for troubleshooting. Entries remain until you clear them."
 msgstr ""
 
-#: src/class-screens.php:259
+#: src/class-screens.php:227
 msgid "Set in network settings:"
 msgstr ""
 
-#: src/class-screens.php:259
+#: src/class-screens.php:227
 msgid "Enabled"
 msgstr ""
 
-#: src/class-screens.php:259
+#: src/class-screens.php:227
 msgid "Disabled"
 msgstr ""
 
-#: src/class-screens.php:259
+#: src/class-screens.php:227
 msgid "Network settings"
 msgstr ""
 
-#: src/class-screens.php:262
+#: src/class-screens.php:230
 msgid "Enable"
 msgstr ""
 
-#: src/class-screens.php:262
+#: src/class-screens.php:230
 msgid "Disable"
 msgstr ""
 
-#: src/class-screens.php:271
+#: src/class-screens.php:239
 msgid "Passkey only mode is on, so password resets are blocked for everyone."
 msgstr ""
 
-#: src/class-screens.php:272
+#: src/class-screens.php:240
 msgid "This has no effect until Anyone can register is turned on in General settings."
 msgstr ""
 
@@ -990,88 +990,88 @@ msgstr ""
 msgid "Rename"
 msgstr ""
 
-#: assets/js/client.js:79
+#: assets/js/client.js:80
 msgid "Synced"
 msgstr ""
 
-#: assets/js/client.js:81
+#: assets/js/client.js:82
 msgid "Remove"
 msgstr ""
 
-#: assets/js/client.js:86
+#: assets/js/client.js:88
 msgid "Could not load passkeys. Refresh the page."
 msgstr ""
 
-#: assets/js/client.js:100
-#: assets/js/client.js:153
+#: assets/js/client.js:102
+#: assets/js/client.js:155
 #: assets/js/frontend.js:7
 #: assets/js/login.js:12
 msgid "Passkeys are unavailable. Use a supported browser and a secure connection."
 msgstr ""
 
-#: assets/js/client.js:105
+#: assets/js/client.js:107
 msgid "Preparing…"
 msgstr ""
 
-#: assets/js/client.js:111
+#: assets/js/client.js:113
 msgid "Follow your browser's instructions"
 msgstr ""
 
-#: assets/js/client.js:113
+#: assets/js/client.js:115
 msgid "Saving…"
 msgstr ""
 
-#: assets/js/client.js:113
+#: assets/js/client.js:115
 msgid "Verifying…"
 msgstr ""
 
-#: assets/js/client.js:116
+#: assets/js/client.js:118
 msgid "Passkey added."
 msgstr ""
 
-#: assets/js/client.js:116
+#: assets/js/client.js:118
 #, js-format
 msgid "Passkey test passed for “%s”."
 msgstr ""
 
-#: assets/js/client.js:122
+#: assets/js/client.js:124
 msgid "Passkey prompt cancelled. Try again or use a password."
 msgstr ""
 
-#: assets/js/client.js:122
+#: assets/js/client.js:124
 msgid "Passkey prompt cancelled. Try again."
 msgstr ""
 
-#: assets/js/client.js:123
+#: assets/js/client.js:125
 msgid "The passkey request could not be started. Try again."
 msgstr ""
 
-#: assets/js/client.js:133
+#: assets/js/client.js:135
 msgid "Setup link sent to the account email address. It expires in one hour."
 msgstr ""
 
-#: assets/js/client.js:141
+#: assets/js/client.js:143
 msgid "Rename passkey"
 msgstr ""
 
-#: assets/js/client.js:141
+#: assets/js/client.js:143
 msgid "Enter a name for this passkey."
 msgstr ""
 
-#: assets/js/client.js:142
+#: assets/js/client.js:144
 #, js-format
 msgid "Remove “%s”? This removes the passkey from this website. It does not delete it from your device or password manager."
 msgstr ""
 
-#: assets/js/client.js:144
+#: assets/js/client.js:146
 msgid "Passkey renamed."
 msgstr ""
 
-#: assets/js/client.js:144
+#: assets/js/client.js:146
 msgid "Passkey already removed. List refreshed."
 msgstr ""
 
-#: assets/js/client.js:144
+#: assets/js/client.js:146
 msgid "Passkey removed."
 msgstr ""
 

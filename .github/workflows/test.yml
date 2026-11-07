@@ -28,6 +28,10 @@ jobs:
           - name: minimum
             core: WordPress/WordPress#6.9-branch
             php: '8.3'
+          - name: multisite
+            core: WordPress/WordPress#6.9-branch
+            php: '8.3'
+            multisite: '1'
           # wp-env ignores an empty WP_ENV_CORE, so latest needs an explicit source.
           - name: latest
             core: https://wordpress.org/latest.zip
@@ -38,6 +42,7 @@ jobs:
     env:
       WP_ENV_CORE: ${{ matrix.core }}
       WP_ENV_PHP_VERSION: ${{ matrix.php }}
+      WP_ENV_MULTISITE: ${{ matrix.multisite }}
 
     steps:
       - uses: actions/checkout@v6
@@ -56,6 +61,10 @@ jobs:
       - name: Add pcntl to the tests CLI container for concurrency tests
         run: docker exec -u root "$(docker ps -qf name=tests-cli)" docker-php-ext-install pcntl
 
+      - name: Verify multisite test environment
+        if: matrix.name == 'multisite'
+        run: npx wp-env run tests-cli wp eval 'if (!is_multisite()) { throw new RuntimeException("The multisite CI lane requires a multisite installation."); }'
+
       - name: Start the PHP error log empty
         # Truncate rather than create, so the file keeps the web server's ownership.
         run: |
@@ -71,6 +80,8 @@ jobs:
         run: pnpm test:php
 
       - name: HTTP tests
+        # These scenarios use a single-site install. The multisite lane runs the PHP suite.
+        if: matrix.name != 'multisite'
         run: pnpm test:http
 
       - name: Browser tests

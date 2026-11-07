@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AZ's WP Passkeys
  * Description: Passkey sign-in and management for WordPress.
- * Version: 0.3.0
+ * Version: 0.4.0
  * Author: Arthur Z.
  * Requires at least: 6.9
  * Requires PHP: 8.3
@@ -14,7 +14,7 @@
  */
 declare(strict_types=1);
 if (!defined('ABSPATH')) { exit; }
-define('AZWP_PASSKEYS_VERSION', '0.3.0');
+define('AZWP_PASSKEYS_VERSION', '0.4.0');
 define('AZWP_PASSKEYS_FILE', __FILE__);
 define('AZWP_PASSKEYS_DIR', __DIR__ . '/');
 define('AZWP_PASSKEYS_URL', plugin_dir_url(__FILE__));

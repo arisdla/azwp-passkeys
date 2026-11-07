@@ -91,11 +91,6 @@ final class Lifecycle {
         delete_site_transient(self::WATCHDOG_RETRY);
         return true;
     }
-    private function remove_watchdog(): void {
-        delete_site_option(self::WATCHDOG);
-        delete_site_transient(self::WATCHDOG_RETRY);
-        @unlink(self::watchdog_file());
-    }
     public function watchdog_notice(): void {
         if (!current_user_can(is_multisite() ? 'manage_network_plugins' : 'activate_plugins') || is_file(self::watchdog_file())) { return; }
         echo '<div class="notice notice-warning"><p>'.esc_html__('Deactivation protection for AZ\'s WP Passkeys is off because wp-content/mu-plugins is not writable.', 'azwp-passkeys').'</p></div>';
@@ -140,7 +135,10 @@ final class Lifecycle {
         global $wp_rewrite;
         if (isset($wp_rewrite->extra_rules_top[self::REWRITE])) { unset($wp_rewrite->extra_rules_top[self::REWRITE]); }
         flush_rewrite_rules(false);
-        $this->remove_watchdog();
+        delete_site_option(self::WATCHDOG);
+        delete_site_transient(self::WATCHDOG_RETRY);
+        // On multisite the file also serves other networks and can only be removed on uninstall.
+        if (!is_multisite()) { @unlink(self::watchdog_file()); }
     }
     public function early_delete_account(int $user_id, mixed $user = null): void {
         $this->record_cleanup($user_id, $user, $this->storage->cleanup_user($user_id));
@@ -191,6 +189,11 @@ final class Lifecycle {
         if (is_multisite()) {
             foreach (get_networks(['fields'=>'ids','number'=>0]) as $network_id) {
                 delete_network_option((int) $network_id, 'azwp_passkeys_network_settings');
+                delete_network_option((int) $network_id, self::WATCHDOG);
+                foreach ([self::UPGRADE_RETRY, self::WATCHDOG_RETRY] as $retry) {
+                    delete_network_option((int) $network_id, '_site_transient_' . $retry);
+                    delete_network_option((int) $network_id, '_site_transient_timeout_' . $retry);
+                }
             }
             delete_network_option(get_main_network_id(), self::SCHEMA_OPTION);
             $offset = 0;
@@ -202,9 +205,12 @@ final class Lifecycle {
         } else {
             $this->delete_site_options();
             delete_option(self::SCHEMA_OPTION);
+            delete_site_option(self::WATCHDOG);
         }
+        // Also clear the shared site-transient cache when an external object cache is in use.
         delete_site_transient(self::UPGRADE_RETRY);
-        $this->remove_watchdog();
+        delete_site_transient(self::WATCHDOG_RETRY);
+        @unlink(self::watchdog_file());
         $result = $this->storage->uninstall();
         if (!$result['ok']) { wp_die(esc_html__('Passkey data could not be completely removed. Try deleting the plugin again.', 'azwp-passkeys')); }
     }

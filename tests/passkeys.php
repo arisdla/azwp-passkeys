@@ -242,16 +242,22 @@ try {
         $_REQUEST['action'] = 'register'; $GLOBALS['pagenow'] = 'wp-login.php'; $_SERVER['HTTP_ORIGIN'] = $passkeys->configuration($site)['data']['origins'][0];
         $storage->save_settings('site',$site,['after_registration'=>'add_passkey']);
         wp_set_current_user(0); unset($_COOKIE[LOGGED_IN_COOKIE]);
-        try { $authentication->registration_sign_in($alice); }
+        try { $registration_destination = $authentication->registration_sign_in($alice); }
         finally { unset($_REQUEST['action'], $GLOBALS['pagenow'], $_SERVER['HTTP_ORIGIN']); $storage->save_settings('site',$site,['after_registration'=>'default']); }
-        check('registration sign-in opened one session', count($cookies)===2 && $cookies[1]['user_id']===$alice);
+        if (is_multisite()) {
+            check('multisite registration keeps WordPress continuation and opens no session', $registration_destination==='' && count($cookies)===1);
+        } else {
+            check('registration sign-in opened one session', count($cookies)===2 && $cookies[1]['user_id']===$alice);
+        }
         check('Passkey only mode turned on for the account', $storage->save_password_policy($alice,true)['ok']);
         check('Passkey only mode ends a session not opened by a passkey', $resolve($alice,$other_token)===0 && WP_Session_Tokens::get_instance($alice)->get($other_token)===null);
         check('Passkey only mode keeps a passkey session', $resolve($alice,$cookies[0]['token'])===$alice);
-        check('Passkey only mode keeps the session that adds a first passkey after registration', $resolve($alice,$cookies[1]['token'])===$alice);
+        if (!is_multisite()) {
+            check('Passkey only mode keeps the session that adds a first passkey after registration', $resolve($alice,$cookies[1]['token'])===$alice);
+            WP_Session_Tokens::get_instance($alice)->destroy($cookies[1]['token']);
+            array_splice($cookies, 1);
+        }
         unset($_COOKIE[LOGGED_IN_COOKIE]);
-        WP_Session_Tokens::get_instance($alice)->destroy($cookies[1]['token']);
-        array_splice($cookies, 1);
         WP_Session_Tokens::get_instance($alice)->destroy($cookies[0]['token']);
         $logged_context = $become($bob); $logged_context['purpose']='login';
         $login = $passkeys->assertion_options($logged_context,$login_input);
