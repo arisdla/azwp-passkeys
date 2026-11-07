@@ -31,7 +31,6 @@ jobs:
           - name: multisite
             core: WordPress/WordPress#6.9-branch
             php: '8.3'
-            multisite: '1'
           # wp-env ignores an empty WP_ENV_CORE, so latest needs an explicit source.
           - name: latest
             core: https://wordpress.org/latest.zip
@@ -42,7 +41,6 @@ jobs:
     env:
       WP_ENV_CORE: ${{ matrix.core }}
       WP_ENV_PHP_VERSION: ${{ matrix.php }}
-      WP_ENV_MULTISITE: ${{ matrix.multisite }}
 
     steps:
       - uses: actions/checkout@v6
@@ -55,6 +53,11 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Configure multisite tests
+        if: matrix.name == 'multisite'
+        run: |
+          printf '%s\n' '{"env":{"tests":{"multisite":true}}}' > .wp-env.override.json
 
       - run: npx wp-env start
 
