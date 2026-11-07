@@ -124,6 +124,20 @@ try {
         }
         $storage->save_settings('site', get_current_blog_id(), ['logging'=>$logging_before]);
     }
+    $gone = 990000 + random_int(1, 9999);
+    $kept = $gone + 1;
+    try {
+        foreach ([$gone, $gone, $kept] as $site) {
+            $storage->insert_event(['site_id'=>$site,'occurred_at'=>time(),'event'=>'passkey.tested','ok'=>1,'code'=>'ok','correlation_id'=>bin2hex(random_bytes(16)),'actor_id'=>1,'actor_login'=>'admin','ip'=>'192.0.2.1']);
+        }
+        require_once ABSPATH . WPINC . '/class-wp-site.php';
+        do_action('wp_delete_site', new WP_Site((object) ['blog_id'=>$gone]));
+        $count = static fn(int $site): int => (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `$events` WHERE site_id=%d", $site));
+        $assert($count($gone) === 0, "Deleting a site deletes that site's log entries");
+        $assert($count($kept) === 1, "Deleting a site keeps other sites' log entries");
+    } finally {
+        $wpdb->query($wpdb->prepare("DELETE FROM `$events` WHERE site_id IN (%d,%d)", $gone, $kept));
+    }
     echo "Lifecycle integration: $checks checks passed.\n";
 } finally {
     if (get_userdata($user_id)) { if (is_multisite()) { wpmu_delete_user($user_id); } else { wp_delete_user($user_id); } }

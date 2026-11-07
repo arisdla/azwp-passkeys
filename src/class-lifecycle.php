@@ -16,6 +16,7 @@ final class Lifecycle {
         add_filter('query_vars', static function (array $vars): array { $vars[] = 'azwp_passkeys_related_origins'; return $vars; });
         add_action('template_redirect', [$this, 'render_related_origins']);
         add_action('wp_initialize_site', [$this, 'initialize_site'], 100);
+        add_action('wp_delete_site', [$this, 'delete_site']);
         add_action('remove_user_from_blog', [$this, 'remove_membership'], 10, 2);
         add_action('wpmu_delete_user', [$this, 'early_delete_account'], 10, 2);
         add_action('deleted_user', [$this, 'delete_account'], 10, 3);
@@ -160,6 +161,10 @@ final class Lifecycle {
         foreach ($result['data']['counts'] ?? [] as $site_id => $count) {
             if ($count > 0) { $this->logs->record('passkey.account_deleted', $fields + ['site_id' => (int) $site_id, 'data' => ['count' => $count]]); }
         }
+    }
+    /** The events table is shared by the network, so WordPress dropping the site's tables leaves its entries behind. */
+    public function delete_site(\WP_Site $site): void {
+        $this->storage->clear_events((int) $site->id);
     }
     public function remove_membership(int $user_id, int $site_id): void {
         $this->storage->cleanup_user($user_id, $site_id);
