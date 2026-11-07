@@ -418,27 +418,43 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <!-- ============ LOGS ============ -->
 <section class="screen" id="logs" data-title="Logs" data-group="Admin">
 <h2>Passkey Logs</h2>
-<p class="lead">/wp-admin/tools.php?page=azwp-passkeys-logs. Log view polls every 5 seconds while logging is on.</p>
+<p class="lead">/wp-admin/tools.php?page=azwp-passkeys-logs under Tools. Newest first, 20 per page. While logging is on, page 1 refreshes every 5 seconds.</p>
 <div class="demo"><div class="chips"></div><div class="stage">
-<div data-v="Logging on" class="on">
+<div data-v="Log table" class="on">
 <h3 style="margin-top:0">Passkey Logs</h3>
 <table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l1" checked> Enable</label><label><input type="radio" name="l1"> Disable</label><p class="desc">Save log entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
 <p><button class="btn primary">Save changes</button></p>
-<p><b>4</b> entries</p>
-<pre>{"event":"authentication","result":"ok","actor_id":null,"target_id":3,"correlation_id":"9f2c…"}
-{"event":"credential_test","result":"ok","actor_id":3,"target_id":3}
-{"event":"registration","result":"credential_exists","actor_id":3,"target_id":3}
-{"event":"settings_saved","detail":{"setting":"passkey_only","previous":false,"value":true}}</pre>
-<p><button class="btn">Clear logs</button></p><div class="status okk">Logs cleared.</div>
-<p class="desc">Logs remain until cleared. Passwords and passkey responses are not logged.</p><p><a href="#">Back to settings</a></p>
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0"><div style="display:flex;gap:8px;align-items:center;font-size:13px">Category <select style="width:auto"><option>All</option></select> Result <select style="width:auto"><option>Any</option></select></div><div style="font-size:13px">45 items <button class="btn" disabled>«</button> <button class="btn" disabled>‹</button> <input type="text" value="1" style="width:3em"> of 3 <button class="btn">›</button> <button class="btn">»</button></div></div>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>45</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Work phone (iCloud Keychain): signed in</td><td>November 6, 2026 2:32 pm</td><td>203.0.113.24</td></tr><tr><td>44</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>—</td><td style="color:var(--err)">✗</td><td>Sign-in failed: passkey not recognized</td><td>November 6, 2026 2:31 pm</td><td>198.51.100.7</td></tr><tr><td>43</td><td><span style="color:var(--mute)">Passkey: </span>Tested</td><td>admin</td><td style="color:var(--ok)">✓</td><td>YubiKey 5 (YubiKey 5 NFC): tested for marie</td><td>November 6, 2026 2:20 pm</td><td>192.0.2.10</td></tr><tr><td>42</td><td><span style="color:var(--mute)">Passkey: </span>Renamed</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Old phone (iCloud Keychain): renamed to Work phone</td><td>November 6, 2026 2:14 pm</td><td>203.0.113.24</td></tr><tr><td>41</td><td><span style="color:var(--mute)">Passkey: </span>Deleted</td><td>admin</td><td style="color:var(--err)">✗</td><td>YubiKey 5 (YubiKey 5 NFC) deletion failed for marie: would leave the account without a way to sign in</td><td>November 6, 2026 2:10 pm</td><td>192.0.2.10</td></tr><tr><td>40</td><td><span style="color:var(--mute)">Admin: </span>Setup link</td><td>admin</td><td style="color:var(--ok)">✓</td><td>Setup link sent to paul</td><td>November 6, 2026 1:58 pm</td><td>192.0.2.10</td></tr><tr><td>39</td><td>Settings</td><td>admin</td><td style="color:var(--ok)">✓</td><td>Passkey only mode turned on</td><td>November 6, 2026 1:40 pm</td><td>192.0.2.10</td></tr><tr><td>38</td><td><span style="color:var(--mute)">Passkey: </span>Account deleted</td><td>system</td><td style="color:var(--ok)">✓</td><td>User #7 (paul) deleted with 2 passkeys</td><td>November 6, 2026 1:02 pm</td><td>—</td></tr></tbody></table>
+<div style="display:flex;justify-content:flex-end;margin:10px 0;font-size:13px">45 items <button class="btn" disabled>«</button> <button class="btn" disabled>‹</button> 1 of 3 <button class="btn">›</button> <button class="btn">»</button></div>
+<p><button class="btn">Clear logs</button></p>
+<p class="desc">Logs remain until cleared. Usernames, passkey names and IP addresses are stored. Passwords and passkey responses are not logged.</p><p><a href="#">Back to settings</a></p>
+<p class="note">Hovering a row shows its correlation ID. Page links keep the filters in the address, so they open the same view in a new tab. An empty User or IP address cell shows —.</p>
 </div>
-<div data-v="Logging off / empty">
-<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l2"> Enable</label><label><input type="radio" name="l2" checked> Disable</label></td></tr></table>
-<p><b>0</b> entries</p><pre>No log entries.</pre><p><button class="btn" disabled>Clear logs</button></p>
+<div data-v="Filters / empty">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0"><div style="display:flex;gap:8px;align-items:center;font-size:13px">Category <select style="width:auto"><option>Passkey</option></select> Result <select style="width:auto"><option>Failed</option></select></div><div style="font-size:13px">1 item</div></div>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>41</td><td><span style="color:var(--mute)">Passkey: </span>Deleted</td><td>admin</td><td style="color:var(--err)">✗</td><td>YubiKey 5 (YubiKey 5 NFC) deletion failed for marie: would leave the account without a way to sign in</td><td>November 6, 2026 2:10 pm</td><td>192.0.2.10</td></tr></tbody></table>
+<h3>No match</h3>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td colspan="7">No log entries match these filters.</td></tr></tbody></table>
+<h3>Logging off, no entries</h3>
+<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l2"> Enable</label><label><input type="radio" name="l2" checked> Disable</label><p class="desc">Save log entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
+<p><button class="btn primary">Save changes</button></p>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td colspan="7">No log entries.</td></tr></tbody></table>
+<p><button class="btn" disabled>Clear logs</button></p>
+</div>
+<div data-v="Clear">
+<div class="modal"><div class="t">Browser confirm</div>Delete all 45 log entries for this site? This cannot be undone.<div class="acts"><button class="btn">Cancel</button><button class="btn primary">OK</button></div></div>
+<h3>After OK</h3>
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0"><div style="display:flex;gap:8px;align-items:center;font-size:13px">Category <select style="width:auto"><option>All</option></select> Result <select style="width:auto"><option>Any</option></select></div><div style="font-size:13px">1 item</div></div>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>46</td><td><span style="color:var(--mute)">Admin: </span>Logs cleared</td><td>admin</td><td style="color:var(--ok)">✓</td><td>45 entries deleted</td><td>November 6, 2026 2:40 pm</td><td>192.0.2.10</td></tr></tbody></table>
+<p><button class="btn">Clear logs</button></p><div class="status okk">Logs cleared.</div>
+<p class="note">Cancel changes nothing. The Logs cleared entry is written even while logging is off.</p>
 </div>
 <div data-v="Errors">
 <div class="notice err"><p>Check Website name and Passkey domain in settings. The passkey domain must match this site.</p></div>
-<pre>Could not load logs.</pre>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>45</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Work phone (iCloud Keychain): signed in</td><td>November 6, 2026 2:32 pm</td><td>203.0.113.24</td></tr></tbody></table>
+<div class="status err">Could not load logs.</div>
+<p class="note">A failed load keeps the rows already shown.</p>
 </div>
 </div></div>
 </section>

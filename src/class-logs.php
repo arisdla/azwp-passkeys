@@ -155,7 +155,7 @@ final class Logs {
         return [
             'items_removed' => $changed + $data['data']['changed'] > 0,
             'items_retained' => $retained > 0,
-            'messages' => $retained > 0 ? [__('Passkey log entries are kept with usernames and passkey names erased.', 'azwp-passkeys')] : [],
+            'messages' => $retained > 0 ? [__('Passkey log entries are kept with usernames, passkey names and IP addresses erased.', 'azwp-passkeys')] : [],
             'done' => $data['data']['rows'] < self::ERASE_PAGE,
         ];
     }

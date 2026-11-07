@@ -131,7 +131,7 @@ try {
     $assert($by_correlation($by_admin)['actor_login'] === 'erased' && $by_correlation($by_admin)['passkey_name'] === 'Marie key', "An administrator's rows keep other people's passkey names");
     $assert($by_correlation($admin_own)['passkey_name'] === 'erased' && $by_correlation($admin_own)['target_login'] === 'erased', "The administrator's own passkey name is erased");
     $page = $logs->erase(get_userdata($marie)->user_email, 1);
-    $assert(!$page['done'] && $page['items_removed'] && $page['items_retained'] && $page['messages'] === ['Passkey log entries are kept with usernames and passkey names erased.'], 'More than 100 renamed rows need a second eraser page');
+    $assert(!$page['done'] && $page['items_removed'] && $page['items_retained'] && $page['messages'] === ['Passkey log entries are kept with usernames, passkey names and IP addresses erased.'], 'More than 100 renamed rows need a second eraser page');
     $last = $logs->erase(get_userdata($marie)->user_email, 2);
     $assert($last['done'], 'The last eraser page is done');
     $row = $by_correlation($own);
