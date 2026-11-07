@@ -984,6 +984,8 @@ The passkey methods return a top-level `log` array next to `subject_id`. Its pas
 
 A failure before the credential is looked up returns no `log`, and the row shows the "passkey unknown" template.
 
+`Passkeys::verify_assertion` and `Passkeys::complete_setup` return `log` set to `false` when the request matches no pending attempt issued to this browser: a malformed request, or an attempt that is missing, expired, used, or bound to another browser, site, purpose or session. `dispatch` writes no row for it. Completions accept anonymous posts and only options requests are rate-limited, so logging these would let anyone grow the log without limit. `register_complete` already stops before the operation in the same case. Failures after the attempt matches are logged as before.
+
 `dispatch` maps its action to the event key.
 
 | Action | Event |

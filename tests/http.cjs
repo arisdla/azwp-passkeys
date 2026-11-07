@@ -17,6 +17,21 @@ if (process.env.AZWP_PASSKEYS_TESTS !== '1' || !process.env.TEST_URL || new URL(
     const response = await fetch(url + '?action=azwp_passkeys_login_options');
     assert.equal((await response.json()).data.code, 'invalid_request', 'Options require POST');
     console.log('HTTP: 3 transport/method boundary checks passed.');
+    const events = async () => Number((await wpEval(`global $wpdb; echo 'COUNT '.(int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->base_prefix}azwp_passkeys_events WHERE site_id=%d", get_current_blog_id()));`)).match(/COUNT (\d+)/)[1]);
+    const ajax = (action, payload, cookie) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...(cookie ? { Cookie: cookie } : {}) }, body: new URLSearchParams({ action: 'azwp_passkeys_' + action, payload: JSON.stringify(payload) }) });
+    const before = await events();
+    const unmatched = { attempt_id: 'A'.repeat(43), credential: {} };
+    for (const [action, payload] of [['login_complete', {}], ['login_complete', unmatched], ['setup_complete', { token: 'A'.repeat(43), ...unmatched }]]) {
+        const response = await ajax(action, payload);
+        assert.ok(response.status >= 400, action + ' with no issued attempt fails');
+    }
+    assert.equal(await events(), before, 'Completions that match no issued attempt write no log row');
+    const options = await ajax('login_options', { remember: false, redirect_to: '', surface: 'native' });
+    const browser = options.headers.get('set-cookie').match(/azwp_passkeys_browser=[^;]+/)[0];
+    const { data: issued } = await options.json();
+    assert.equal((await ajax('login_complete', { attempt_id: issued.attempt_id, credential: { rawId: '!' } }, browser)).status, 400);
+    assert.equal(await events(), before + 1, 'A failure on an issued attempt is still logged');
+    console.log('HTTP: unmatched completions are not logged.');
     const seeded = (await wpEval(`
         global $wpdb; $table = $wpdb->base_prefix.'azwp_passkeys_events'; $site = get_current_blog_id();
         $wpdb->delete($table, ['site_id'=>$site]);

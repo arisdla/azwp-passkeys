@@ -279,6 +279,11 @@ final class Passkeys
         $saved = $this->storage->save_setup_link($target, ['hash'=>hash('sha256', $token), 'expires_at'=>time()+self::SETUP_LINK_TTL_SECONDS, 'issued_by'=>(int) $context['actor_id'], 'site_id'=>$context['site_id']]);
         return $saved['ok'] ? $this->ok(['sent'=>true]) : $saved;
     }
+    /** Anyone can post a completion, but only options requests are rate-limited, so a completion that matches no issued attempt writes no log row. */
+    private static function unmatched(array $error): array
+    {
+        return ['log'=>false] + $error;
+    }
     private static function setup_hash(mixed $token): ?string
     {
         if (!is_string($token)) { return null; }
@@ -306,9 +311,9 @@ final class Passkeys
     {
         $context['purpose'] = 'setup';
         $hash = self::setup_hash($input['token'] ?? null);
-        if ($hash === null || !is_string($input['attempt_id'] ?? null) || !is_array($input['credential'] ?? null)) { return $this->error('invalid_request'); }
+        if ($hash === null || !is_string($input['attempt_id'] ?? null) || !is_array($input['credential'] ?? null)) { return self::unmatched($this->error('invalid_request')); }
         $bound = $this->bound_attempt($context, $input['attempt_id']);
-        if (!$bound['ok']) { return $bound; }
+        if (!$bound['ok']) { return self::unmatched($bound); }
         $attempt = $bound['data']['attempt']; $target = (int) $attempt['target_id'];
         if ($context['actor_id'] && (int) $context['actor_id'] !== $target) { return $this->error('forbidden'); }
         $claim = $this->claim($context, $input['attempt_id']);
@@ -400,8 +405,8 @@ final class Passkeys
     }
     public function verify_assertion(array $context, array $input): array
     {
-        if (!is_string($input['attempt_id'] ?? null) || !is_array($input['credential'] ?? null)) { return $this->error('invalid_request'); }
-        $bound=$this->bound_attempt($context,$input['attempt_id']); if (!$bound['ok']) { return $bound; }
+        if (!is_string($input['attempt_id'] ?? null) || !is_array($input['credential'] ?? null)) { return self::unmatched($this->error('invalid_request')); }
+        $bound=$this->bound_attempt($context,$input['attempt_id']); if (!$bound['ok']) { return self::unmatched($bound); }
         $attempt=$bound['data']['attempt'];
         if ($context['purpose']==='test' && !$this->authorized($context,(int)$attempt['target_id'])) { return $this->error('forbidden'); }
         $claim=$this->claim($context,$input['attempt_id']); if (!$claim['ok']) { return $claim; }

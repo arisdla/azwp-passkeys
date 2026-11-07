@@ -93,7 +93,7 @@ final class Ajax
                 'setup_options'=>$this->passkeys->setup_options($context,$payload),
                 'setup_complete'=>$this->passkeys->complete_setup($context,$payload),
             };
-            if (isset(self::EVENTS[$action])) { $this->logs->record(self::EVENTS[$action], self::log_fields($action,$result,(int)$context['actor_id'],$target,$correlation_id)); }
+            if (isset(self::EVENTS[$action]) && ($result['log'] ?? null) !== false) { $this->logs->record(self::EVENTS[$action], self::log_fields($action,$result,(int)$context['actor_id'],$target,$correlation_id)); }
         } catch(\JsonException|\InvalidArgumentException) { $result=$this->failure('invalid_request'); }
         catch(\Throwable) { $result=$this->failure('storage_failed'); }
         $this->respond($result,$correlation_id);
