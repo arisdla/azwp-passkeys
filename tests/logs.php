@@ -107,6 +107,53 @@ try {
         $assert($logs->read($site, $bad)['code'] === 'invalid_request', 'Invalid read request rejected: ' . json_encode($bad));
     }
 
+    $raw = static function (array $columns) use ($wpdb, $table, $site, &$correlations): string {
+        $correlations[] = $correlation = bin2hex(random_bytes(16));
+        $wpdb->insert($table, $columns + ['site_id' => $site, 'occurred_at' => time(), 'ok' => 1, 'code' => 'ok', 'correlation_id' => $correlation]);
+        return $correlation;
+    };
+    $entry_for = static function (array $read, string $correlation): ?array {
+        foreach ($read['data']['entries'] ?? [] as $candidate) { if ($candidate['correlation_id'] === $correlation) { return $candidate; } }
+        return null;
+    };
+    $unreadable = 'Details could not be shown.';
+    $corrupt = $raw(['event' => 'passkey.renamed', 'actor_id' => 1, 'actor_login' => 'admin', 'passkey_name' => 'Phone', 'data' => '{"previous_name":"Old']);
+    $huge = $raw(['event' => 'passkey.deleted', 'actor_id' => 1, 'actor_login' => 'admin']);
+    $wpdb->query($wpdb->prepare("UPDATE `$table` SET target_id=18446744073709551615 WHERE correlation_id=%s", $huge));
+    $read = $logs->read($site, []);
+    $assert($read['ok'], 'A page with unreadable rows still reads');
+    $entry = $entry_for($read, $corrupt);
+    $assert([$entry['category'], $entry['action'], $entry['user'], $entry['details']] === ['Passkey', 'Renamed', 'admin', $unreadable], 'Corrupt data reads as a placeholder that keeps the event and user');
+    $assert($entry_for($read, $huge)['details'] === $unreadable, 'An out-of-range ID reads as a placeholder');
+    $assert($entry_for($read, $retired)['details'] === 'storage_failed', 'Readable rows on the same page read normally');
+    $assert($logs->read($site, ['category' => 'passkey'])['ok'] && $logs->read($site, ['ok' => true])['ok'], 'Filtered pages with unreadable rows still read');
+    $broken = static fn(string $translation, string $text): string => $text === '%s: tested' ? '%1$s %2$s %3$s' : $translation;
+    $tested = $record('passkey.tested', ['actor_id' => 1, 'passkey' => ['id' => 5, 'name' => 'Phone']]);
+    add_filter('gettext', $broken, 10, 2);
+    try { $read = $logs->read($site, []); }
+    finally { remove_filter('gettext', $broken, 10); }
+    $assert($read['ok'] && $entry_for($read, $tested)['details'] === $unreadable && $entry_for($read, $retired)['details'] === 'storage_failed', 'A translation that breaks one entry shows a placeholder for that entry only');
+
+    $prefix = $wpdb->base_prefix;
+    $wpdb->base_prefix = 'azwp_missing_';
+    $missing = new Storage($wpdb);
+    $wpdb->base_prefix = $prefix;
+    $shown = $wpdb->show_errors(true);
+    $error_log = tempnam(sys_get_temp_dir(), 'azwp');
+    $previous_log = ini_set('error_log', $error_log);
+    $previous_logging = ini_set('log_errors', '1');
+    ob_start();
+    try {
+        $inserted = $missing->insert_event(['site_id' => $site, 'occurred_at' => time(), 'event' => 'passkey.tested', 'ok' => 1, 'code' => 'ok', 'correlation_id' => bin2hex(random_bytes(16))]);
+        $restored = $wpdb->show_errors;
+    }
+    finally { $printed = ob_get_clean(); $wpdb->show_errors($shown); ini_set('error_log', (string) $previous_log); ini_set('log_errors', (string) $previous_logging); }
+    $logged = (string) file_get_contents($error_log);
+    unlink($error_log);
+    $assert(!$inserted && $printed === '', 'A failed log write prints nothing into the response');
+    $assert(str_contains($logged, 'azwp_missing_azwp_passkeys_events'), 'A failed log write still reaches the PHP error log');
+    $assert($restored, 'A log write restores the database error display setting');
+
     foreach (['marie', 'admin'] as $name) {
         $login = 'azwp_logs_' . $name . '_' . bin2hex(random_bytes(4));
         $id = wp_insert_user(['user_login' => $login, 'user_email' => $login . '@example.test', 'user_pass' => wp_generate_password(), 'role' => $name === 'admin' ? 'administrator' : 'subscriber']);
@@ -130,6 +177,7 @@ try {
     $assert($by_correlation($by_admin)['ip'] === 'erased' && $by_correlation($signin)['ip'] === '192.0.2.10', "Erasing the administrator erases the administrator's IP address and keeps the member's");
     $assert($by_correlation($by_admin)['actor_login'] === 'erased' && $by_correlation($by_admin)['passkey_name'] === 'Marie key', "An administrator's rows keep other people's passkey names");
     $assert($by_correlation($admin_own)['passkey_name'] === 'erased' && $by_correlation($admin_own)['target_login'] === 'erased', "The administrator's own passkey name is erased");
+    $corrupt_personal = $raw(['event' => 'passkey.renamed', 'actor_id' => $marie, 'target_id' => $marie, 'data' => '{"previous_name":"Secret']);
     $page = $logs->erase(get_userdata($marie)->user_email, 1);
     $assert(!$page['done'] && $page['items_removed'] && $page['items_retained'] && $page['messages'] === ['Passkey log entries are kept with usernames, passkey names and IP addresses erased.'], 'More than 100 renamed rows need a second eraser page');
     $last = $logs->erase(get_userdata($marie)->user_email, 2);
@@ -141,7 +189,8 @@ try {
     $assert($by_correlation($by_admin)['passkey_name'] === 'erased', "The owner's passkey name is erased from an administrator's row");
     $assert($by_correlation($link)['passkey_name'] === null && $by_correlation($link)['target_login'] === 'erased', 'A row with no passkey keeps a NULL passkey name');
     $assert(json_decode($by_correlation(end($renamed_rows))['data'], true) === ['previous_name' => 'erased'], 'Rows past the first eraser page are erased');
-    $assert((int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `$table` WHERE target_id=%d", $marie)) === 106, 'The eraser keeps every row');
+    $assert($by_correlation($corrupt_personal)['data'] === null, "Unreadable data in the user's rows is cleared, because it may hold personal data");
+    $assert((int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `$table` WHERE target_id=%d", $marie)) === 107, 'The eraser keeps every row');
     $nobody = $logs->erase('nobody-' . bin2hex(random_bytes(4)) . '@example.test', 1);
     $assert($nobody['done'] && !$nobody['items_removed'] && !$nobody['items_retained'], 'An unknown email erases nothing');
     $erasers = apply_filters('wp_privacy_personal_data_erasers', []);

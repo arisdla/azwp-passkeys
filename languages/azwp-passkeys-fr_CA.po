@@ -972,15 +972,15 @@ msgstr "désactivé"
 msgid "%1$s changed: %2$s → %3$s"
 msgstr "%1$s : %2$s → %3$s"
 
-#: src/class-logs.php:126
+#: src/class-logs.php:134
 msgid "system"
 msgstr "système"
 
-#: src/class-logs.php:164
+#: src/class-logs.php:172
 msgid "Passkey logs could not be erased. Try again."
 msgstr "Les journaux de clés d’accès n’ont pas pu être effacés. Réessayez."
 
-#: src/class-logs.php:168
+#: src/class-logs.php:176
 #: src/class-screens.php:34
 #: views/logs.php:2
 #: views/settings-site.php:13
@@ -1132,6 +1132,10 @@ msgid_plural "Delete all %s log entries for this site? This cannot be undone."
 msgstr[0] "Supprimer %s entrée des journaux de ce site ? Cette action est irréversible."
 msgstr[1] "Supprimer les %s entrées des journaux de ce site ? Cette action est irréversible."
 
-#: src/class-logs.php:158
+#: src/class-logs.php:166
 msgid "Passkey log entries are kept with usernames, passkey names and IP addresses erased."
 msgstr "Les entrées des journaux de clés d’accès sont conservées, avec les noms d’utilisateur, les noms de clés d’accès et les adresses IP effacés."
+
+#: src/class-logs.php:120
+msgid "Details could not be shown."
+msgstr "Les détails ne peuvent pas être affichés."

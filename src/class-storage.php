@@ -466,12 +466,17 @@ final class Storage {
         wp_cache_delete('notoptions', 'options');
         if ($switched) { restore_current_blog(); }
     }
-    /** Inside an owner transaction the write is skipped, because a rollback would take it with the operation. */
+    /**
+     * Inside an owner transaction the write is skipped, because a rollback would take it with the operation.
+     * Database errors go to the PHP error log but are not printed, so a failed write cannot corrupt the JSON response of the operation being logged.
+     */
     public function insert_event(array $row): bool {
         if ($this->in_transaction) { return false; }
         $formats = ['site_id'=>'%d','occurred_at'=>'%d','event'=>'%s','ok'=>'%d','code'=>'%s','correlation_id'=>'%s','actor_id'=>'%d','actor_login'=>'%s','target_id'=>'%d','target_login'=>'%s','passkey_id'=>'%d','passkey_name'=>'%s','passkey_aaguid'=>'%s','ip'=>'%s','data'=>'%s'];
         $row = array_intersect_key($row, $formats);
-        return $this->db->insert($this->tables['events'], $row, array_map(static fn(string $key): string => $formats[$key], array_keys($row))) !== false;
+        $shown = $this->db->hide_errors();
+        try { return $this->db->insert($this->tables['events'], $row, array_map(static fn(string $key): string => $formats[$key], array_keys($row))) !== false; }
+        finally { $this->db->show_errors($shown); }
     }
     /** One page of the site's events, newest first. A page past the end returns the last page. */
     public function read_events(int $site_id, ?array $events, ?bool $ok, int $paged, int $per_page): array {
@@ -485,21 +490,25 @@ final class Storage {
             $pages = max(1, (int) ceil($matched / $per_page));
             $paged = min($paged, $pages);
             $rows = $this->rows("SELECT * FROM `$table` WHERE $where ORDER BY id DESC" . $this->db->prepare(' LIMIT %d OFFSET %d', $per_page, ($paged - 1) * $per_page));
-            foreach ($rows as &$row) {
-                foreach (['id', 'site_id', 'actor_id', 'target_id', 'passkey_id'] as $key) {
-                    if ($row[$key] === null) { continue; }
-                    $value = (string) $row[$key];
-                    if (strlen($value) > strlen((string) PHP_INT_MAX) || (strlen($value) === strlen((string) PHP_INT_MAX) && strcmp($value, (string) PHP_INT_MAX) > 0)) { throw new \RuntimeException('ID out of range'); }
-                    $row[$key] = (int) $value;
-                }
-                $row['occurred_at'] = (int) $row['occurred_at'];
-                $row['ok'] = (bool) $row['ok'];
-                $data = $row['data'] === null ? [] : json_decode($row['data'], true, 32, JSON_THROW_ON_ERROR);
-                $row['data'] = is_array($data) ? $data : [];
-            }
-            unset($row);
-            return self::ok(['total' => $total, 'matched' => $matched, 'paged' => $paged, 'total_pages' => $pages, 'rows' => $rows]);
+            return self::ok(['total' => $total, 'matched' => $matched, 'paged' => $paged, 'total_pages' => $pages, 'rows' => array_map(self::event_row(...), $rows)]);
         } catch (\Throwable $e) { return self::error(); }
+    }
+    /** A field that does not parse is emptied and the row is marked unreadable, so one bad row never fails the page. */
+    private static function event_row(array $row): array {
+        $row['unreadable'] = false;
+        foreach (['id', 'site_id', 'actor_id', 'target_id', 'passkey_id'] as $key) {
+            if ($row[$key] === null) { continue; }
+            $value = (string) $row[$key];
+            $fits = strlen($value) < strlen((string) PHP_INT_MAX) || (strlen($value) === strlen((string) PHP_INT_MAX) && strcmp($value, (string) PHP_INT_MAX) <= 0);
+            $row[$key] = $fits ? (int) $value : null;
+            $row['unreadable'] = $row['unreadable'] || !$fits;
+        }
+        $row['occurred_at'] = (int) $row['occurred_at'];
+        $row['ok'] = (bool) $row['ok'];
+        $data = $row['data'] === null ? [] : json_decode($row['data'], true, 32);
+        $row['data'] = is_array($data) ? $data : [];
+        $row['unreadable'] = $row['unreadable'] || !is_array($data);
+        return $row;
     }
     public function clear_events(int $site_id): array {
         try {
@@ -536,8 +545,13 @@ final class Storage {
             $rows = $this->rows("SELECT id,event,actor_id,target_id,data FROM `$table` WHERE " . implode(' OR ', $clauses) . ' ORDER BY id' . $this->db->prepare(' LIMIT %d OFFSET %d', $per_page, ($page - 1) * $per_page));
             $changed = 0;
             foreach ($rows as $row) {
-                $data = $row['data'] === null ? [] : json_decode($row['data'], true, 32, JSON_THROW_ON_ERROR);
-                if (!is_array($data)) { continue; }
+                $data = $row['data'] === null ? [] : json_decode($row['data'], true, 32);
+                if (!is_array($data)) {
+                    // Data that cannot be read cannot be checked for personal data, so it is cleared.
+                    $this->query($this->db->prepare("UPDATE `$table` SET data=NULL WHERE id=%d", $row['id']));
+                    ++$changed;
+                    continue;
+                }
                 $erased = $data;
                 foreach ($personal[$row['event']] as $key => $owner) {
                     if (array_key_exists($key, $erased) && (int) $row[$owner . '_id'] === $user_id) { $erased[$key] = 'erased'; }

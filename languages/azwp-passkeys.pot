@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-07T05:28:31+00:00\n"
+"POT-Creation-Date: 2026-11-07T05:41:37+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: azwp-passkeys\n"
@@ -454,19 +454,23 @@ msgstr ""
 msgid "Passkey data could not be completely removed. Try deleting the plugin again."
 msgstr ""
 
-#: src/class-logs.php:126
+#: src/class-logs.php:120
+msgid "Details could not be shown."
+msgstr ""
+
+#: src/class-logs.php:134
 msgid "system"
 msgstr ""
 
-#: src/class-logs.php:158
+#: src/class-logs.php:166
 msgid "Passkey log entries are kept with usernames, passkey names and IP addresses erased."
 msgstr ""
 
-#: src/class-logs.php:164
+#: src/class-logs.php:172
 msgid "Passkey logs could not be erased. Try again."
 msgstr ""
 
-#: src/class-logs.php:168
+#: src/class-logs.php:176
 #: src/class-screens.php:34
 #: views/logs.php:2
 #: views/settings-site.php:13

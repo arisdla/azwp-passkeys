@@ -102,14 +102,22 @@ final class Logs {
         $format = get_option('date_format') . ' ' . get_option('time_format');
         $entries = array_map(static function (array $row) use ($all, $labels, $format): array {
             $definition = $all[$row['event']] ?? null;
+            $user = '—';
+            $details = null;
+            try {
+                $user = self::user($row, $definition['user'] ?? null);
+                if (!$row['unreadable']) { $details = $definition ? ($definition['details'])($row) : $row['code']; }
+            } catch (\Throwable) {
+                // A broken row or translation shows a placeholder for this entry only.
+            }
             return [
                 'id' => $row['id'], 'occurred_at' => $row['occurred_at'], 'time' => (string) wp_date($format, $row['occurred_at']),
                 'event' => $row['event'],
                 'category' => $definition ? $labels[$definition['category']] : '',
                 'action' => $definition ? $definition['action'] : $row['event'],
-                'user' => self::user($row, $definition['user'] ?? null),
+                'user' => $user,
                 'ok' => $row['ok'], 'code' => $row['code'],
-                'details' => $definition ? ($definition['details'])($row) : $row['code'],
+                'details' => $details ?? __('Details could not be shown.', 'azwp-passkeys'),
                 'correlation_id' => $row['correlation_id'],
                 'ip' => $row['ip'] ?? '—',
             ];
