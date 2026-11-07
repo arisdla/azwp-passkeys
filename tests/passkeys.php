@@ -181,10 +181,12 @@ try {
     $renamed = $passkeys->rename_credential($context,$alice,$record,'Work phone');
     $rename_row = $logged('rename', $renamed, $alice, $alice);
     check('a rename row carries the new name and the previous one', $renamed['ok'] && $rename_row['row']['passkey_name']==='Work phone' && json_decode((string)$rename_row['row']['data'],true)===['previous_name'=>'Passkey'] && $rename_row['details']==='Passkey: renamed to Work phone');
-    $break_update = static fn(string $query): string => str_starts_with($query, "UPDATE `{$GLOBALS['wpdb']->base_prefix}azwp_passkeys_credentials`") ? 'SELECT broken FROM' : $query;
-    add_filter('query', $break_update);
+    $wpdb = $GLOBALS['wpdb'];
+    $table = $wpdb->base_prefix . 'azwp_passkeys_credentials';
+    $trigger = 'azwp_test_rename_' . bin2hex(random_bytes(6));
+    check('rename fixture rejects updates to one credential', $wpdb->query("CREATE TRIGGER `$trigger` BEFORE UPDATE ON `$table` FOR EACH ROW BEGIN IF OLD.id=$record THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Test rename failure'; END IF; END") !== false);
     try { $rename_failed = $passkeys->rename_credential($context,$alice,$record,'Never saved'); }
-    finally { remove_filter('query', $break_update); }
+    finally { $wpdb->query("DROP TRIGGER `$trigger`"); }
     $rename_failed_row = $logged('rename', $rename_failed, $alice, $alice);
     check('a failed rename carries the current name and no data', !$rename_failed['ok'] && $rename_failed_row['row']['passkey_name']==='Work phone' && $rename_failed_row['row']['data']===null && $rename_failed_row['details']==='Work phone renaming failed: database error');
     check('passkey renamed back', $passkeys->rename_credential($context,$alice,$record,'Passkey')['ok']);
@@ -323,6 +325,36 @@ try {
     check('account switch refused without a working passkey', $passkeys->set_password_disabled($bob,true)['code']==='access_required' && !$storage->password_disabled($bob));
     check('account already switched stays saveable without a passkey', $storage->save_password_policy($bob,true)['ok'] && $passkeys->set_password_disabled($bob,true)['ok'] && $storage->save_password_policy($bob,false)['ok']);
     check('administrator without a passkey cannot be the one to need one', !$passkeys->has_usable_credential($bob,$site) && $passkeys->has_usable_credential($alice,$site));
+    $alice_cookie = $_COOKIE[LOGGED_IN_COOKIE];
+    $alice_rate_key = 'azwp_passkeys_rate_user_' . $alice;
+    delete_transient($alice_rate_key);
+    try {
+        $alice_login = array_replace($context, ['purpose'=>'login']);
+        for ($i = 0; $i < Passkeys::SIGNED_IN_ATTEMPTS_PER_MINUTE; $i++) {
+            $option = $passkeys->assertion_options($alice_login, $login_input);
+            if (!$option['ok']) { throw new RuntimeException('Signed-in login was throttled below the limit'); }
+            $storage->delete_attempt($option['data']['attempt_id']);
+        }
+        check('signed-in account is rate limited after 30 options', $passkeys->assertion_options($alice_login,$login_input)['code']==='rate_limited');
+        check('enrollment and testing share the signed-in account limit',
+            $passkeys->registration_options($context,[])['code']==='rate_limited'
+            && $passkeys->assertion_options($test_context,[])['code']==='rate_limited');
+        $unprovisioned = wp_insert_user(['user_login'=>'azwp_rate_target_'.bin2hex(random_bytes(6)), 'user_pass'=>wp_generate_password(), 'role'=>'subscriber']);
+        if (is_wp_error($unprovisioned)) { throw new RuntimeException('Could not create the rate test enrollment target'); }
+        $users[] = $unprovisioned;
+        set_transient('azwp_passkeys_rate_user_' . $admin, Passkeys::SIGNED_IN_ATTEMPTS_PER_MINUTE, MINUTE_IN_SECONDS);
+        check('rate-limited enrollment cannot provision a different account',
+            $passkeys->registration_options($become($admin), ['target_id'=>(string)$unprovisioned])['code'] === 'rate_limited'
+            && $storage->get_identity($unprovisioned)['data']['identity'] === null);
+        $bob_login = array_replace($become($bob), ['purpose'=>'login']);
+        $other_option = $passkeys->assertion_options($bob_login, $login_input);
+        if ($other_option['ok']) { $attempt_ids[] = $other_option['data']['attempt_id']; }
+        check('one account hitting its limit leaves a different account on the same address able to sign in', $other_option['ok']);
+    } finally {
+        delete_transient($alice_rate_key);
+        wp_set_current_user($alice);
+        $_COOKIE[LOGGED_IN_COOKIE] = $alice_cookie;
+    }
     $removed = $passkeys->remove_credential($context,$alice,$record);
     check('credential removal confirmed with alternative sign-in', $removed['ok']);
     $deleted_row = $logged('remove', $removed, $alice, $alice);

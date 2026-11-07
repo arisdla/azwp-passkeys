@@ -41,28 +41,13 @@ final class Screens {
         $args['include']=$this->passkeys->members_without_passkey(get_current_blog_id())?:[0];
         return $args;
     }
-    /** Members without a working passkey, keyed by site, for every site the Passkey only switch on this page affects. */
-    private function readiness(bool $network): array {
-        $sites=$network?array_map('intval',get_sites(['fields'=>'ids','network_id'=>get_current_network_id(),'number'=>0])):[get_current_blog_id()];
-        $readiness=[];
-        foreach ($sites as $site_id) { $ids=$this->passkeys->members_without_passkey($site_id); if ($ids) $readiness[$site_id]=$ids; }
-        return $readiness;
-    }
-    private static function readiness_total(array $readiness): int {
-        return count(array_unique(array_merge([],...array_values($readiness))));
-    }
-    /** Identifies the exact set of accounts, so a confirmation cannot approve a different set with the same size. */
-    private static function readiness_token(array $readiness): string {
-        $ids=array_unique(array_merge([],...array_values($readiness))); sort($ids);
-        return $ids?substr(hash('sha256',implode(',',$ids)),0,32):'';
-    }
     private function readiness_notice(bool $network,bool $editable,bool $on): void {
-        $readiness=$this->readiness($network); if (!$readiness) return;
-        $total=self::readiness_total($readiness);
+        $readiness=$this->passkeys->readiness($network); if (!$readiness) return;
+        $total=count(array_unique(array_merge([],...array_values($readiness))));
         $text=$network
             ?sprintf(_n('%d account has no working passkey on at least one site and cannot sign in there while Passkey only mode is on.','%d accounts have no working passkey on at least one site and cannot sign in there while Passkey only mode is on.',$total,'azwp-passkeys'),$total)
             :sprintf(_n('%d member has no working passkey for this site and cannot sign in while Passkey only mode is on.','%d members have no working passkey for this site and cannot sign in while Passkey only mode is on.',$total,'azwp-passkeys'),$total);
-        $token=self::readiness_token($readiness);
+        $token=Passkeys::readiness_token($readiness);
         echo '<div class="notice notice-warning inline" data-passkey-only-readiness="'.esc_attr((string)$total).'" data-passkey-only-token="'.esc_attr($token).'"><p>'.esc_html($text).'</p><ul>';
         foreach ($readiness as $site_id=>$ids) {
             $label=$network?sprintf(__('%1$s: %2$d','azwp-passkeys'),get_blog_option($site_id,'blogname'),count($ids)):__('View these members','azwp-passkeys');
@@ -206,26 +191,9 @@ final class Screens {
         $network=$scope==='network'; $id=$network?get_current_network_id():get_current_blog_id();
         if (!current_user_can($network?'manage_network_options':'manage_options')) wp_die(esc_html__('You do not have permission to manage these settings.','azwp-passkeys'));
         check_admin_referer('azwp_passkeys_save_'.$scope.'_'.$id);
-        $input=wp_unslash($_POST); $method='save_'.$scope;
+        $input=wp_unslash($_POST);
         $url=$network?network_admin_url('settings.php?page=azwp-passkeys'):admin_url($scope==='logs'?'tools.php?page=azwp-passkeys-logs':'options-general.php?page=azwp-passkeys');
-        $effective=$this->settings->get_effective(get_current_blog_id());
-        // Passkey only mode removes the password form, so the saving administrator must be able to get back in.
-        $sets_only=$scope!=='logs'&&($network||!is_multisite())&&($input['passkey_only']??null)==='1'&&empty($effective['passkey_only']);
-        // The checks below use the stored passkey domain, so a save that leaves the mode on must keep that domain and a usable configuration.
-        $only_after=$scope==='site'&&(is_multisite()?!empty($effective['passkey_only']):($input['passkey_only']??null)==='1');
-        $locked=$only_after?array_keys(array_filter([
-            'rp_id'=>strtolower(trim((string)($input['rp_id']??'')))!==$effective['rp_id'],
-            'rp_name'=>trim((string)($input['rp_name']??''))==='',
-        ])):[];
-        if ($locked) {
-            $result=['ok'=>false,'data'=>['invalid'=>[...$locked,'passkey_only_locked']]];
-        } elseif ($sets_only&&!$this->passkeys->has_usable_credential(get_current_user_id(),get_current_blog_id())) {
-            $result=['ok'=>false,'data'=>['invalid'=>['passkey_only']]];
-        } elseif ($sets_only&&($token=self::readiness_token($this->readiness($network)))!==''&&!hash_equals($token,(string)($input['passkey_only_confirmed']??''))) {
-            $result=['ok'=>false,'data'=>['invalid'=>['passkey_only_confirm']]];
-        } else {
-            $result=$this->settings->$method($input);
-        }
+        $result=$scope==='logs'?$this->settings->save_logs($input):$this->passkeys->save_settings_form($scope,$input);
         $query=['status'=>!empty($result['ok'])?'settings_saved':'settings_failed'];
         if (empty($result['ok']) && !empty($result['data']['invalid'])) $query['invalid']=implode(',',array_intersect($result['data']['invalid'],[...array_keys($this->settings->definitions()),'passkey_only_confirm','passkey_only_locked']));
         wp_safe_redirect(add_query_arg($query,$url)); exit;

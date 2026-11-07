@@ -8,6 +8,8 @@ require_once ABSPATH . 'wp-admin/includes/user.php';
 
 use AZWP\Passkeys\Storage;
 use AZWP\Passkeys\Settings;
+use AZWP\Passkeys\Passkeys;
+use AZWP\Passkeys\WebAuthn;
 
 $checks = 0;
 $assert = static function (bool $condition, string $label) use (&$checks): void {
@@ -16,6 +18,7 @@ $assert = static function (bool $condition, string $label) use (&$checks): void 
 };
 $storage = new Storage($GLOBALS['wpdb']);
 $settings = new Settings($storage, new \AZWP\Passkeys\Logs($storage));
+$passkeys = new Passkeys($settings, $storage, new WebAuthn());
 $assert($storage->install_schema()['ok'], 'Transactional schema installs');
 $assert($storage->install_schema()['ok'], 'Schema installation is idempotent');
 $logs_table = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_events';
@@ -42,7 +45,7 @@ try {
     $assert($identity['ok'] && strlen($identity['data']['identity']['handle']) === 64 && (int) $identity['data']['identity']['enrollment_initialized'] === 0, 'Lock provisioning does not initialize enrollment');
     $initialized = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->initialize_identity($user_id));
     $assert($initialized['ok'] && $initialized['data']['identity']['handle'] === $identity['data']['identity']['handle'], 'Enrollment retains stable handle');
-    $row = ['user_id'=>$user_id,'site_id'=>$site_id,'credential_id'=>"\0".random_bytes(64),'rp_id'=>'example.test','public_key_pem'=>'validated PEM fixture','public_key_cose'=>"\xa1\x01\x02",'credential_type'=>'public-key','attestation_type'=>'none','trust_path'=>[],'aaguid'=>str_repeat("\0",16),'other_ui'=>null,'algorithm'=>-7,'sign_count'=>0,'backup_eligible'=>false,'backed_up'=>false,'transports'=>['internal'],'name'=>'Test passkey','created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
+    $row = ['user_id'=>$user_id,'site_id'=>$site_id,'credential_id'=>"\0%\xff".random_bytes(64),'rp_id'=>'example.test','public_key_pem'=>'validated PEM fixture','public_key_cose'=>"\xa1\x01\x02",'credential_type'=>'public-key','attestation_type'=>'none','trust_path'=>[],'aaguid'=>str_repeat("\0",16),'other_ui'=>null,'algorithm'=>-7,'sign_count'=>0,'backup_eligible'=>false,'backed_up'=>false,'transports'=>['internal'],'name'=>'Test passkey','created_at'=>time(),'created_local'=>current_time('mysql'),'last_used_local'=>null];
     $saved = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->insert_credential($row));
     $assert($saved['ok'], 'Credential insert confirmed');
     $record_id = $saved['data']['credential']['id'];
@@ -60,6 +63,35 @@ try {
         return ['ok'=>false,'code'=>'state_changed','data'=>[],'message'=>''];
     });
     $assert(!$rollback['ok'] && $storage->get_credential($record_id)['data']['credential']['name'] === 'New name', 'Failed operation rolls back stored changes');
+    $observer = $GLOBALS['wpdb'];
+    $disconnect = static function (bool $delete_after_disconnect) use ($observer, $storage, $user_id, $record_id, $assert): array {
+        $victim = new wpdb(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
+        $victim->set_prefix($observer->base_prefix);
+        $victim->set_blog_id(get_current_blog_id());
+        try {
+            $connection_id = (int) $victim->get_var('SELECT CONNECTION_ID()');
+            $assert($connection_id > 0 && $connection_id !== (int) $observer->get_var('SELECT CONNECTION_ID()'), 'The victim uses a separate database connection');
+            $killed = false;
+            $result = (new Storage($victim))->with_owner_lock($user_id, static function (Storage $store) use ($record_id, $observer, $connection_id, $delete_after_disconnect, &$killed): array {
+                $changed = $store->update_credential($record_id, ['name'=>'Uncommitted name']);
+                if (!$changed['ok']) { return $changed; }
+                $killed = $observer->query("KILL CONNECTION $connection_id") !== false;
+                return $delete_after_disconnect ? $store->delete_credential($record_id) : $changed;
+            });
+            $assert($killed, 'The observer disconnected the victim after a successful credential update');
+            $observed = $storage->get_credential($record_id);
+            $assert($observed['ok'], 'The observer can still read after the victim disconnects');
+            return [$result['code'], $result['ok'], $observed['data']['credential']['name'] ?? null];
+        } finally {
+            $victim->close();
+        }
+    };
+    $commit_loss = $disconnect(false);
+    $mutation_loss = $disconnect(true);
+    $assert(
+        $commit_loss === ['outcome_unknown', false, 'New name'] && $mutation_loss === ['storage_failed', false, 'New name'],
+        'Connection loss must fail without committing or replaying writes. Observed ' . wp_json_encode([$commit_loss, $mutation_loss])
+    );
     $attempt_bytes = random_bytes(32);
     $attempt_id = rtrim(strtr(base64_encode($attempt_bytes), '+/', '-_'), '=');
     $binding = ['site_id'=>$site_id,'purpose'=>'login','actor_id'=>0,'browser_hash'=>hash('sha256','browser',true),'session_hash'=>null];
@@ -75,22 +107,21 @@ try {
     $assert($flag['ok'] && $storage->password_disabled($user_id), 'Password flag persistence confirmed');
     $diag = $settings->save_logs(['logging'=>'1']);
     $assert($diag['ok'], 'Log page save accepts declared form representation');
-    $before = $settings->get_effective($site_id);
     $form = ['rp_name'=>'Test site','rp_id'=>'example.test','passkey_only'=>'0','remember_login'=>'1','reset_restriction'=>'off','after_registration'=>'add_passkey'];
-    $settings_result = $settings->save_site($form);
+    $settings_result = $passkeys->save_settings_form('site', $form);
     $assert($settings_result['ok'] && $settings->get_effective($site_id)['after_registration'] === (is_multisite() ? 'default' : 'add_passkey'), 'After registration saves only on single-site');
     if (!is_multisite()) {
-        $missing = $settings->save_site(array_diff_key($form, ['after_registration'=>true]));
+        $missing = $passkeys->save_settings_form('site', array_diff_key($form, ['after_registration'=>true]));
         $assert(!$missing['ok'] && in_array('after_registration', $missing['data']['invalid'], true), 'Single-site save requires After registration');
     }
     $assert($settings_result['ok'] && $settings->get_effective($site_id)['logging'] === true, 'Site settings retain the logging state');
     foreach (['127.0.0.1', '10.0.0.5', '2130706433'] as $ip) {
-        $rejected = $settings->save_site(array_replace($form, ['rp_id'=>$ip]));
+        $rejected = $passkeys->save_settings_form('site', array_replace($form, ['rp_id'=>$ip]));
         $assert(!$rejected['ok'] && in_array('rp_id', $rejected['data']['invalid'], true), "Passkey domain rejects IP address $ip");
     }
-    $assert($settings->save_site(array_replace($form, ['rp_id'=>'localhost']))['ok'], 'Passkey domain accepts localhost');
-    $settings->save_site($form);
-    $invalid = $settings->save_site(array_replace($form, ['remember_login'=>'invalid']));
+    $assert($passkeys->save_settings_form('site', array_replace($form, ['rp_id'=>'localhost']))['ok'], 'Passkey domain accepts localhost');
+    $passkeys->save_settings_form('site', $form);
+    $invalid = $passkeys->save_settings_form('site', array_replace($form, ['remember_login'=>'invalid']));
     $assert(!$invalid['ok'] && $settings->get_effective($site_id)['remember_login'] === true, 'Invalid site save does not overwrite stored state');
     $event = ['site_id'=>$site_id,'occurred_at'=>time(),'event'=>'passkey.tested','ok'=>1,'code'=>'ok','correlation_id'=>bin2hex(random_bytes(16)),'actor_id'=>$user_id,'actor_login'=>null,'target_id'=>null,'target_login'=>null,'passkey_id'=>$record_id,'passkey_name'=>'Test passkey','passkey_aaguid'=>str_repeat("\0",16),'data'=>null];
     $locked = $storage->with_owner_lock($user_id, static fn(Storage $store): array => ['ok'=>$store->insert_event($event),'code'=>'ok','data'=>[],'message'=>'']);

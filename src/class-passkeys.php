@@ -6,6 +6,7 @@ final class Passkeys
 {
     public const ATTEMPT_TTL_SECONDS = 90;
     public const ANONYMOUS_ATTEMPTS_PER_MINUTE = 30;
+    public const SIGNED_IN_ATTEMPTS_PER_MINUTE = 30;
     public const REDIRECT_MAX_BYTES = 8192;
     public const SETUP_LINK_TTL_SECONDS = 3600;
     public function __construct(private Settings $settings, private Storage $storage, private WebAuthn $webauthn) {}
@@ -35,16 +36,13 @@ final class Passkeys
             try { $origins[] = WebAuthn::canonical_origin($url, true); }
             catch (\InvalidArgumentException) { continue; }
         }
-        $definitions = $this->settings->definitions();
         $network_id = 0;
         if (is_multisite()) {
             $site = get_site($site_id);
             $network_id = $site ? (int) $site->network_id : (int) get_current_network_id();
         }
         return ['site_id'=>$site_id, 'network_id'=>$network_id,
-            'origins'=>array_values(array_unique($origins)),
-            'defaults'=>array_map(static fn(array $definition) => $definition['default'], $definitions),
-            'network_keys'=>array_filter($definitions, static fn(array $definition): bool => $definition['scope']==='network')];
+            'origins'=>array_values(array_unique($origins))];
     }
     private function configuration_values(array $settings, array $inputs): array
     {
@@ -62,12 +60,10 @@ final class Passkeys
     /** Only direct storage reads and pure value checks occur under the coordinator. */
     private function locked_settings(Storage $storage, array $inputs): array
     {
-        $settings = array_replace($inputs['defaults'], $storage->site_defaults($inputs['site_id']),
-            array_intersect_key($storage->read_site_settings($inputs['site_id']), $inputs['defaults']));
+        $site_id = $inputs['site_id'];
+        $settings = Settings::site_values($storage->site_defaults($site_id), $storage->read_site_settings($site_id));
         if ($inputs['network_id']) {
-            $network = array_replace(array_intersect_key($inputs['defaults'], $inputs['network_keys']),
-                array_intersect_key($storage->read_network_settings($inputs['network_id']), $inputs['network_keys']));
-            $settings = array_replace($settings, $network);
+            $settings = array_replace($settings, Settings::network_values($storage->read_network_settings($inputs['network_id'])));
         }
         return $settings;
     }
@@ -142,6 +138,7 @@ final class Passkeys
     {
         $target = $this->target($context, $input);
         if (!$target || !$this->authorized($context, $target)) { return $this->error('forbidden'); }
+        if (!$this->signed_in_options_allowed((int) $context['actor_id'])) { return $this->error('rate_limited'); }
         $context['purpose'] = 'register';
         return $this->issue_registration($context, $target);
     }
@@ -303,6 +300,7 @@ final class Passkeys
         $target = self::numeric_id($input['user_id'] ?? null);
         if (!$target || ($context['actor_id'] && (int) $context['actor_id'] !== $target)) { return $this->error('forbidden'); }
         if (!$this->setup_link_valid($target, $input['token'] ?? null, $context['site_id'])) { return $this->error('attempt_unavailable'); }
+        if (!$this->signed_in_options_allowed((int) $context['actor_id'])) { return $this->error('rate_limited'); }
         $context['purpose'] = 'setup';
         return $this->issue_registration($context, $target);
     }
@@ -377,11 +375,14 @@ final class Passkeys
             if ($switched) { restore_previous_locale(); }
         }
     }
-    /** Counts anonymous sign-in requests per client address. Reverse proxies must supply the real REMOTE_ADDR. */
     private function anonymous_allowed(): bool
     {
         $address = is_string($_SERVER['REMOTE_ADDR'] ?? null) ? $_SERVER['REMOTE_ADDR'] : '';
         return $this->storage->consume_rate('azwp_passkeys_rate_' . substr(hash_hmac('sha256', $address, wp_salt('auth')), 0, 32), self::ANONYMOUS_ATTEMPTS_PER_MINUTE);
+    }
+    private function signed_in_options_allowed(int $actor): bool
+    {
+        return $actor === 0 || $this->storage->consume_rate('azwp_passkeys_rate_user_' . $actor, self::SIGNED_IN_ATTEMPTS_PER_MINUTE);
     }
     public function assertion_options(array $context, array $input): array
     {
@@ -393,6 +394,7 @@ final class Passkeys
         if ($context['purpose'] === 'login') {
             if (!is_bool($input['remember'] ?? null) || !is_string($input['redirect_to'] ?? null) || strlen($input['redirect_to']) > self::REDIRECT_MAX_BYTES || !in_array($input['surface'] ?? null,['native','frontend'],true)) { return $this->error('invalid_request'); }
             if ($input['remember'] && !$config['settings']['remember_login']) { return $this->error('invalid_request'); }
+            if (!$this->signed_in_options_allowed((int) $context['actor_id'])) { return $this->error('rate_limited'); }
             return $this->issue($context,null,$issued+['remember'=>$input['remember'],'redirect_to'=>$input['redirect_to'],'surface'=>$input['surface']],false);
         }
         $target = $this->target($context,$input);
@@ -401,6 +403,7 @@ final class Passkeys
         $rows=$this->storage->get_credentials($target); if (!$rows['ok']) { return $rows; }
         $credentials=!empty($identity['data']['identity']['enrollment_initialized']) ? array_values(array_filter($rows['data']['credentials'],fn($row)=>$this->eligible($row,$config))) : [];
         if (!$credentials) { return $this->error('no_credentials'); }
+        if (!$this->signed_in_options_allowed((int) $context['actor_id'])) { return $this->error('rate_limited'); }
         return $this->issue($context,$target,$issued+['allow_credentials'=>$this->descriptors($credentials),'user_handle'=>$identity['data']['identity']['handle']],false);
     }
     public function verify_assertion(array $context, array $input): array
@@ -471,18 +474,116 @@ final class Passkeys
         foreach($rows as $row) { if ((int)$row['id']!==$record_id && $this->eligible($row,$configuration)) { return true; } }
         return empty($configuration['settings']['passkey_only']) && !$this->storage->password_disabled($target) && $this->storage->get_account_password($target)!=='';
     }
-    /** Site members who could not sign in under Passkey only mode, or null when passkeys are not configured. */
+    /** Site members who could not sign in under Passkey only mode, or null if the query failed. */
     public function members_without_passkey(int $site_id): ?array
     {
-        $config=$this->configuration($site_id); if (!$config['ok']) { return null; }
-        try { return $this->storage->members_without_passkey($site_id,$config['data']['rp_id']); } catch (\Throwable) { return null; }
+        try {
+            $config = $this->configuration($site_id);
+            return $this->storage->members_without_passkey($site_id, $config['data']['rp_id'] ?? null);
+        } catch (\Throwable) { return null; }
+    }
+    private function readiness_site_ids(bool $network): array
+    {
+        return $network && is_multisite()
+            ? $this->storage->network_site_ids(get_current_network_id())
+            : [get_current_blog_id()];
+    }
+    public function readiness(bool $network): ?array
+    {
+        $readiness = [];
+        try { $site_ids = $this->readiness_site_ids($network); }
+        catch (\Throwable) { return null; }
+        foreach ($site_ids as $site_id) {
+            $ids = $this->members_without_passkey($site_id);
+            if ($ids === null) { return null; }
+            if ($ids) { $readiness[$site_id] = $ids; }
+        }
+        return $readiness;
+    }
+    public static function readiness_token(array $readiness): string
+    {
+        $readiness = array_filter($readiness);
+        if (!$readiness) { return ''; }
+        ksort($readiness, SORT_NUMERIC);
+        foreach ($readiness as &$ids) { sort($ids, SORT_NUMERIC); }
+        unset($ids);
+        return substr(hash('sha256', json_encode($readiness, JSON_THROW_ON_ERROR)), 0, 32);
+    }
+    public function save_settings_form(string $scope, array $input): array
+    {
+        $site_id = get_current_blog_id();
+        $actor = get_current_user_id();
+        try {
+            $inputs = $this->configuration_inputs($site_id);
+            $site_inputs = [$site_id => $inputs];
+            if ($scope === 'network' && ($input['passkey_only'] ?? null) === '1') {
+                foreach ($this->readiness_site_ids(true) as $id) {
+                    $site_inputs[$id] ??= $this->configuration_inputs($id);
+                }
+            }
+        } catch (\Throwable) { return $this->error('storage_failed'); }
+        $confirmed = is_string($input['passkey_only_confirmed'] ?? null) ? $input['passkey_only_confirmed'] : '';
+        $validate = fn(Storage $storage, array $values): array => $this->validate_settings_change($storage, $scope, $values, $actor, $inputs, $site_inputs, $confirmed);
+        return match ($scope) {
+            'site' => $this->settings->save_site($input, $validate),
+            'network' => $this->settings->save_network($input, $validate),
+            default => $this->error('invalid_request'),
+        };
+    }
+    private function invalid_settings(array $fields): array
+    {
+        return array_replace($this->error('invalid_request'), ['data'=>['invalid'=>$fields]]);
+    }
+    private function validate_settings_change(Storage $storage, string $scope, array $values, int $actor, array $inputs, array $site_inputs, string $confirmed): array
+    {
+        $before = $this->locked_settings($storage, $inputs);
+        $after = array_replace($before, $values);
+        if (empty($after['passkey_only'])) { return $this->ok(); }
+        if ($scope === 'site') {
+            $locked = [];
+            if ($after['rp_id'] !== $before['rp_id']) { $locked[] = 'rp_id'; }
+            if (!is_string($after['rp_name']) || trim($after['rp_name']) === '') { $locked[] = 'rp_name'; }
+            if ($locked) { return $this->invalid_settings([...$locked, 'passkey_only_locked']); }
+        }
+        if (!empty($before['passkey_only'])) { return $this->ok(); }
+        $config = $this->configuration_values($after, $inputs);
+        if (!$this->usable_credential($storage, $actor, $inputs, $config)) {
+            return $this->invalid_settings(['passkey_only']);
+        }
+        if ($scope === 'network' && $inputs['network_id']) {
+            $captured_ids = array_keys($site_inputs);
+            sort($captured_ids, SORT_NUMERIC);
+            if ($captured_ids !== $storage->network_site_ids($inputs['network_id'])) {
+                return $this->invalid_settings(['passkey_only_confirm']);
+            }
+        }
+        $readiness = [];
+        foreach ($site_inputs as $site_id => $site_input) {
+            $site_config = $site_id === $inputs['site_id'] ? $config
+                : $this->configuration_values(array_replace($this->locked_settings($storage, $site_input), $values), $site_input);
+            $readiness[$site_id] = $storage->members_without_passkey($site_id, $site_config['data']['rp_id'] ?? null);
+        }
+        $token = self::readiness_token($readiness);
+        return $token !== '' && !hash_equals($token, $confirmed) ? $this->invalid_settings(['passkey_only_confirm']) : $this->ok();
     }
     /** Whether the account holds a passkey that works under the site's current settings. */
     public function has_usable_credential(int $user_id,int $site_id): bool
     {
-        $config=$this->configuration($site_id); $rows=$this->storage->get_credentials($user_id);
-        if (!$config['ok'] || !$rows['ok']) { return false; }
-        foreach($rows['data']['credentials'] as $row) { if ($this->eligible($row,$config['data'])) { return true; } }
+        try {
+            $inputs = $this->configuration_inputs($site_id);
+            $config = $this->configuration_values($this->settings->get_effective($site_id), $inputs);
+            return $this->usable_credential($this->storage, $user_id, $inputs, $config);
+        } catch (\Throwable) { return false; }
+    }
+    private function usable_credential(Storage $storage, int $user_id, array $inputs, array $config): bool
+    {
+        if (!$config['ok'] || !$storage->account_exists($user_id)) { return false; }
+        $identity = $storage->get_identity($user_id);
+        if (!$identity['ok']) { throw new \RuntimeException('Could not read the passkey identity'); }
+        if (empty($identity['data']['identity'])) { return false; }
+        $rows = $storage->get_credentials($user_id, $inputs['network_id'] ? null : $inputs['site_id']);
+        if (!$rows['ok']) { throw new \RuntimeException('Could not read the account passkeys'); }
+        foreach ($rows['data']['credentials'] as $row) { if ($row['rp_id'] === $config['data']['rp_id']) { return true; } }
         return false;
     }
     /** Turning password sign-in off needs a working passkey, checked under the same lock as the write. */

@@ -4,6 +4,7 @@ if (!defined('ABSPATH') || !defined('AZWP_PASSKEYS_TESTS') || AZWP_PASSKEYS_TEST
 if (!function_exists('pcntl_fork') || !function_exists('posix_kill')) { throw new RuntimeException('Concurrency tests require test-only pcntl and posix support.'); }
 require_once dirname(__DIR__) . '/autoload.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
+if (is_multisite()) { require_once ABSPATH . 'wp-admin/includes/ms.php'; }
 use AZWP\Passkeys\{Storage,Settings,Passkeys,WebAuthn,Logs};
 $checks=0;
 $assert=static function(bool $ok,string $label) use (&$checks):void { if(!$ok){throw new RuntimeException($label);} ++$checks; };
@@ -13,9 +14,11 @@ if(!mkdir($directory,0700)){throw new RuntimeException('Cannot create test barri
 $wpdb=$GLOBALS['wpdb']; $site=get_current_blog_id(); $base=$wpdb->base_prefix;
 $storage=new Storage($wpdb); $settings=new Settings($storage,new Logs($storage)); $passkeys=new Passkeys($settings,$storage,new WebAuthn());
 $storage->install_schema();
-$user=wp_insert_user(['user_login'=>'azwp_race_'.bin2hex(random_bytes(6)),'user_pass'=>wp_generate_password(),'role'=>'subscriber']);
+$user=wp_insert_user(['user_login'=>'azwp_race_'.bin2hex(random_bytes(6)),'user_pass'=>wp_generate_password(),'role'=>'administrator']);
 if(is_wp_error($user)){throw new RuntimeException('Test account creation failed');}
 $original_user=get_current_user_id(); wp_set_current_user($user);
+$original_site_settings=get_option('azwp_passkeys_settings',null);
+$original_network_settings=is_multisite()?get_network_option(get_current_network_id(),'azwp_passkeys_network_settings',null):null;
 $context=['site_id'=>$site,'actor_id'=>$user,'session_hash'=>hash('sha256',wp_get_session_token(),true)];
 $config=$passkeys->configuration($site);
 if(!$config['ok']){wp_delete_user($user);rmdir($directory);throw new RuntimeException('Concurrency fixture requires a valid site RP/origin configuration');}
@@ -35,8 +38,8 @@ $pair=static function(string $name,array $jobs)use($wpdb,$base,$site,$directory,
                     $db=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$db->set_prefix($base);$db->set_blog_id($site);$GLOBALS['wpdb']=$db;
                     $s=new Storage($db);$p=new Passkeys(new Settings($s,new Logs($s)),$s,new WebAuthn());
                     touch($run.'/ready'.$index);$wait($run.'/ready'.(1-$index));
-                    $result=$job($s,$p,$db,$run,$wait);$db->close();
-                    file_put_contents($run.'/result'.$index,json_encode(['ok'=>(bool)($result['ok']??false),'code'=>(string)($result['code']??'invalid_result')],JSON_THROW_ON_ERROR));exit(0);
+                    $result=$job($s,$p,$db,$run,$wait);
+                    file_put_contents($run.'/result'.$index,json_encode(['ok'=>(bool)($result['ok']??false),'code'=>(string)($result['code']??'invalid_result'),'invalid'=>$result['data']['invalid']??[]],JSON_THROW_ON_ERROR));exit(0);
                 }catch(Throwable $e){file_put_contents($run.'/result'.$index,json_encode(['worker_error'=>$e->getMessage()]));exit(1);}
             }
             $pids[]=$pid;
@@ -88,7 +91,38 @@ try {
     $results=$pair('last-method',[static fn($s,$p)=>$p->remove_credential($context,$user,$one['id']),static fn($s,$p)=>$p->remove_credential($context,$user,$two['id'])]);
     $assert(count(array_filter($results,static fn($r)=>$r['ok']))===1,'Only one of two concurrent removals succeeds');
     $assert(count(array_filter($results,static fn($r)=>$r['code']==='access_required'))===1,'Second removal protects remaining sign-in method');
-    $assert(count($storage->get_credentials($user)['data']['credentials'])===1,'One usable credential remains stored');
+    $remaining=$storage->get_credentials($user)['data']['credentials'];
+    $assert(count($remaining)===1,'One usable credential remains stored');
+
+    $network=is_multisite();
+    if ($network) { $assert(grant_super_admin($user),'Grant network options to the disposable administrator'); }
+    $form=$network?'network':'site';
+    $scope_id=$network?get_current_network_id():$site;
+    $assert($storage->save_password_policy($user,false)['ok'],'Allow password sign-in for the settings races');
+    $assert($storage->save_settings($form,$scope_id,['passkey_only'=>false])['ok'],'Start settings races with the mode off');
+    $site_fields=['rp_id'=>$config['data']['rp_id'],'rp_name'=>$config['data']['rp_name'],'remember_login'=>'0','reset_restriction'=>'off','after_registration'=>'default'];
+    $enable_input=($network?[]:$site_fields)+['passkey_only'=>'1','passkey_only_confirmed'=>Passkeys::readiness_token($passkeys->readiness($network))];
+    $enable=static fn($s,$p)=>$p->save_settings_form($form,$enable_input);
+    $remove=static fn($s,$p)=>$p->remove_credential($context,$user,$remaining[0]['id']);
+    $results=$pair('settings-remove-first',$ordered($remove,$enable));
+    $assert($results[0]['ok']&&!$results[1]['ok']&&$results[1]['invalid']===['passkey_only'],'Removing the last key first rejects concurrent mode enable');
+    $assert(!$settings->get_effective($site)['passkey_only'],'Mode remains off after the failed enable');
+
+    $replacement=$insert();
+    $remove=static fn($s,$p)=>$p->remove_credential($context,$user,$replacement['id']);
+    $results=$pair('settings-enable-first',$ordered($enable,$remove));
+    $assert($results[0]['ok']&&!$results[1]['ok']&&$results[1]['code']==='access_required','Enabling the mode first protects the last key from concurrent removal');
+    $assert($storage->save_settings($form,$scope_id,['passkey_only'=>false])['ok'],'Restore passwords before the domain race');
+
+    $new_rp=$site_fields['rp_id']==='example.org'?'example.net':'example.org';
+    $change_rp=static fn($s,$p)=>$p->save_settings_form('site',array_replace($site_fields,['rp_id'=>$new_rp,'passkey_only'=>'0']));
+    $results=$pair('settings-domain-first',$ordered($change_rp,$enable));
+    $after=$settings->get_effective($site);
+    $expected_invalid=$network?['passkey_only']:['rp_id','passkey_only_locked'];
+    $assert($results[0]['ok']&&!$results[1]['ok']&&$results[1]['invalid']===$expected_invalid,'Changing the domain first rejects concurrent mode enable using the stale domain');
+    $assert(!$after['passkey_only']&&$after['rp_id']===$new_rp,'The mode stays off with the changed domain');
+    $assert($storage->save_settings('site',$site,['rp_id'=>$site_fields['rp_id']])['ok'],'Restore domain for the rate test');
+
     $original_address=$_SERVER['REMOTE_ADDR']??null;$_SERVER['REMOTE_ADDR']='203.0.113.'.random_int(1,254);
     $anonymous=['site_id'=>$site,'actor_id'=>0,'browser_hash'=>random_bytes(32),'session_hash'=>null,'purpose'=>'login'];$login=['remember'=>false,'redirect_to'=>'','surface'=>'native'];
     try {
@@ -109,6 +143,15 @@ try {
     }
     echo "Concurrency integration: $checks checks passed.\n";
 }finally{
-    $storage->cleanup_user($user);wp_delete_user($user);wp_set_current_user($original_user);
+    if ($original_site_settings===null) { delete_option('azwp_passkeys_settings'); }
+    else { update_option('azwp_passkeys_settings',$original_site_settings); }
+    if (is_multisite()) {
+        if ($original_network_settings===null) { delete_network_option(get_current_network_id(),'azwp_passkeys_network_settings'); }
+        else { update_network_option(get_current_network_id(),'azwp_passkeys_network_settings',$original_network_settings); }
+        revoke_super_admin($user);
+    }
+    $storage->cleanup_user($user);
+    if (is_multisite()) { wpmu_delete_user($user); } else { wp_delete_user($user); }
+    wp_set_current_user($original_user);
     foreach(glob($directory.'/*')?:[] as $file){if(is_file($file)){unlink($file);}}rmdir($directory);
 }

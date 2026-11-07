@@ -5,6 +5,7 @@ if (!defined('ABSPATH') || !defined('AZWP_PASSKEYS_TESTS') || AZWP_PASSKEYS_TEST
 }
 require_once dirname(__DIR__) . '/autoload.php';
 require_once ABSPATH . 'wp-admin/includes/user.php';
+if (is_multisite()) { require_once ABSPATH . 'wp-admin/includes/ms.php'; }
 require_once __DIR__ . '/fixtures.php';
 use AZWP\Passkeys\{Storage, Settings, Passkeys, WebAuthn, Screens};
 
@@ -18,6 +19,7 @@ $original = get_option('azwp_passkeys_settings');
 $original_network = is_multisite() ? get_network_option(get_current_network_id(), 'azwp_passkeys_network_settings') : null;
 $browser = hash('sha256', random_bytes(32), true);
 $users = [];
+$subsites = [];
 
 $make_user = static function (string $role) use (&$users): int {
     $login = 'azwp_only_' . bin2hex(random_bytes(5));
@@ -85,14 +87,51 @@ try {
     check('the mode cannot be turned on with another account in place of a now-ready one', $enroll($stranded) && ($become($admin) && true) && $make_user('subscriber') > 0
         && str_contains($save($form, $site_fields + ['passkey_only' => '1', 'passkey_only_confirmed' => $token]), 'passkey_only_confirm') && !$mode_on());
 
+    $fresh = $page_token();
+    $admin_key = $storage->get_credentials($admin)['data']['credentials'][0]['id'];
+    check('the administrator can remove their last passkey while the mode is off', $passkeys->remove_credential($become($admin), $admin, $admin_key)['ok']);
+    check('a rendered confirmation cannot enable the mode after the administrator loses their last key',
+        str_contains($save($form, $site_fields + ['passkey_only' => '1', 'passkey_only_confirmed' => $fresh]), 'invalid=passkey_only')
+        && !$mode_on());
+    check('administrator enrolls a replacement passkey', $enroll($admin));
+
     if (!is_multisite()) {
         $fresh = $page_token();
         check('the mode cannot be turned on while changing the passkey domain', str_contains($save('site', array_replace($site_fields, ['rp_id' => 'example.org']) + ['passkey_only' => '1', 'passkey_only_confirmed' => $fresh]), 'invalid=rp_id') && !$mode_on() && $settings->get_effective($site)['rp_id'] === $original['rp_id']);
         check('the mode turns on with a fresh confirmation for the current accounts', str_contains($save('site', $site_fields + ['passkey_only' => '1', 'passkey_only_confirmed' => $fresh]), 'settings_saved') && $mode_on());
         check('the passkey domain cannot change while the mode is on', str_contains($save('site', array_replace($site_fields, ['rp_id' => 'example.org']) + ['passkey_only' => '1']), 'invalid=rp_id') && $settings->get_effective($site)['rp_id'] === $original['rp_id']);
         check('the website name cannot be emptied while the mode is on', str_contains($save('site', array_replace($site_fields, ['rp_name' => '']) + ['passkey_only' => '1']), 'invalid=rp_name') && $settings->get_effective($site)['rp_name'] === $original['rp_name']);
+        check('the mode rejects a website name that becomes empty during sanitization', str_contains($save('site', array_replace($site_fields, ['rp_name' => '<span></span>']) + ['passkey_only' => '1']), 'invalid=rp_name') && $settings->get_effective($site)['rp_name'] === $original['rp_name']);
         check('the mode can be turned off together with a domain change', str_contains($save('site', array_replace($site_fields, ['rp_id' => 'example.org']) + ['passkey_only' => '0']), 'settings_saved') && !$mode_on());
         $storage->save_settings('site', $site, ['rp_id' => $original['rp_id']]);
+    } else {
+        $fresh = $page_token();
+        $network = get_network();
+        $create_subsite = static function () use ($network, $admin, $storage, &$subsites): int {
+            $id = wpmu_create_blog($network->domain, trailingslashit($network->path) . 'azwp-unconfigured-' . bin2hex(random_bytes(6)) . '/', 'Unconfigured passkey fixture', $admin, [], $network->id);
+            if (is_wp_error($id)) { throw new RuntimeException('Could not create the unconfigured subsite'); }
+            $subsites[] = $id;
+            if (!$storage->save_settings('site', $id, ['rp_id' => ''])['ok']) { throw new RuntimeException('Could not save the unconfigured subsite settings'); }
+            return $id;
+        };
+        $subsite = $create_subsite();
+        check('readiness counts members of an unconfigured site, including an administrator with a key at another site',
+            in_array($admin, $passkeys->members_without_passkey($subsite), true));
+        check('the network refuses the confirmation from before the unconfigured site was added',
+            str_contains($save('network', ['passkey_only' => '1', 'passkey_only_confirmed' => $fresh]), 'passkey_only_confirm') && !$mode_on());
+        $add_site_after_capture = static function (string $value) use ($create_subsite): string {
+            if ($value === 'https://race.example') { $create_subsite(); }
+            return $value;
+        };
+        $fresh = $page_token();
+        add_filter('sanitize_text_field', $add_site_after_capture);
+        try {
+            $raced = $save('network', ['passkey_only' => '1', 'passkey_only_confirmed' => $fresh, 'related_origins' => ['https://race.example']]);
+        } finally { remove_filter('sanitize_text_field', $add_site_after_capture); }
+        check('network enable refuses a new site created after URL inputs were captured',
+            count($subsites) === 2 && str_contains($raced, 'passkey_only_confirm') && !$mode_on());
+        check('the network enables the mode with fresh confirmation of the affected sites',
+            str_contains($save('network', ['passkey_only' => '1', 'passkey_only_confirmed' => $page_token()]), 'settings_saved') && $mode_on());
     }
 
     $storage->save_settings($scope[0], $scope[1], ['passkey_only' => true]);
@@ -127,8 +166,15 @@ try {
     echo "Passkey only checks complete.\n";
 } finally {
     update_option('azwp_passkeys_settings', $original);
-    if (is_multisite()) { update_network_option(get_current_network_id(), 'azwp_passkeys_network_settings', $original_network); revoke_super_admin($admin ?? 0); }
-    foreach ($users as $user) { $storage->cleanup_user($user); WP_Session_Tokens::get_instance($user)->destroy_all(); wp_delete_user($user); }
+    if (is_multisite()) {
+        foreach ($subsites as $id) { wpmu_delete_blog($id, true); }
+        update_network_option(get_current_network_id(), 'azwp_passkeys_network_settings', $original_network); revoke_super_admin($admin ?? 0);
+    }
+    foreach ($users as $user) {
+        delete_transient('azwp_passkeys_rate_user_' . $user);
+        $storage->cleanup_user($user); WP_Session_Tokens::get_instance($user)->destroy_all();
+        if (is_multisite()) { wpmu_delete_user($user); } else { wp_delete_user($user); }
+    }
     wp_set_current_user(0); unset($_COOKIE[LOGGED_IN_COOKIE]);
     wp_cache_flush();
 }

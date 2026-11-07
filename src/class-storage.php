@@ -11,7 +11,7 @@ final class Storage {
     private \wpdb $db;
     private array $tables;
     private ?int $locked_owner = null;
-    private bool $in_transaction = false;
+    private ?\mysqli $transaction_connection = null;
     private string $lock_name;
     private array $invalidate = [];
 
@@ -25,20 +25,54 @@ final class Storage {
 
     private static function ok(array $data = []): array { return ['ok' => true, 'code' => 'ok', 'data' => $data, 'message' => '']; }
     private static function error(string $code = 'storage_failed'): array { return ['ok' => false, 'code' => $code, 'data' => [], 'message' => '']; }
+    private function native_query(string $sql): \mysqli_result|bool {
+        $connection = $this->transaction_connection;
+        try {
+            $result = @$connection->query($this->db->remove_placeholder_escape($sql));
+        } catch (\mysqli_sql_exception $e) {
+            throw new \RuntimeException('Database operation failed', $e->getCode());
+        }
+        if ($result === false) { throw new \RuntimeException('Database operation failed', $connection->errno); }
+        return $result;
+    }
     private function query(string $sql): int {
+        if ($this->transaction_connection !== null) {
+            $this->native_query($sql);
+            return (int) $this->transaction_connection->affected_rows;
+        }
         $result = $this->db->query($sql);
         if ($result === false) { throw new \RuntimeException('Database operation failed'); }
         return (int) $result;
     }
     private function row(string $sql): ?array {
+        if ($this->transaction_connection !== null) { return $this->rows($sql)[0] ?? null; }
         $row = $this->db->get_row($sql, ARRAY_A);
         if ($this->db->last_error !== '') { throw new \RuntimeException('Database read failed'); }
         return $row;
     }
     private function rows(string $sql): array {
+        if ($this->transaction_connection !== null) {
+            $result = $this->native_query($sql);
+            try { return $result->fetch_all(MYSQLI_ASSOC); }
+            finally { $result->free(); }
+        }
         $rows = $this->db->get_results($sql, ARRAY_A);
         if ($this->db->last_error !== '') { throw new \RuntimeException('Database read failed'); }
         return $rows ?: [];
+    }
+    private function assignments(array $data): string {
+        $fields = [];
+        foreach ($data as $field => $value) {
+            $fields[] = $value === null ? "`$field`=NULL" : $this->db->prepare("`$field`=%s", $value);
+        }
+        return implode(',', $fields);
+    }
+    private function insert(string $table, array $data): void {
+        if ($this->transaction_connection !== null) {
+            $this->query("INSERT INTO `$table` SET " . $this->assignments($data));
+        } elseif ($this->db->insert($table, $data) === false) {
+            throw new \RuntimeException('Database operation failed');
+        }
     }
     /** The events table is left out, so a missing events table never blocks a passkey operation. */
     private function transactional_tables(array $extra = []): void {
@@ -112,34 +146,43 @@ final class Storage {
 
     /** A callback cannot commit, nest transactions or perform external side effects. */
     private function transaction(callable $operation): array {
-        if ($this->in_transaction) { return self::error(); }
+        if ($this->transaction_connection !== null) { return self::error(); }
         $acquired = false;
+        $committed = false;
         try {
             $this->transactional_tables();
-            $lock = $this->db->get_var($this->db->prepare('SELECT GET_LOCK(%s,%d)', $this->lock_name, self::LOCK_WAIT_SECONDS));
-            if ((string) $lock !== '1') { return self::error(); }
+            $connection = $this->db->dbh;
+            if (!$connection instanceof \mysqli) { return self::error(); }
+            // wpdb can reconnect and replay SQL on a session that has neither the lock nor the transaction.
+            $this->transaction_connection = $connection;
+            $lock = $this->row($this->db->prepare('SELECT GET_LOCK(%s,%d) AS acquired', $this->lock_name, self::LOCK_WAIT_SECONDS));
+            if ((int) ($lock['acquired'] ?? 0) !== 1) { return self::error(); }
             $acquired = true;
             $this->query('START TRANSACTION');
-            $this->in_transaction = true;
             $result = $operation();
             if (!is_array($result) || empty($result['ok'])) {
-                $this->query('ROLLBACK');
                 return is_array($result) ? $result : self::error();
             }
-            if ($this->db->query('COMMIT') === false) {
-                $this->db->query('ROLLBACK');
-                return self::error('outcome_unknown');
-            }
+            try { $this->native_query('COMMIT'); }
+            catch (\Throwable $e) { return self::error('outcome_unknown'); }
+            $committed = true;
             return $result;
         } catch (\Throwable $e) {
-            if ($this->in_transaction) { $this->db->query('ROLLBACK'); }
             return self::error();
         } finally {
+            if ($acquired) {
+                if (!$committed) {
+                    try { $this->native_query('ROLLBACK'); } catch (\Throwable $e) {}
+                }
+                try { $this->row($this->db->prepare('SELECT RELEASE_LOCK(%s)', $this->lock_name)); } catch (\Throwable $e) {}
+            }
             $this->locked_owner = null;
-            $this->in_transaction = false;
-            if ($acquired) { $this->db->get_var($this->db->prepare('SELECT RELEASE_LOCK(%s)', $this->lock_name)); }
-            foreach ($this->invalidate as [$kind, $id]) { $this->invalidate_cache($kind, $id); }
+            $this->transaction_connection = null;
+            $invalidate = $this->invalidate;
             $this->invalidate = [];
+            foreach ($invalidate as [$kind, $id]) {
+                try { $this->invalidate_cache($kind, $id); } catch (\Throwable $e) {}
+            }
         }
     }
     public function with_owner_lock(int $user_id, callable $operation, bool $allow_missing_account = false): array {
@@ -149,18 +192,21 @@ final class Storage {
             if (!$exists && !$allow_missing_account) { return self::error('authentication_failed'); }
             $identity = $this->identity_row($user_id);
             if (!$identity && $exists) {
-                do {
+                while (true) {
                     $handle = random_bytes(64);
                     // The global advisory lock serializes plugin provisioning. Unique keys
                     // also protect against another writer without replacing an existing handle.
-                    $inserted = $this->db->insert($this->tables['identities'], ['user_id' => $user_id, 'handle' => $handle, 'enrollment_initialized' => 0, 'created_at' => time()], ['%d', '%s', '%d', '%d']);
-                    if ($inserted === false) {
+                    try {
+                        $this->insert($this->tables['identities'], ['user_id' => $user_id, 'handle' => $handle, 'enrollment_initialized' => 0, 'created_at' => time()]);
+                        break;
+                    } catch (\RuntimeException $e) {
+                        if ($e->getCode() !== 1062) { throw $e; }
                         $identity = $this->identity_row($user_id);
                         if ($identity) { break; }
                         $collision = $this->row($this->db->prepare("SELECT user_id FROM `{$this->tables['identities']}` WHERE handle=%s", $handle));
                         if (!$collision) { throw new \RuntimeException('Identity insert failed'); }
                     }
-                } while ($inserted === false);
+                }
             }
             $this->row($this->db->prepare("SELECT user_id FROM `{$this->tables['identities']}` WHERE user_id=%d FOR UPDATE", $user_id));
             $this->locked_owner = $user_id;
@@ -170,7 +216,7 @@ final class Storage {
         });
     }
     private function owner(int $user_id): void {
-        if (!$this->in_transaction || $this->locked_owner !== $user_id) { throw new \RuntimeException('Owner transaction required'); }
+        if ($this->locked_owner !== $user_id) { throw new \RuntimeException('Owner transaction required'); }
     }
     public function account_exists(int $user_id): bool {
         return $this->row($this->db->prepare("SELECT ID FROM `{$this->db->users}` WHERE ID=%d", $user_id)) !== null;
@@ -240,8 +286,8 @@ final class Storage {
             $data['transports'] = json_encode($credential['transports'], JSON_THROW_ON_ERROR);
             $data['trust_path'] = json_encode($data['trust_path'], JSON_THROW_ON_ERROR);
             foreach (['backup_eligible','backed_up'] as $key) { $data[$key] = (int) $data[$key]; }
-            if ($this->db->insert($this->tables['credentials'], $data) === false) { return self::error(); }
-            $result = $this->get_credential((int) $this->db->insert_id);
+            $this->insert($this->tables['credentials'], $data);
+            $result = $this->get_credential((int) $this->transaction_connection->insert_id);
             if (!$result['ok'] || !$result['data']['credential']) { return self::error(); }
             foreach ($fields as $key) {
                 if (array_key_exists($key, $credential) && $result['data']['credential'][$key] !== $credential[$key] && !in_array($key, ['user_id','site_id','created_at','sign_count','algorithm'], true)) { return self::error(); }
@@ -258,7 +304,10 @@ final class Storage {
             $this->owner($row['user_id']);
             $data = array_intersect_key($values, array_flip(['name','sign_count','backed_up','last_used_local']));
             if (isset($data['backed_up'])) { $data['backed_up'] = (int) $data['backed_up']; }
-            if ($data && $this->db->update($this->tables['credentials'], $data, ['id' => $record_id, 'user_id' => $row['user_id']]) === false) { return self::error(); }
+            if ($data) {
+                $where = $this->db->prepare('id=%d AND user_id=%d', $record_id, $row['user_id']);
+                $this->query("UPDATE `{$this->tables['credentials']}` SET " . $this->assignments($data) . " WHERE $where");
+            }
             $saved = $this->get_credential($record_id);
             if (!$saved['ok'] || !$saved['data']['credential']) { return self::error(); }
             foreach ($values as $key => $value) { if (!array_key_exists($key, $data) || $saved['data']['credential'][$key] !== $value) { return self::error(); } }
@@ -286,11 +335,11 @@ final class Storage {
             $data = array_intersect_key($attempt, array_flip(['id','site_id','purpose','actor_id','target_id','browser_hash','session_hash','challenge','issued','created_at','expires_at']));
             $data['status'] = 'pending';
             $data['issued'] = json_encode($attempt['issued'], JSON_THROW_ON_ERROR);
-            if ($this->db->insert($this->tables['attempts'], $data) === false) { return self::error(); }
+            $this->insert($this->tables['attempts'], $data);
             return self::ok(['attempt' => $attempt + ['status' => 'pending']]);
         };
         try {
-            if ($this->in_transaction) { return $write(); }
+            if ($this->transaction_connection !== null) { return $write(); }
             if (empty($attempt['actor_id'])) {
                 // Anonymous attempts change no owner state, so they skip the installation-wide lock.
                 // A shared cap would let a few addresses lock everyone out, so the table holds only unexpired attempts instead.
@@ -319,7 +368,7 @@ final class Storage {
         } catch (\Throwable $e) { return self::error(); }
     }
     public function claim_attempt(string $attempt_id, array $binding): array {
-        if ($this->in_transaction) { return self::error(); }
+        if ($this->transaction_connection !== null) { return self::error(); }
         $binding['actor_id'] = empty($binding['actor_id']) ? null : (int) $binding['actor_id'];
         $read = $this->read_attempt($attempt_id);
         if (!$read['ok']) { return $read; }
@@ -354,7 +403,7 @@ final class Storage {
         catch (\Throwable $e) { return self::error(); }
     }
     public function save_last_used(int $record_id, string $local_datetime): array {
-        if ($this->in_transaction) { return self::error(); }
+        if ($this->transaction_connection !== null) { return self::error(); }
         try {
             $this->query($this->db->prepare("UPDATE `{$this->tables['credentials']}` SET last_used_local=%s WHERE id=%d", $local_datetime, $record_id));
             $row = $this->get_credential($record_id);
@@ -388,7 +437,7 @@ final class Storage {
         return $this->with_owner_lock($user_id, function () use ($user_id, $link): array {
             $this->invalidate[] = ['user', $user_id];
             $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, self::SETUP_LINK_KEY));
-            if ($this->db->insert($this->db->usermeta, ['user_id' => $user_id, 'meta_key' => self::SETUP_LINK_KEY, 'meta_value' => json_encode($link, JSON_THROW_ON_ERROR)]) === false) { return self::error(); }
+            $this->insert($this->db->usermeta, ['user_id' => $user_id, 'meta_key' => self::SETUP_LINK_KEY, 'meta_value' => json_encode($link, JSON_THROW_ON_ERROR)]);
             return self::ok();
         });
     }
@@ -406,22 +455,36 @@ final class Storage {
         $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, self::SETUP_LINK_KEY));
         return $link;
     }
+    public function network_site_ids(int $network_id): array {
+        $rows = $this->rows($this->db->prepare("SELECT blog_id FROM `{$this->db->blogs}` WHERE site_id=%d ORDER BY blog_id", $network_id));
+        return array_map('intval', array_column($rows, 'blog_id'));
+    }
     /** Members of a site with no stored passkey for the given passkey domain. Single-site counts every account, as the Users screen does. */
-    public function members_without_passkey(int $site_id, string $rp_id): array {
-        $missing = $this->db->prepare("NOT EXISTS (SELECT 1 FROM `{$this->tables['credentials']}` c WHERE c.user_id=u.ID AND c.rp_id=%s)", $rp_id);
-        $sql = is_multisite()
-            ? $this->db->prepare("SELECT DISTINCT u.ID FROM `{$this->db->users}` u INNER JOIN `{$this->db->usermeta}` m ON m.user_id=u.ID AND m.meta_key=%s WHERE $missing ORDER BY u.ID", $this->db->get_blog_prefix($site_id) . 'capabilities')
-            : "SELECT u.ID FROM `{$this->db->users}` u WHERE $missing ORDER BY u.ID";
-        return array_map('intval', array_column($this->rows($sql), 'ID'));
+    public function members_without_passkey(int $site_id, ?string $rp_id): array {
+        $multisite = is_multisite();
+        $sql = "SELECT DISTINCT u.ID FROM `{$this->db->users}` u";
+        if ($multisite) {
+            $sql .= $this->db->prepare(" INNER JOIN `{$this->db->usermeta}` m ON m.user_id=u.ID AND m.meta_key=%s", $this->db->get_blog_prefix($site_id) . 'capabilities');
+        }
+        if ($rp_id !== null) {
+            $sql .= $this->db->prepare(" WHERE NOT EXISTS (SELECT 1 FROM `{$this->tables['credentials']}` c INNER JOIN `{$this->tables['identities']}` i ON i.user_id=c.user_id WHERE c.user_id=u.ID AND c.rp_id=%s", $rp_id);
+            if (!$multisite) { $sql .= $this->db->prepare(' AND c.site_id=%d', $site_id); }
+            $sql .= ')';
+        }
+        return array_map('intval', array_column($this->rows($sql . ' ORDER BY u.ID'), 'ID'));
     }
     public function password_disabled(int $user_id): bool {
         $rows = $this->rows($this->db->prepare("SELECT meta_value FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, 'azwp_passkeys_password_disabled'));
         foreach ($rows as $row) { if ((int) $row['meta_value'] === 1) { return true; } }
         return false;
     }
-    public function save_settings(string $scope, int $scope_id, array $values): array {
+    public function save_settings(string $scope, int $scope_id, array $values, ?callable $validate = null): array {
         if (!in_array($scope, ['site', 'network'], true) || $scope_id <= 0) { return self::error('invalid_request'); }
-        return $this->transaction(function () use ($scope, $scope_id, $values): array {
+        return $this->transaction(function () use ($scope, $scope_id, $values, $validate): array {
+            if ($validate !== null) {
+                $checked = $validate($this, $values);
+                if (empty($checked['ok'])) { return $checked; }
+            }
             $this->invalidate[] = [$scope, $scope_id];
             if ($scope === 'site') {
                 $table = $this->options_table($scope_id);
@@ -436,7 +499,7 @@ final class Storage {
                 $before = $this->read_network_settings($scope_id);
                 $merged = array_replace($before, $values);
                 $this->query($this->db->prepare("DELETE FROM `{$this->db->sitemeta}` WHERE site_id=%d AND meta_key=%s", $scope_id, 'azwp_passkeys_network_settings'));
-                if ($this->db->insert($this->db->sitemeta, ['site_id' => $scope_id, 'meta_key' => 'azwp_passkeys_network_settings', 'meta_value' => maybe_serialize($merged)]) === false) { return self::error(); }
+                $this->insert($this->db->sitemeta, ['site_id' => $scope_id, 'meta_key' => 'azwp_passkeys_network_settings', 'meta_value' => maybe_serialize($merged)]);
                 $after = $this->read_network_settings($scope_id);
             }
             return $after === $merged ? self::ok(['settings' => $after, 'previous' => $before]) : self::error();
@@ -448,7 +511,7 @@ final class Storage {
             if ($disabled && $guard !== null && !$this->password_disabled($user_id) && !$guard($this)) { return self::error('access_required'); }
             $this->invalidate[] = ['user', $user_id];
             $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, 'azwp_passkeys_password_disabled'));
-            if ($this->db->insert($this->db->usermeta, ['user_id' => $user_id, 'meta_key' => 'azwp_passkeys_password_disabled', 'meta_value' => $disabled ? '1' : '0']) === false) { return self::error(); }
+            $this->insert($this->db->usermeta, ['user_id' => $user_id, 'meta_key' => 'azwp_passkeys_password_disabled', 'meta_value' => $disabled ? '1' : '0']);
             return $this->password_disabled($user_id) === $disabled ? self::ok(['disabled' => $disabled]) : self::error();
         });
     }
@@ -471,7 +534,7 @@ final class Storage {
      * Database errors go to the PHP error log but are not printed, so a failed write cannot corrupt the JSON response of the operation being logged.
      */
     public function insert_event(array $row): bool {
-        if ($this->in_transaction) { return false; }
+        if ($this->transaction_connection !== null) { return false; }
         $formats = ['site_id'=>'%d','occurred_at'=>'%d','event'=>'%s','ok'=>'%d','code'=>'%s','correlation_id'=>'%s','actor_id'=>'%d','actor_login'=>'%s','target_id'=>'%d','target_login'=>'%s','passkey_id'=>'%d','passkey_name'=>'%s','passkey_aaguid'=>'%s','ip'=>'%s','data'=>'%s'];
         $row = array_intersect_key($row, $formats);
         $shown = $this->db->hide_errors();
@@ -620,7 +683,7 @@ final class Storage {
         } catch (\Throwable $e) { return self::error(); }
     }
     public function uninstall(): array {
-        if ($this->in_transaction) { return self::error(); }
+        if ($this->transaction_connection !== null) { return self::error(); }
         try {
             $users = $this->rows($this->db->prepare("SELECT DISTINCT user_id FROM `{$this->db->usermeta}` WHERE meta_key IN (%s,%s)", 'azwp_passkeys_password_disabled', self::SETUP_LINK_KEY));
             foreach ($this->tables as $table) { $this->query("DROP TABLE IF EXISTS `$table`"); }

@@ -18,3 +18,37 @@ vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../asset
  fail=true;await assert.rejects(api.requestAction('register_finish',{},'',true),e=>e.retry==='uncertain');await assert.rejects(api.requestAction('register_start'),e=>e.retry==='fresh_attempt');
  console.log('Client: binary registration/assertion, UV, omitted/empty allowlist, nonce, and uncertain-network checks passed.');
 })().catch(error=>{console.error(error);process.exitCode=1});
+
+const nodes=[];
+class Node {
+ constructor(tag='div'){this.tagName=tag;this.dataset={};this.children=[];this.disabled=false;this.value='';this.rows=[];this.tBodies=[];this.tHead={rows:[],replaceChildren(){this.rows=[];},append(n){this.rows.push(n);}};this.tFoot={rows:[],replaceChildren(){this.rows=[];},append(n){this.rows.push(n);}};nodes.push(this);}
+ append(...nodes){this.children.push(...nodes);} appendChild(n){this.append(n);return n;}
+ replaceChildren(...nodes){this.children=nodes;this.rows=[];}
+ insertRow(){const r=new Node('tr');r.cells=[];r.insertCell=()=>{const c=new Node('td');r.cells.push(c);return c;};this.rows.push(r);return r;}
+ setAttribute(){} classList={toggle(){}};
+}
+const roots=[];
+const domDocument={readyState:'loading',addEventListener(){},querySelectorAll(selector){return selector==='[data-azwp-passkeys="list"]'?roots:selector.includes('[data-action=')?nodes.filter(node=>node.dataset.action):[];},querySelector(selector){return selector==='[data-field="redirect_to"]'?{value:'https://front.example/after'}:null;},createElement(tag){return new Node(tag);},createTextNode(text){const n=new Node('#text');n.textContent=text;return n;}};
+let loginPayload;
+const domContext={...context,window:{azwpPasskeysConfig:context.window.azwpPasskeysConfig,isSecureContext:true,PublicKeyCredential:function(){},location:{assign(){}},setTimeout(fn){fn();}},document:domDocument,navigator:{credentials:{get:async()=>assertion,create:async()=>registration}},fetch:async(_url,init)=>{const body=init.body;const action=body.get('action');if(action.endsWith('_options'))loginPayload=JSON.parse(body.get('payload'));return{json:async()=>({success:true,data:action.endsWith('_options')?{attempt_id:'a',publicKey:{challenge:'AP-A'}}:{redirect_to:'https://front.example/after'}})};}};
+vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../assets/js/client.js'),'utf8'),domContext);
+(async()=>{
+ const api=domContext.window.azwpPasskeys;
+ const loginRoot={dataset:{surface:'frontend'},querySelector(selector){if(selector==='[data-field="redirect_to"]')return{value:'https://front.example/second'};return new Node();},closest(){return null;}};
+ await api.ceremony(loginRoot,'login');
+ assert.equal(loginPayload.redirect_to,'https://front.example/second','frontend login uses the clicked component destination');
+ const table=new Node('table');table.tBodies=[new Node('tbody')];
+ const listRoot={dataset:{canManage:'1',target:'1',nonce:''},querySelector(){return table;}};roots.push(listRoot);
+ domContext.fetch=async()=>({json:async()=>({success:true,data:{credentials:[{record_id:1,name:'policy-locked',can_rename:true,can_remove:false,authenticator:'Key',created_local:'today'}]}})});
+ await api.refreshCredentialList(listRoot);
+ let remove=table.tBodies[0].rows[0].cells[4].children[0];
+ assert.equal(remove.disabled,true,'can_remove=false disables Remove');
+ api.setPagePending(true);
+ await api.refreshCredentialList(listRoot);
+ remove=table.tBodies[0].rows[0].cells[4].children[0];
+ assert.equal(remove.disabled,true,'refresh during pending preserves policy-disabled Remove');
+ api.setPagePending(false);
+ assert.equal(remove.disabled,true,'pending restoration preserves policy-disabled Remove');
+ assert.equal(table.tBodies[0].rows[0].cells[0].children[1].children[0].disabled,false,'pending restoration re-enables a newly rendered permitted Rename');
+ console.log('Client: frontend redirect and policy-disabled Remove behavior passed.');
+})().catch(error=>{console.error(error);process.exitCode=1});

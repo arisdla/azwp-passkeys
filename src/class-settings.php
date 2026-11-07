@@ -36,15 +36,19 @@ final class Settings {
             ],
         ];
     }
-    private function defaults(int $site_id): array {
-        return array_replace(array_map(static fn(array $d) => $d['default'], $this->definitions()), $this->storage->site_defaults($site_id));
+    public static function site_values(array $defaults, array $stored): array {
+        $definitions = self::definitions();
+        return array_replace(array_map(static fn(array $d) => $d['default'], $definitions), $defaults, array_intersect_key($stored, $definitions));
+    }
+    public static function network_values(array $stored): array {
+        $definitions = array_filter(self::definitions(), static fn(array $d): bool => $d['scope'] === 'network');
+        return array_replace(array_map(static fn(array $d) => $d['default'], $definitions), array_intersect_key($stored, $definitions));
     }
     public function get_site(int $site_id): array {
-        return array_replace($this->defaults($site_id), array_intersect_key($this->storage->read_site_settings($site_id), $this->definitions()));
+        return self::site_values($this->storage->site_defaults($site_id), $this->storage->read_site_settings($site_id));
     }
     public function get_network(int $network_id): array {
-        $definitions = array_filter($this->definitions(), static fn(array $d): bool => $d['scope'] === 'network');
-        return array_replace(array_map(static fn(array $d) => $d['default'], $definitions), array_intersect_key($this->storage->read_network_settings($network_id), $definitions));
+        return self::network_values($this->storage->read_network_settings($network_id));
     }
     public function get_effective(int $site_id): array {
         $site = $this->get_site($site_id);
@@ -98,7 +102,7 @@ final class Settings {
         }
         return [false, null];
     }
-    public function save_site(array $input): array {
+    public function save_site(array $input, callable $validate): array {
         $values = [];
         $invalid = [];
         foreach ($this->definitions() as $key => $definition) {
@@ -108,26 +112,27 @@ final class Settings {
             if (!$valid) { $invalid[] = $key; } else { $values[$key] = $value; }
         }
         if ($invalid) { return self::failure($invalid); }
-        return $this->save('site', get_current_blog_id(), $values);
+        return $this->save('site', get_current_blog_id(), $values, $validate);
     }
-    public function save_network(array $input): array {
+    public function save_network(array $input, callable $validate): array {
         $values = [];
         foreach ($this->definitions() as $key => $definition) {
             if ($definition['scope'] !== 'network') { continue; }
             [$valid, $value] = $this->parse($key, $input[$key] ?? null);
             $values[$key] = $valid ? $value : $definition['default'];
         }
-        return $this->save(is_multisite() ? 'network' : 'site', is_multisite() ? get_current_network_id() : get_current_blog_id(), $values);
+        return $this->save(is_multisite() ? 'network' : 'site', is_multisite() ? get_current_network_id() : get_current_blog_id(), $values, $validate);
     }
     public function save_logs(array $input): array {
         [$valid, $logging] = $this->parse('logging', $input['logging'] ?? null);
         if (!$valid) { return self::failure(['logging']); }
         return $this->save('site', get_current_blog_id(), ['logging' => $logging]);
     }
-    private function save(string $scope, int $scope_id, array $values): array {
+    private function save(string $scope, int $scope_id, array $values, ?callable $validate = null): array {
         $site_id = get_current_blog_id();
-        $before_effective = $this->get_effective($site_id);
-        $result = $this->storage->save_settings($scope, $scope_id, $values);
+        try { $before_effective = $this->get_effective($site_id); }
+        catch (\Throwable) { return ['ok' => false, 'code' => 'storage_failed', 'data' => [], 'message' => '']; }
+        $result = $this->storage->save_settings($scope, $scope_id, $values, $validate);
         if (!$result['ok']) { return $result; }
         $correlation = bin2hex(random_bytes(16));
         // Turning logging on or off writes its own row, so a save is logged when logging was on before or after it.

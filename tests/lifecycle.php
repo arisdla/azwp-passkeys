@@ -111,9 +111,12 @@ try {
         $assert($rows_for($deleted['none']) === [], 'Deleting a user with no passkeys writes no row');
         $lifecycle->remove_membership($deleted['member'], get_current_blog_id());
         $assert($storage->get_credentials($deleted['member'])['data']['credentials'] === [] && $rows_for($deleted['member']) === [], 'Removing a membership deletes the passkeys and writes no row');
-        $break = static fn(string $query): string => str_starts_with($query, "DELETE FROM `{$wpdb->base_prefix}azwp_passkeys_credentials`") ? 'DELETE broken' : $query;
-        add_filter('query', $break);
-        try { $lifecycle->early_delete_account($deleted['failed'], get_userdata($deleted['failed'])); } finally { remove_filter('query', $break); }
+        $trigger = 'azwp_cleanup_probe_' . bin2hex(random_bytes(4));
+        $credentials = $wpdb->base_prefix . 'azwp_passkeys_credentials';
+        $failed_owner = $deleted['failed'];
+        $assert($wpdb->query("CREATE TRIGGER `$trigger` BEFORE DELETE ON `$credentials` FOR EACH ROW BEGIN IF OLD.user_id=$failed_owner THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Test cleanup failure'; END IF; END") !== false, 'Install a delete failure for the cleanup fixture');
+        try { $lifecycle->early_delete_account($failed_owner, get_userdata($failed_owner)); }
+        finally { $wpdb->query("DROP TRIGGER `$trigger`"); }
         $rows = $rows_for($deleted['failed']);
         $assert(count($rows) === 1 && $rows[0]['ok'] === '0' && $rows[0]['code'] === 'storage_failed' && $rows[0]['data'] === null && count($storage->get_credentials($deleted['failed'])['data']['credentials']) === 1, 'A failed cleanup writes one failure row and keeps the passkeys');
     } finally {

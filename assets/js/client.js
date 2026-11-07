@@ -19,7 +19,7 @@
         const buttons = [...document.querySelectorAll('.azwp-passkeys [data-action="register"],.azwp-passkeys [data-action="setup"],.azwp-passkeys [data-action="send-setup"],.azwp-passkeys [data-action="login"],.azwp-passkeys [data-action^="test"],.azwp-passkeys [data-action="rename"],.azwp-passkeys [data-action="remove"]')];
         const passwordSubmit = document.querySelector('[data-password-form] input[type="submit"]');
         if (passwordSubmit) buttons.push(passwordSubmit);
-        buttons.forEach(button => { if (value) { originalDisabled.set(button, button.disabled); button.disabled = true; } else { button.disabled = originalDisabled.get(button) || false; originalDisabled.delete(button); } });
+        buttons.forEach(button => { if (value) { originalDisabled.set(button, button.disabled); button.disabled = true; } else if (originalDisabled.has(button)) { button.disabled = originalDisabled.get(button); originalDisabled.delete(button); } });
     }
     async function requestAction(action, payload = {}, nonce = '', completion = false) {
         let response;
@@ -73,13 +73,15 @@
                 const tr = body.insertRow(); const name = tr.insertCell(); name.append(document.createTextNode(row.name));
                 const rename = document.createElement('button'); rename.type = 'button'; rename.className = 'button-link'; rename.dataset.action = 'rename'; rename.dataset.record = String(row.record_id); rename.dataset.name = row.name; rename.textContent = __('Rename', 'azwp-passkeys');
                 rename.disabled = pending || !row.can_rename;
+                if (pending) originalDisabled.set(rename, !row.can_rename);
                 const renameLine = document.createElement('div'); renameLine.append(rename); name.append(renameLine);
                 if (!row.available && row.unavailable_reason) { const help = document.createElement('p'); help.className = 'description'; help.textContent = row.unavailable_reason; name.append(help); }
                 const model = tr.insertCell(); model.append(document.createTextNode(row.authenticator || '—'));
                 if (row.synced) { const badge = document.createElement('span'); badge.className = 'azwp-passkeys-badge'; badge.textContent = __('Synced', 'azwp-passkeys'); const badgeLine = document.createElement('div'); badgeLine.append(badge); model.append(badgeLine); }
                 tr.insertCell().textContent = row.created_local; tr.insertCell().textContent = row.last_used_local || '—';
                 const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button'; remove.dataset.action = 'remove'; remove.dataset.record = String(row.record_id); remove.dataset.name = row.name; remove.textContent = __('Remove', 'azwp-passkeys');
-                remove.disabled = pending;
+                remove.disabled = pending || !row.can_remove;
+                if (pending) originalDisabled.set(remove, !row.can_remove);
                 tr.insertCell().append(remove);
             });
         } catch (error) {
@@ -101,7 +103,7 @@
         const isLogin = action === 'login'; const setup = action === 'setup'; const register = action === 'register' || setup;
         const prefix = setup ? 'setup' : register ? 'register' : isLogin ? 'login' : 'test';
         const nonce = register && !setup ? root.dataset.nonce : '';
-        const payload = setup ? { user_id: root.dataset.user, token: root.dataset.token } : register ? { target_id: root.dataset.target } : isLogin ? { remember: rememberLogin(root), redirect_to: (root.dataset.surface === 'frontend' ? document.querySelector('[data-field="redirect_to"]') : root.querySelector('[data-field="redirect_to"]'))?.value || '', surface: root.dataset.surface } : { target_id: root.dataset.target };
+        const payload = setup ? { user_id: root.dataset.user, token: root.dataset.token } : register ? { target_id: root.dataset.target } : isLogin ? { remember: rememberLogin(root), redirect_to: root.querySelector('[data-field="redirect_to"]')?.value || '', surface: root.dataset.surface } : { target_id: root.dataset.target };
         setPagePending(true); status(root, __('Preparing…', 'azwp-passkeys'));
         let stage = 'options';
         try {

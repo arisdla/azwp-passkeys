@@ -100,14 +100,14 @@ final class Authentication
                 add_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX, 6);
             }
         };
-        add_action('set_auth_cookie', $observe_cookie, PHP_INT_MAX, 6);
+        add_action('set_logged_in_cookie', $observe_cookie, PHP_INT_MAX, 6);
         add_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX, 6);
         $this->session_origin[$user_id] = 'registration';
         try {
             wp_set_auth_cookie($user_id, false);
         } finally {
             unset($this->session_origin[$user_id]);
-            remove_action('set_auth_cookie', $observe_cookie, PHP_INT_MAX);
+            remove_action('set_logged_in_cookie', $observe_cookie, PHP_INT_MAX);
             remove_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX);
         }
         if ($cookies_allowed !== true) {
@@ -153,13 +153,8 @@ final class Authentication
         return '';
     }
 
-    public function complete_login(array $context, array $input): array
-    {
-        return $this->complete_verified_login($context, $input);
-    }
-
     /** The only accepted proof is produced by Passkeys in this request. */
-    private function complete_verified_login(array $context, array $input): array
+    public function complete_login(array $context, array $input): array
     {
         $verified = $this->passkeys->verify_assertion($context, $input);
         if (!$verified['ok']) {
@@ -190,21 +185,30 @@ final class Authentication
             }
             return apply_filters('wp_authenticate_user', $user, '');
         };
-        $terminal = function ($candidate) use ($user, $proof, &$accepted) {
+        $terminal = function ($candidate) use ($user) {
             if (is_wp_error($candidate)) {
                 return $candidate;
             }
             if (!$this->account_available($candidate) || (int) $candidate->ID !== (int) $user->ID) {
                 return $this->authentication_error();
             }
+            return $candidate;
+        };
+        $authorize_session = function ($secure, $cookie_user) use ($user, $proof, &$accepted, $stop) {
+            // WordPress has resolved the account but has not created its session token yet.
+            if ((int) $cookie_user !== (int) $user->ID || !$this->account_available($user)) {
+                throw $stop;
+            }
             $accepted = $this->passkeys->accept_assertion($proof);
-            return $accepted['ok'] ? $candidate : $this->authentication_error();
+            if (!$accepted['ok']) {
+                throw $stop;
+            }
+            return $secure;
         };
         $observe_cookie = function ($cookie, $expire, $expiration, $user_id, $scheme, $token) use ($user, &$new_token, &$observe_permission): void {
             if ((int) $user_id === (int) $user->ID) {
                 $new_token = (string) $token;
-                // Authentication filters may add cookie restrictions at PHP_INT_MAX.
-                // Observe after those callbacks rather than their earlier input.
+                // Cookie actions can add restrictions just before send_auth_cookies runs.
                 remove_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX);
                 add_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX, 6);
             }
@@ -216,7 +220,7 @@ final class Authentication
             }
             return $send;
         };
-        $before_login = function ($login, $logged_user) use ($user, &$cookies_allowed, &$new_token, &$accepted, $stop): void {
+        $before_login = function ($login, $logged_user) use ($user, &$cookies_allowed, &$new_token, &$accepted, $stop, $authorize_session, $observe_cookie, $observe_permission): void {
             if ((int) $logged_user->ID !== (int) $user->ID || $cookies_allowed !== true || !$accepted || !$accepted['ok']) {
                 if ($new_token !== '') {
                     \WP_Session_Tokens::get_instance((int) $user->ID)->destroy($new_token);
@@ -225,6 +229,9 @@ final class Authentication
                 // Unwind to the AJAX boundary before later wp_login actions.
                 throw $stop;
             }
+            remove_filter('secure_logged_in_cookie', $authorize_session, PHP_INT_MAX);
+            remove_action('set_logged_in_cookie', $observe_cookie, PHP_INT_MAX);
+            remove_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX);
         };
         $two_factor = function ($required, $candidate) use ($user) {
             $id = $candidate instanceof \WP_User ? (int) $candidate->ID : (int) $candidate;
@@ -233,7 +240,8 @@ final class Authentication
         add_filter('two_factor_is_required_for_user', $two_factor, PHP_INT_MAX, 2);
         add_filter('authenticate', $early, 19, 3);
         add_filter('authenticate', $terminal, PHP_INT_MAX, 3);
-        add_action('set_auth_cookie', $observe_cookie, PHP_INT_MAX, 6);
+        add_filter('secure_logged_in_cookie', $authorize_session, PHP_INT_MAX, 2);
+        add_action('set_logged_in_cookie', $observe_cookie, PHP_INT_MAX, 6);
         add_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX, 6);
         add_action('wp_login', $before_login, PHP_INT_MIN, 2);
         $this->session_origin[(int) $user->ID] = 'passkey';
@@ -244,7 +252,7 @@ final class Authentication
                 'remember' => !empty($proof['issued_options']['remember']),
             ]);
             if (is_wp_error($signed_in)) {
-                return $accepted !== null && !$accepted['ok'] ? $accepted : $this->failure();
+                return $this->failure();
             }
             if (!$accepted || !$accepted['ok'] || $cookies_allowed !== true || (int) $signed_in->ID !== (int) $user->ID) {
                 return $this->failure();
@@ -255,11 +263,12 @@ final class Authentication
             if ($exception !== $stop) {
                 throw $exception;
             }
-            return $this->failure();
+            return $accepted !== null && !$accepted['ok'] ? $accepted : $this->failure();
         } finally {
             remove_filter('authenticate', $early, 19);
             remove_filter('authenticate', $terminal, PHP_INT_MAX);
-            remove_action('set_auth_cookie', $observe_cookie, PHP_INT_MAX);
+            remove_filter('secure_logged_in_cookie', $authorize_session, PHP_INT_MAX);
+            remove_action('set_logged_in_cookie', $observe_cookie, PHP_INT_MAX);
             remove_filter('send_auth_cookies', $observe_permission, PHP_INT_MAX);
             remove_action('wp_login', $before_login, PHP_INT_MIN);
             remove_filter('two_factor_is_required_for_user', $two_factor, PHP_INT_MAX);
