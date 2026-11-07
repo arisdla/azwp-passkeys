@@ -3,3 +3,4 @@ node_modules/
 dist/
 .claude/
 build/
+/bin/dev-mail/azwp-passkeys-watchdog.php

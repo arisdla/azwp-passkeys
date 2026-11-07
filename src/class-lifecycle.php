@@ -7,6 +7,8 @@ final class Lifecycle {
     private const REWRITE = '^\\.well-known/webauthn/?$';
     public const SCHEMA_OPTION = 'azwp_passkeys_schema_version';
     public const UPGRADE_RETRY = 'azwp_passkeys_upgrade_retry';
+    public const WATCHDOG = 'azwp_passkeys_watchdog';
+    public const WATCHDOG_RETRY = 'azwp_passkeys_watchdog_retry';
     public function __construct(private Settings $settings, private Storage $storage, private Logs $logs) {}
 
     public function register_hooks(): void {
@@ -18,6 +20,9 @@ final class Lifecycle {
         add_action('wpmu_delete_user', [$this, 'early_delete_account'], 10, 2);
         add_action('deleted_user', [$this, 'delete_account'], 10, 3);
         add_action('plugins_loaded', [$this, 'upgrade']);
+        add_action('plugins_loaded', [$this, 'ensure_watchdog']);
+        add_action('admin_notices', [$this, 'watchdog_notice']);
+        add_action('network_admin_notices', [$this, 'watchdog_notice']);
         add_filter('wp_privacy_personal_data_erasers', [$this->logs, 'register_eraser']);
         add_action(self::CRON_HOOK, [$this, 'cleanup_attempts']);
         add_filter('azwp_passkeys_version', static fn(string $version): string => AZWP_PASSKEYS_VERSION);
@@ -65,6 +70,35 @@ final class Lifecycle {
             if (!$this->install_tables()['ok']) { set_site_transient(self::UPGRADE_RETRY, 1, 5 * MINUTE_IN_SECONDS); }
         });
     }
+    public static function watchdog_file(): string { return WPMU_PLUGIN_DIR . '/azwp-passkeys-watchdog.php'; }
+    private static function watchdog_guard(): array { return ['plugin' => plugin_basename(AZWP_PASSKEYS_FILE), 'version' => AZWP_PASSKEYS_VERSION]; }
+    /** Updates through the update metadata skip activation, so a new version or a lost file installs on the next request. */
+    public function ensure_watchdog(): void {
+        if ((get_site_option(self::WATCHDOG) === self::watchdog_guard() && is_file(self::watchdog_file())) || get_site_transient(self::WATCHDOG_RETRY)) { return; }
+        $this->install_watchdog();
+    }
+    /** The copy lands under a name WordPress does not load, then one rename swaps it in, so no request includes a half-written file. */
+    public function install_watchdog(): bool {
+        $target = self::watchdog_file();
+        $temp = $target . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        if (!wp_mkdir_p(WPMU_PLUGIN_DIR) || !@copy(AZWP_PASSKEYS_DIR . 'watchdog/azwp-passkeys-watchdog.php', $temp) || !@rename($temp, $target)) {
+            @unlink($temp);
+            set_site_transient(self::WATCHDOG_RETRY, 1, HOUR_IN_SECONDS);
+            return false;
+        }
+        update_site_option(self::WATCHDOG, self::watchdog_guard());
+        delete_site_transient(self::WATCHDOG_RETRY);
+        return true;
+    }
+    private function remove_watchdog(): void {
+        delete_site_option(self::WATCHDOG);
+        delete_site_transient(self::WATCHDOG_RETRY);
+        @unlink(self::watchdog_file());
+    }
+    public function watchdog_notice(): void {
+        if (!current_user_can(is_multisite() ? 'manage_network_plugins' : 'activate_plugins') || is_file(self::watchdog_file())) { return; }
+        echo '<div class="notice notice-warning"><p>'.esc_html__('Deactivation protection for AZ\'s WP Passkeys is off because wp-content/mu-plugins is not writable.', 'azwp-passkeys').'</p></div>';
+    }
     public function activate(bool $network_wide): void {
         if (is_multisite() && !$network_wide) {
             wp_die(esc_html__('Activate AZ\'s WP Passkeys for the network.', 'azwp-passkeys'));
@@ -93,6 +127,7 @@ final class Lifecycle {
         });
         $this->register_route();
         flush_rewrite_rules(false);
+        $this->install_watchdog();
     }
     public function initialize_site(\WP_Site $site): void {
         $this->on_site((int) $site->blog_id, fn() => $this->initialize_current_site());
@@ -104,6 +139,7 @@ final class Lifecycle {
         global $wp_rewrite;
         if (isset($wp_rewrite->extra_rules_top[self::REWRITE])) { unset($wp_rewrite->extra_rules_top[self::REWRITE]); }
         flush_rewrite_rules(false);
+        $this->remove_watchdog();
     }
     public function early_delete_account(int $user_id, mixed $user = null): void {
         $this->record_cleanup($user_id, $user, $this->storage->cleanup_user($user_id));
@@ -163,6 +199,7 @@ final class Lifecycle {
             delete_option(self::SCHEMA_OPTION);
         }
         delete_site_transient(self::UPGRADE_RETRY);
+        $this->remove_watchdog();
         $result = $this->storage->uninstall();
         if (!$result['ok']) { wp_die(esc_html__('Passkey data could not be completely removed. Try deleting the plugin again.', 'azwp-passkeys')); }
     }
