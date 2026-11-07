@@ -87,7 +87,7 @@
         nav.append(links);
     }
     function render(data) {
-        shown = { newest: data.entries[0]?.id ?? 0, matched: data.matched };
+        shown = { newest: data.entries[0]?.id ?? 0, matched: data.matched, total: data.total };
         if ([...categorySelect.options].slice(1).map(option => option.value).join() !== data.categories.map(category => category.key).join()) {
             categorySelect.replaceChildren(categorySelect.options[0], ...data.categories.map(category => { const option = element('option', '', category.label); option.value = category.key; return option; }));
         }
@@ -131,6 +131,8 @@
         select.addEventListener('change', () => { state[key] = select.value; go(1); });
     }
     clear.addEventListener('click', async () => {
+        const total = shown?.total ?? 0;
+        if (!window.confirm(sprintf(_n('Delete %s log entry for this site? This cannot be undone.', 'Delete all %s log entries for this site? This cannot be undone.', total, 'azwp-passkeys'), total.toLocaleString()))) return;
         clear.disabled = true;
         try { await client.requestAction('log_clear', {}, root.dataset.nonce, true); client.status(root, __('Logs cleared.', 'azwp-passkeys')); }
         catch (error) { client.status(root, error.message, true); }

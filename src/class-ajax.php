@@ -88,7 +88,7 @@ final class Ajax
                 'rename'=>$this->passkeys->rename_credential($context,$target,$record_id,$payload['name']),
                 'remove'=>$this->passkeys->remove_credential($context,$target,$record_id),
                 'log_read'=>$this->logs->read($site_id,$payload),
-                'log_clear'=>$this->logs->clear($site_id),
+                'log_clear'=>$this->logs->clear($site_id,(int)$context['actor_id']),
                 'send_setup'=>$this->passkeys->send_setup_link($context,$target),
                 'setup_options'=>$this->passkeys->setup_options($context,$payload),
                 'setup_complete'=>$this->passkeys->complete_setup($context,$payload),

@@ -131,8 +131,11 @@ final class Logs {
         };
     }
 
-    public function clear(int $site_id): array {
-        return $this->storage->clear_events($site_id);
+    /** The clear row ignores the Logging setting, so turning logging off first cannot hide a clear. */
+    public function clear(int $site_id, int $actor_id): array {
+        $result = $this->storage->clear_events($site_id);
+        $this->record('admin.logs_cleared', ['site_id' => $site_id, 'actor_id' => $actor_id ?: null, 'enabled' => true, 'ok' => $result['ok'], 'code' => $result['code'], 'data' => ['count' => $result['data']['deleted'] ?? null]]);
+        return $result;
     }
 
     /** WordPress personal-data eraser: keeps the rows and replaces the user's logins, passkey names and personal data keys on every site. */

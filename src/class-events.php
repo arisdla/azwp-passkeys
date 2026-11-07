@@ -20,6 +20,7 @@ final class Events {
             'passkey.deleted' => $event('passkey', 'actor', true),
             'passkey.account_deleted' => $event('passkey', 'system', false, ['count' => 'int']),
             'admin.setup_link' => $event('admin', 'actor', false),
+            'admin.logs_cleared' => $event('admin', 'actor', false, ['count' => 'int']),
             'settings.changed' => $event('settings', 'actor', false, ['setting' => 'string', 'previous' => 'setting_value', 'value' => 'setting_value']),
         ];
     }
@@ -92,6 +93,13 @@ final class Events {
                 ? sprintf(__('Setup link sent to %s', 'azwp-passkeys'), self::login($e, 'target') ?? '—')
                 /* translators: 1: username, 2: failure reason. */
                 : sprintf(__('Setup link to %1$s failed: %2$s', 'azwp-passkeys'), self::login($e, 'target') ?? '—', self::reason($e['code']))],
+            'admin.logs_cleared' => [__('Logs cleared', 'azwp-passkeys'), static function (array $e): string {
+                /* translators: %s: failure reason. */
+                if (!$e['ok']) { return sprintf(__('Clearing failed: %s', 'azwp-passkeys'), self::reason($e['code'])); }
+                $count = is_int($e['data']['count'] ?? null) ? $e['data']['count'] : 0;
+                /* translators: %d: number of log entries deleted. */
+                return sprintf(_n('%d entry deleted', '%d entries deleted', $count, 'azwp-passkeys'), $count);
+            }],
             'settings.changed' => [null, static fn(array $e): string => self::setting_text($e)],
         ];
         $all = [];

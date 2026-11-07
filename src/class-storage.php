@@ -503,9 +503,9 @@ final class Storage {
     }
     public function clear_events(int $site_id): array {
         try {
-            $this->query($this->db->prepare("DELETE FROM `{$this->tables['events']}` WHERE site_id=%d", $site_id));
+            $deleted = $this->query($this->db->prepare("DELETE FROM `{$this->tables['events']}` WHERE site_id=%d", $site_id));
             $rows = $this->row($this->db->prepare("SELECT COUNT(*) AS total FROM `{$this->tables['events']}` WHERE site_id=%d", $site_id));
-            return (int) $rows['total'] === 0 ? self::ok(['count' => 0]) : self::error('outcome_unknown');
+            return (int) $rows['total'] === 0 ? self::ok(['count' => 0, 'deleted' => $deleted]) : self::error('outcome_unknown');
         } catch (\Throwable $e) { return self::error(); }
     }
     /** Erases the user's logins on every site, and the names of passkeys the user owns. A row without a passkey keeps its NULL name. */

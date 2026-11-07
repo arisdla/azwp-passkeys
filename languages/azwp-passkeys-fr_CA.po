@@ -12,7 +12,7 @@ msgstr ""
 "Language: fr_CA\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/class-passkeys.php:368
+#: src/class-passkeys.php:373
 #, php-format
 msgid "[%s] A passkey was added to your account"
 msgstr "[%s] Une clé d’accès a été ajoutée à votre compte"
@@ -22,7 +22,7 @@ msgstr "[%s] Une clé d’accès a été ajoutée à votre compte"
 msgid "Actions"
 msgstr "Actions"
 
-#: src/class-lifecycle.php:70
+#: src/class-lifecycle.php:104
 msgid "Activate AZ's WP Passkeys for the network."
 msgstr "Activez AZ's WP Passkeys pour le réseau."
 
@@ -38,7 +38,7 @@ msgstr "Ajoutez une autre clé d’accès utilisable ou rétablissez une autre m
 msgid "Add passkey"
 msgstr "Ajouter une clé d’accès"
 
-#: src/class-events.php:56
+#: src/class-events.php:57
 #: views/credential-list.php:3
 #: assets/js/client.js:65
 msgid "Added"
@@ -147,7 +147,7 @@ msgstr "Pour tout le monde"
 msgid "Hide when signed in"
 msgstr "Masquer après la connexion"
 
-#: src/class-passkeys.php:365
+#: src/class-passkeys.php:370
 msgid "If you did not expect this, remove the passkey and change your password:"
 msgstr "Si vous ne vous y attendiez pas, supprimez cette clé d’accès et changez votre mot de passe :"
 
@@ -155,12 +155,12 @@ msgstr "Si vous ne vous y attendiez pas, supprimez cette clé d’accès et chan
 msgid "Include password sign-in form"
 msgstr "Inclure le formulaire de connexion par mot de passe"
 
-#: src/class-passkeys.php:362
+#: src/class-passkeys.php:367
 #, php-format
 msgid "It was added by %s."
 msgstr "Elle a été ajoutée par %s."
 
-#: src/class-passkeys.php:362
+#: src/class-passkeys.php:367
 msgid "It was added while you were signed in."
 msgstr "Elle a été ajoutée pendant que vous étiez connecté."
 
@@ -178,7 +178,7 @@ msgstr "Chargement…"
 msgid "Logging"
 msgstr "Journalisation"
 
-#: assets/js/settings.js:135
+#: assets/js/settings.js:137
 msgid "Logs cleared."
 msgstr "Journaux effacés."
 
@@ -231,7 +231,7 @@ msgstr "Clé d’accès ajoutée."
 msgid "Passkey already removed. List refreshed."
 msgstr "Clé d’accès déjà supprimée. Liste actualisée."
 
-#: src/class-lifecycle.php:167
+#: src/class-lifecycle.php:204
 msgid "Passkey data could not be completely removed. Try deleting the plugin again."
 msgstr "Certaines données des clés d’accès n’ont pas pu être supprimées. Réessayez de supprimer l’extension."
 
@@ -268,9 +268,9 @@ msgstr "Clé d’accès supprimée."
 msgid "Passkey renamed."
 msgstr "Clé d’accès renommée."
 
-#: src/class-lifecycle.php:78
-#: src/class-lifecycle.php:84
-#: src/class-lifecycle.php:89
+#: src/class-lifecycle.php:112
+#: src/class-lifecycle.php:118
+#: src/class-lifecycle.php:123
 msgid "Passkey settings could not be initialized."
 msgstr "Les réglages des clés d’accès n’ont pas pu être initialisés."
 
@@ -278,7 +278,7 @@ msgstr "Les réglages des clés d’accès n’ont pas pu être initialisés."
 msgid "Passkey sign-in"
 msgstr "Connexion avec une clé d’accès"
 
-#: src/class-lifecycle.php:73
+#: src/class-lifecycle.php:107
 msgid "Passkey storage could not be initialized. The database tables must use the InnoDB storage engine."
 msgstr "Le stockage des clés d’accès n’a pas pu être initialisé. Les tables de la base de données doivent utiliser le moteur de stockage InnoDB."
 
@@ -364,8 +364,8 @@ msgstr "Enregistrement…"
 msgid "Set in network settings:"
 msgstr "Défini dans les réglages du réseau :"
 
-#: src/class-events.php:32
-#: src/class-events.php:162
+#: src/class-events.php:33
+#: src/class-events.php:170
 #: src/class-screens.php:77
 msgid "Settings"
 msgstr "Réglages"
@@ -396,7 +396,7 @@ msgstr "Connectez-vous pour gérer vos clés d’accès."
 msgid "Sign in with a passkey"
 msgstr "Se connecter avec une clé d’accès"
 
-#: src/class-events.php:29
+#: src/class-events.php:30
 #: views/settings-network.php:4
 #: views/settings-site.php:10
 msgid "Sign-in"
@@ -404,6 +404,7 @@ msgstr "Connexion"
 
 #: src/class-authentication.php:452
 #: src/class-authentication.php:458
+#: watchdog/azwp-passkeys-watchdog.php:62
 msgid "Sign-in failed. Please try again."
 msgstr "La connexion a échoué. Veuillez réessayer."
 
@@ -452,7 +453,7 @@ msgstr "Ce réglage n’a aucun effet tant que l’option « Tout le monde peut 
 msgid "This passkey has already been added. Nothing was replaced."
 msgstr "Cette clé d’accès a déjà été ajoutée. Rien n’a été remplacé."
 
-#: src/class-passkeys.php:462
+#: src/class-passkeys.php:467
 msgid "This passkey is unavailable under the current site settings."
 msgstr "Cette clé d’accès n’est pas disponible avec les réglages actuels du site."
 
@@ -579,7 +580,7 @@ msgstr "Si vous ne vous y attendiez pas, ignorez ce courriel. Rien ne change tan
 msgid "[%s] Add a passkey to your account"
 msgstr "[%s] Ajoutez une clé d’accès à votre compte"
 
-#: src/class-passkeys.php:362
+#: src/class-passkeys.php:367
 #, php-format
 msgid "It was added with a setup link sent by %s."
 msgstr "Elle a été ajoutée avec un lien de configuration envoyé par %s."
@@ -667,7 +668,7 @@ msgstr "Permet à la connexion par clé d’accès de garder les personnes conne
 msgid "Passkey only mode is on, and changing this would stop every passkey from working. Turn Passkey only mode off first."
 msgstr "Le mode clé d’accès uniquement est activé, et ce changement empêcherait toutes les clés d’accès de fonctionner. Désactivez d’abord le mode clé d’accès uniquement."
 
-#: src/class-lifecycle.php:74
+#: src/class-lifecycle.php:108
 msgid "Passkey storage could not be initialized."
 msgstr "Le stockage des clés d’accès n’a pas pu être initialisé."
 
@@ -677,296 +678,296 @@ msgstr "Le stockage des clés d’accès n’a pas pu être initialisé."
 msgid "%1$s on %2$s"
 msgstr "%1$s sur %2$s"
 
-#: src/class-events.php:30
-#: src/class-events.php:46
-#: src/class-events.php:75
-#: src/class-events.php:140
+#: src/class-events.php:31
+#: src/class-events.php:47
+#: src/class-events.php:76
+#: src/class-events.php:148
 #: src/class-passkeys.php:184
 msgid "Passkey"
 msgstr "Clé d’accès"
 
-#: src/class-passkeys.php:360
+#: src/class-passkeys.php:365
 #, php-format
 msgid "A passkey from an unknown authenticator (named “%1$s”) was added to your account on %2$s."
 msgstr "Une clé d’accès d’un authentificateur inconnu (nommée « %1$s ») a été ajoutée à votre compte sur %2$s."
 
-#: src/class-passkeys.php:361
+#: src/class-passkeys.php:366
 #, php-format
 msgid "A passkey from %1$s (named “%2$s”) was added to your account on %3$s."
 msgstr "Une clé d’accès de %1$s (nommée « %2$s ») a été ajoutée à votre compte sur %3$s."
 
-#: src/class-passkeys.php:364
+#: src/class-passkeys.php:369
 msgid "If you did not expect this, remove the passkey and tell a site administrator:"
 msgstr "Si vous ne vous y attendiez pas, supprimez cette clé d’accès et prévenez un administrateur du site :"
 
-#: src/class-events.php:31
+#: src/class-events.php:32
 msgid "Admin"
 msgstr "Administration"
 
-#: src/class-events.php:39
+#: src/class-events.php:40
 #, php-format
 msgid "%s: added"
 msgstr "%s : ajoutée"
 
 #. translators: 1: passkey, 2: username of the account it was added to.
-#: src/class-events.php:41
+#: src/class-events.php:42
 #, php-format
 msgid "%1$s: added for %2$s"
 msgstr "%1$s : ajoutée pour %2$s"
 
 #. translators: %s: failure reason.
-#: src/class-events.php:43
+#: src/class-events.php:44
 #, php-format
 msgid "Adding failed: %s"
 msgstr "Échec de l’ajout : %s"
 
-#: src/class-events.php:47
+#: src/class-events.php:48
 #, php-format
 msgid "%s: signed in"
 msgstr "%s : connexion réussie"
 
-#: src/class-events.php:48
-#: src/class-events.php:52
+#: src/class-events.php:49
+#: src/class-events.php:53
 #, php-format
 msgid "Sign-in failed: %s"
 msgstr "Échec de la connexion : %s"
 
-#: src/class-events.php:50
+#: src/class-events.php:51
 msgid "New registration"
 msgstr "Nouvelle inscription"
 
-#: src/class-events.php:51
+#: src/class-events.php:52
 msgid "Signed in after registering"
 msgstr "Connexion après l’inscription"
 
 #. translators: 1: account, such as "User #42 (marie)", 2: failure reason.
-#: src/class-events.php:54
+#: src/class-events.php:55
 #, php-format
 msgid "%1$s sign-in failed: %2$s"
 msgstr "%1$s : échec de la connexion : %2$s"
 
-#: src/class-events.php:57
+#: src/class-events.php:58
 msgid "Added by link"
 msgstr "Ajoutée par lien"
 
-#: src/class-events.php:58
+#: src/class-events.php:59
 msgid "Tested"
 msgstr "Testée"
 
-#: src/class-events.php:59
+#: src/class-events.php:60
 #, php-format
 msgid "%s: tested"
 msgstr "%s : testée"
 
-#: src/class-events.php:60
+#: src/class-events.php:61
 #, php-format
 msgid "%1$s: tested for %2$s"
 msgstr "%1$s : testée pour %2$s"
 
 #. translators: 1: passkey, 2: failure reason.
-#: src/class-events.php:62
+#: src/class-events.php:63
 #, php-format
 msgid "%1$s test failed: %2$s"
 msgstr "%1$s : échec du test : %2$s"
 
 #. translators: 1: passkey, 2: username of the account it belongs to, 3: failure reason.
-#: src/class-events.php:64
+#: src/class-events.php:65
 #, php-format
 msgid "%1$s test failed for %2$s: %3$s"
 msgstr "%1$s : échec du test pour %2$s : %3$s"
 
-#: src/class-events.php:65
+#: src/class-events.php:66
 #, php-format
 msgid "Test failed: %s"
 msgstr "Échec du test : %s"
 
-#: src/class-events.php:67
+#: src/class-events.php:68
 msgid "Renamed"
 msgstr "Renommée"
 
 #. translators: 1: passkey with its old name, 2: new name.
-#: src/class-events.php:69
+#: src/class-events.php:70
 #, php-format
 msgid "%1$s: renamed to %2$s"
 msgstr "%1$s : renommée en %2$s"
 
 #. translators: 1: passkey with its old name, 2: new name, 3: username of the account it belongs to.
-#: src/class-events.php:71
+#: src/class-events.php:72
 #, php-format
 msgid "%1$s: renamed to %2$s for %3$s"
 msgstr "%1$s : renommée en %2$s pour %3$s"
 
-#: src/class-events.php:72
+#: src/class-events.php:73
 #, php-format
 msgid "%1$s renaming failed: %2$s"
 msgstr "%1$s : échec du renommage : %2$s"
 
-#: src/class-events.php:73
+#: src/class-events.php:74
 #, php-format
 msgid "%1$s renaming failed for %2$s: %3$s"
 msgstr "%1$s : échec du renommage pour %2$s : %3$s"
 
-#: src/class-events.php:74
+#: src/class-events.php:75
 #, php-format
 msgid "Renaming failed: %s"
 msgstr "Échec du renommage : %s"
 
-#: src/class-events.php:76
+#: src/class-events.php:77
 msgid "Deleted"
 msgstr "Supprimée"
 
-#: src/class-events.php:77
+#: src/class-events.php:78
 msgid "Passkey already deleted"
 msgstr "Clé d’accès déjà supprimée"
 
-#: src/class-events.php:79
+#: src/class-events.php:80
 #, php-format
 msgid "%s: deleted"
 msgstr "%s : supprimée"
 
-#: src/class-events.php:80
+#: src/class-events.php:81
 #, php-format
 msgid "%1$s: deleted for %2$s"
 msgstr "%1$s : supprimée pour %2$s"
 
-#: src/class-events.php:81
+#: src/class-events.php:82
 #, php-format
 msgid "%1$s deletion failed: %2$s"
 msgstr "%1$s : échec de la suppression : %2$s"
 
-#: src/class-events.php:82
+#: src/class-events.php:83
 #, php-format
 msgid "%1$s deletion failed for %2$s: %3$s"
 msgstr "%1$s : échec de la suppression pour %2$s : %3$s"
 
-#: src/class-events.php:83
+#: src/class-events.php:84
 #, php-format
 msgid "Deletion failed: %s"
 msgstr "Échec de la suppression : %s"
 
-#: src/class-events.php:85
+#: src/class-events.php:86
 msgid "Account deleted"
 msgstr "Compte supprimé"
 
-#: src/class-events.php:86
+#: src/class-events.php:87
 #, php-format
 msgid "%1$s passkey deletion failed: %2$s"
 msgstr "%1$s : échec de la suppression des clés d’accès : %2$s"
 
 #. translators: 1: account, such as "User #42 (marie)", 2: number of passkeys.
-#: src/class-events.php:89
+#: src/class-events.php:90
 #, php-format
 msgid "%1$s deleted with %2$d passkey"
 msgid_plural "%1$s deleted with %2$d passkeys"
 msgstr[0] "%1$s supprimé avec %2$d clé d’accès"
 msgstr[1] "%1$s supprimé avec %2$d clés d’accès"
 
-#: src/class-events.php:91
+#: src/class-events.php:92
 msgid "Setup link"
 msgstr "Lien de configuration"
 
-#: src/class-events.php:92
+#: src/class-events.php:93
 #, php-format
 msgid "Setup link sent to %s"
 msgstr "Lien de configuration envoyé à %s"
 
 #. translators: 1: username, 2: failure reason.
-#: src/class-events.php:94
+#: src/class-events.php:95
 #, php-format
 msgid "Setup link to %1$s failed: %2$s"
 msgstr "Échec du lien de configuration pour %1$s : %2$s"
 
-#: src/class-events.php:108
+#: src/class-events.php:116
 msgid "passkey not recognized"
 msgstr "clé d’accès non reconnue"
 
-#: src/class-events.php:109
+#: src/class-events.php:117
 msgid "request expired or already used"
 msgstr "demande expirée ou déjà utilisée"
 
-#: src/class-events.php:110
+#: src/class-events.php:118
 msgid "session or settings changed mid-request"
 msgstr "session ou réglages modifiés pendant la demande"
 
-#: src/class-events.php:111
+#: src/class-events.php:119
 msgid "passkey already added"
 msgstr "clé d’accès déjà ajoutée"
 
-#: src/class-events.php:112
+#: src/class-events.php:120
 msgid "would leave the account without a way to sign in"
 msgstr "le compte n’aurait plus aucun moyen de se connecter"
 
-#: src/class-events.php:113
+#: src/class-events.php:121
 msgid "not allowed"
 msgstr "non autorisé"
 
-#: src/class-events.php:114
+#: src/class-events.php:122
 msgid "bad request"
 msgstr "demande invalide"
 
-#: src/class-events.php:115
+#: src/class-events.php:123
 msgid "passkeys not set up on this site"
 msgstr "clés d’accès non configurées sur ce site"
 
-#: src/class-events.php:116
+#: src/class-events.php:124
 msgid "result not confirmed"
 msgstr "résultat non confirmé"
 
-#: src/class-events.php:117
+#: src/class-events.php:125
 msgid "email not sent"
 msgstr "courriel non envoyé"
 
-#: src/class-events.php:118
+#: src/class-events.php:126
 msgid "database error"
 msgstr "erreur de base de données"
 
-#: src/class-events.php:119
+#: src/class-events.php:127
 msgid "registered from another site"
 msgstr "inscription depuis un autre site"
 
-#: src/class-events.php:120
+#: src/class-events.php:128
 msgid "blocked by another plugin"
 msgstr "bloqué par une autre extension"
 
-#: src/class-events.php:121
+#: src/class-events.php:129
 msgid "sign-in cookie blocked"
 msgstr "cookie de connexion bloqué"
 
 #. translators: 1: user ID, 2: username.
-#: src/class-events.php:129
-#: src/class-events.php:135
+#: src/class-events.php:137
+#: src/class-events.php:143
 #, php-format
 msgid "User #%d"
 msgstr "Utilisateur nº %d"
 
 #. translators: 1: user ID, 2: username.
-#: src/class-events.php:135
+#: src/class-events.php:143
 #, php-format
 msgid "User #%1$d (%2$s)"
 msgstr "Utilisateur nº %1$d (%2$s)"
 
 #. translators: %s: setting name.
-#: src/class-events.php:165
+#: src/class-events.php:173
 #, php-format
 msgid "%s turned on"
 msgstr "%s : activé"
 
 #. translators: %s: setting name.
-#: src/class-events.php:165
+#: src/class-events.php:173
 #, php-format
 msgid "%s turned off"
 msgstr "%s : désactivé"
 
-#: src/class-events.php:168
+#: src/class-events.php:176
 msgid "on"
 msgstr "activé"
 
-#: src/class-events.php:168
+#: src/class-events.php:176
 msgid "off"
 msgstr "désactivé"
 
 #. translators: 1: setting name, 2: old value, 3: new value.
-#: src/class-events.php:174
+#: src/class-events.php:182
 #, php-format
 msgid "%1$s changed: %2$s → %3$s"
 msgstr "%1$s : %2$s → %3$s"
@@ -975,15 +976,15 @@ msgstr "%1$s : %2$s → %3$s"
 msgid "system"
 msgstr "système"
 
-#: src/class-logs.php:156
+#: src/class-logs.php:159
 msgid "Passkey log entries are kept with usernames and passkey names erased."
 msgstr "Les entrées des journaux de clés d’accès sont conservées, avec les noms d’utilisateur et les noms de clés d’accès effacés."
 
-#: src/class-logs.php:162
+#: src/class-logs.php:165
 msgid "Passkey logs could not be erased. Try again."
 msgstr "Les journaux de clés d’accès n’ont pas pu être effacés. Réessayez."
 
-#: src/class-logs.php:166
+#: src/class-logs.php:169
 #: src/class-screens.php:34
 #: views/logs.php:2
 #: views/settings-site.php:13
@@ -1101,3 +1102,36 @@ msgstr "Adresse IP"
 #: views/logs.php:12
 msgid "Logs remain until cleared. Usernames, passkey names and IP addresses are stored. Passwords and passkey responses are not logged."
 msgstr "Les journaux sont conservés jusqu’à leur effacement. Les noms d’utilisateur, les noms de clés d’accès et les adresses IP sont enregistrés. Les mots de passe et les réponses des clés d’accès ne sont pas journalisés."
+
+#: src/class-events.php:96
+msgid "Logs cleared"
+msgstr "Journaux effacés"
+
+#. translators: %s: failure reason.
+#: src/class-events.php:98
+#, php-format
+msgid "Clearing failed: %s"
+msgstr "Échec de l’effacement : %s"
+
+#. translators: %d: number of log entries deleted.
+#: src/class-events.php:101
+#, php-format
+msgid "%d entry deleted"
+msgid_plural "%d entries deleted"
+msgstr[0] "%d entrée supprimée"
+msgstr[1] "%d entrées supprimées"
+
+#: src/class-lifecycle.php:100
+msgid "Deactivation protection for AZ's WP Passkeys is off because wp-content/mu-plugins is not writable."
+msgstr "La protection contre la désactivation d’AZ's WP Passkeys est désactivée, car wp-content/mu-plugins n’est pas accessible en écriture."
+
+#: watchdog/azwp-passkeys-watchdog.php:72
+msgid "AZ's WP Passkeys is not running, so password sign-in stays blocked for accounts that use passkeys only. Restore the plugin, or delete wp-content/mu-plugins/azwp-passkeys-watchdog.php to lift the block."
+msgstr "AZ's WP Passkeys ne fonctionne pas : la connexion par mot de passe reste donc bloquée pour les comptes qui utilisent uniquement des clés d’accès. Restaurez l’extension ou supprimez wp-content/mu-plugins/azwp-passkeys-watchdog.php pour lever le blocage."
+
+#: assets/js/settings.js:135
+#, js-format
+msgid "Delete %s log entry for this site? This cannot be undone."
+msgid_plural "Delete all %s log entries for this site? This cannot be undone."
+msgstr[0] "Supprimer %s entrée des journaux de ce site ? Cette action est irréversible."
+msgstr[1] "Supprimer les %s entrées des journaux de ce site ? Cette action est irréversible."

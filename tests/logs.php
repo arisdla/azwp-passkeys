@@ -146,11 +146,23 @@ try {
     $assert($nobody['done'] && !$nobody['items_removed'] && !$nobody['items_retained'], 'An unknown email erases nothing');
     $erasers = apply_filters('wp_privacy_personal_data_erasers', []);
     $assert(isset($erasers['azwp-passkeys-logs']) && is_callable($erasers['azwp-passkeys-logs']['callback']), 'The eraser is registered with WordPress');
+
+    $assert($details('admin.logs_cleared', ['data' => ['count' => 1]]) === '1 entry deleted', 'One cleared entry is singular');
+    $assert($details('admin.logs_cleared', ['data' => ['count' => 3]]) === '3 entries deleted', 'A clear counts the entries it deleted');
+    $assert($details('admin.logs_cleared', ['ok' => false, 'code' => 'storage_failed']) === 'Clearing failed: database error', 'A failed clear reads its reason');
+    $settings->save_logs(['logging' => '0']);
+    $before_clear = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `$table` WHERE site_id=%d", $site));
+    $cleared = $logs->clear($site, $admin);
+    $rows = $wpdb->get_results($wpdb->prepare("SELECT * FROM `$table` WHERE site_id=%d", $site), ARRAY_A);
+    $assert($cleared['ok'] && $before_clear > 0 && count($rows) === 1 && $rows[0]['event'] === 'admin.logs_cleared' && (int) $rows[0]['actor_id'] === $admin && json_decode($rows[0]['data'], true) === ['count' => $before_clear], 'Clearing leaves one row naming who cleared how many entries, even with logging off');
+    $entry = $logs->read($site, [])['data']['entries'][0];
+    $assert([$entry['category'], $entry['action'], $entry['user']] === ['Admin', 'Logs cleared', get_userdata($admin)->user_login], 'The clear row reads as Admin: Logs cleared by the administrator');
     echo "Logs integration: $checks checks passed.\n";
 } finally {
     foreach (array_chunk($correlations, 100) as $chunk) {
         $wpdb->query($wpdb->prepare("DELETE FROM `$table` WHERE correlation_id IN (" . implode(',', array_fill(0, count($chunk), '%s')) . ')', ...$chunk));
     }
+    $wpdb->delete($table, ['site_id' => $site, 'event' => 'admin.logs_cleared']);
     foreach ($users as $user) { wp_delete_user($user); }
     if ($original_settings === null) { delete_option('azwp_passkeys_settings'); }
     else { update_option('azwp_passkeys_settings', $original_settings, false); }

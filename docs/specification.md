@@ -329,7 +329,7 @@ Temporary ceremony state expires after 90 seconds in the transactional attempt s
 
 Logging is enabled by default. Log entries remain until manually cleared, with no automatic age-based expiry or automatic disabling. The viewer lists the current site's entries newest first, 20 per page, with category and result filters and a Clear logs action that is disabled when the site has no entries. While logging is enabled, page 1 refreshes every five seconds; later pages and disabled logging do not refresh automatically. Log read/clear requires `manage_options` and an administrator nonce.
 
-Turning logging on or off writes one entry; disabling logging retains entries. A log entry holds only the typed columns and the event fields its registry entry declares. Usernames, passkey names and IP addresses are stored. Passwords, cookies, tokens, challenges, public keys, request headers, user agents and raw SQL are never logged. Passkey names and stored text fields pass a central redaction filter. Configuration, dependency and HTTPS warnings provide actionable failure information and correlation identifiers without exposing authentication material.
+Turning logging on or off writes one entry; disabling logging retains entries. Clear logs asks for confirmation, then deletes the site's entries and writes one `admin.logs_cleared` entry naming the administrator and the number deleted. That entry is written even while logging is off, so turning logging off first cannot hide a clear. A log entry holds only the typed columns and the event fields its registry entry declares. Usernames, passkey names and IP addresses are stored. Passwords, cookies, tokens, challenges, public keys, request headers, user agents and raw SQL are never logged. Passkey names and stored text fields pass a central redaction filter. Configuration, dependency and HTTPS warnings provide actionable failure information and correlation identifiers without exposing authentication material.
 
 English is the source language and default fallback; no separate English translation catalog is required. French is packaged for exactly two additional locales: `fr_CA` and `fr_FR`. English and both French locales cover all user-facing strings, including PHP, administration, native login, frontend JavaScript, shortcodes, Gutenberg editor controls, notices and operation/error messages. WordPress selects the applicable site or user locale through its standard localization mechanisms; regional formatting follows that active WordPress locale. The plugin neither forces `fr_FR` globally nor adds a language-switching interface. A shared neutral French translation source may supply both separately packaged locale catalogs. Other French locales have no implicit French-catalog fallback; missing translations fall back to the English source string.
 
@@ -684,7 +684,7 @@ Native AJAX uses `admin_url('admin-ajax.php')`. Each action is POST form data wi
 | `azwp_passkeys_rename`            | `target_id`, `record_id` internal decimal ID, `name` | `credential`, `unchanged: bool`                                                                         |
 | `azwp_passkeys_remove`            | `target_id`, `record_id` internal decimal ID         | `removed: bool`, `already_absent: bool`                                                                 |
 | `azwp_passkeys_log_read`          | Optional `paged`, `category`, `ok` (section 25)          | `total`, `matched`, `paged`, `per_page`, `total_pages`, `categories`, `entries` for the current site    |
-| `azwp_passkeys_log_clear`         | Empty object                                             | `count: 0` after confirmed deletion                                                                     |
+| `azwp_passkeys_log_clear`         | Empty object                                             | `count: 0` after confirmed deletion, `deleted` rows removed                                             |
 | `azwp_passkeys_send_setup`       | `target_id` | `sent: true` |
 | `azwp_passkeys_setup_options`    | `user_id`, `token` | `attempt_id`, `publicKey` |
 | `azwp_passkeys_setup_complete`   | `attempt_id`, `credential`, `token` | `redirect_to` sign-in URL |
@@ -843,7 +843,7 @@ Categories are defined once, next to the events.
 | `admin` | Admin |
 | `settings` | Settings |
 
-##### The ten events
+##### The eleven events
 
 | Event key | Action | User rule | Passkey columns | `data` keys | Written by |
 |---|---|---|---|---|---|
@@ -856,6 +856,7 @@ Categories are defined once, next to the events.
 | `passkey.deleted` | Deleted | actor | yes | none | `Ajax::dispatch`, `remove` |
 | `passkey.account_deleted` | Account deleted | system | no | `count` | `Lifecycle` |
 | `admin.setup_link` | Setup link | actor | no | none | `Ajax::dispatch`, `send_setup` |
+| `admin.logs_cleared` | Logs cleared | actor | no | `count` (`int`) | `Logs::clear` |
 | `settings.changed` | none | actor | no | `setting` (`string`), `previous` and `value` (`setting_value`) | `Settings::save` |
 
 The Event cell shows `Category: Action`, for example `Passkey: Deleted`. `settings.changed` has no action, so its cell shows just `Settings`. Turning logging on or off is one `settings.changed` row.
@@ -909,6 +910,7 @@ Placeholders. `{name}` is `passkey_name`. `{auth}` is the authenticator name. `{
 | `passkey.deleted` | `{name} ({auth}): deleted`, or `Passkey already deleted` when the result has no passkey | `{name} ({auth}) deletion failed: {reason}` | `Deletion failed: {reason}` |
 | `passkey.account_deleted` | `{who} deleted with {count} passkeys` | none | `{who} passkey deletion failed: {reason}` |
 | `admin.setup_link` | `Setup link sent to {target}` | none | `Setup link to {target} failed: {reason}` |
+| `admin.logs_cleared` | `{count} entries deleted` | none | `Clearing failed: {reason}` |
 | `settings.changed` | `{setting} turned on` or `{setting} turned off` for a boolean setting, otherwise `{setting} changed: {previous} → {value}` | none | no row |
 
 Rules that apply across the table.
@@ -963,7 +965,7 @@ $logs->record(string $event, array $fields = []): void
 | `data` | The event's own keys |
 | `correlation_id` | Defaults to a new random one |
 | `site_id` | Defaults to the current site. Cleanup sets it to the site that held the passkeys. |
-| `enabled` | Overrides the stored Logging setting. `Settings::save` uses it, as the Details rules require. |
+| `enabled` | Overrides the stored Logging setting. `Settings::save` uses it, as the Details rules require. `Logs::clear` sets it to true. |
 
 `record()` returns nothing and never throws. It does nothing when logging is off for the site. It does nothing inside an owner transaction. `Storage::insert_event()` makes that check, because only `Storage` knows the transaction state. An unknown event, or a failed insert, is dropped silently. A logging failure never changes the result of the operation being logged.
 
@@ -1091,7 +1093,7 @@ All fields are optional. An unknown `category`, a non-bool `ok`, or a `paged` th
 | Rendering | Cells are built with `textContent`. Nothing from the log goes through `innerHTML`. |
 | Polling | Every five seconds while logging is enabled, on page 1 only. Each poll refetches page 1 with the current filters and redraws when the newest entry ID or `matched` changed. On other pages polling is off, because new rows would shift the page under the reader. The filters and the scroll position survive a redraw. |
 | Empty | `No log entries.` when the site has none, or `No log entries match these filters.` when a filter is active. A failed load keeps the old rows and shows `Could not load logs.` in the status region. |
-| Clear | The Clear logs button, disabled when the site has no entries. After a clear, the viewer loads page 1 and drops `paged` from the address. |
+| Clear | The Clear logs button, disabled when the site has no entries. It first asks `Delete all N log entries for this site? This cannot be undone.`, with N from `total`, and does nothing when cancelled. After a clear, the viewer loads page 1, which shows the `admin.logs_cleared` entry, and drops `paged` from the address. |
 | Corrected page | When the response's `paged` differs from the one requested, for example past the end, the viewer shows the returned page and rewrites `paged` in the address. |
 | Accessibility | The table has a visually hidden caption. Headers use `scope="col"`. Result uses visible `✓` or `✗` plus hidden `Succeeded` or `Failed`. Status messages use `role="status"`. |
 
