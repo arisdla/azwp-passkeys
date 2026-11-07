@@ -683,7 +683,7 @@ Native AJAX uses `admin_url('admin-ajax.php')`. Each action is POST form data wi
 | `azwp_passkeys_list`              | `target_id`                                              | `credentials: []` summaries in required order                                                           |
 | `azwp_passkeys_rename`            | `target_id`, `record_id` internal decimal ID, `name` | `credential`, `unchanged: bool`                                                                         |
 | `azwp_passkeys_remove`            | `target_id`, `record_id` internal decimal ID         | `removed: bool`, `already_absent: bool`                                                                 |
-| `azwp_passkeys_log_read`          | Optional `paged`, `category`, `ok` (section 25)          | `total`, `matched`, `paged`, `per_page`, `total_pages`, `categories`, `entries` for the current site    |
+| `azwp_passkeys_log_read`          | Optional `paged`, `category`, `ok` (section 25)          | `total`, `matched`, `paged`, `per_page`, `total_pages`, `entries` for the current site                    |
 | `azwp_passkeys_log_clear`         | Empty object                                             | `count: 0` after confirmed deletion, `deleted` rows removed                                             |
 | `azwp_passkeys_send_setup`       | `target_id` | `sent: true` |
 | `azwp_passkeys_setup_options`    | `user_id`, `token` | `attempt_id`, `publicKey` |
@@ -1049,7 +1049,6 @@ All fields are optional. An unknown `category`, a non-bool `ok`, or a `paged` th
   "paged": 1,
   "per_page": 20,
   "total_pages": 1,
-  "categories": [{"key": "signin", "label": "Sign-in"}, {"key": "passkey", "label": "Passkey"}],
   "entries": [
     {
       "id": 138,
@@ -1072,7 +1071,7 @@ All fields are optional. An unknown `category`, a non-bool `ok`, or a `paged` th
 - `matched` counts the entries that pass the filters. `total` counts all of the site's entries. The page size is fixed at 20, WordPress's default for list screens. There is no Screen Options control.
 - `total_pages` is at least 1. With no matching entries, it is 1, `paged` is 1 and `entries` is empty.
 - The query uses `LIMIT 20 OFFSET (paged - 1) * 20` on the `(site_id, id)` index.
-- The response has no HTML and no raw `data`, `passkey_aaguid` or logins. `ip` is the stored address, or `-` when there is none.
+- The response has no HTML and no raw `data`, `passkey_aaguid` or logins. `ip` is the stored address, or `—` when there is none.
 - `Logs::read()` calls `Storage::read_events()`, which returns raw rows, and builds `time`, `category`, `action`, `user` and `details`. `action` is the translated action, or `null` for `settings.changed`. `time` uses `wp_date()` with the site's timezone and the site's `date_format` and `time_format` options joined by a space, so it includes the year.
 - Read checks that each stored ID fits in a PHP integer, as section 20 requires.
 - Read and clear require `manage_options` and the nonce `azwp_passkeys_logs_{site_id}`.
@@ -1086,7 +1085,7 @@ All fields are optional. An unknown `category`, a non-bool `ok`, or a `paged` th
 |---|---|
 | Columns | `#ID`, `Event`, `User`, `Result`, `Details`, `Time`, `IP address`. Rows are one line. Long Details text wraps. |
 | Event cell | Built from `category` and `action`: the muted category, `: `, then the action. When `action` is `null`, the category alone. When `category` is empty, the action alone. The `: ` separator is a translatable string. |
-| Filters | A category select built from `categories` in the response, plus All. A result select (Any, Succeeded, Failed). Changing either fetches page 1 with the filter applied. |
+| Filters | A category select listing `Events::categories()`, rendered with the page, plus All. A `category` in the address that the select does not list is dropped before the first load. A result select (Any, Succeeded, Failed). Changing either fetches page 1 with the filter applied. |
 | Pagination | The standard WordPress `tablenav` above and below the table: `N items` (from `matched`), then `« ‹ 1 of 5 › »` with the `tablenav-pages` classes. The current page number is an input, as in core. A single page shows only the count. The first and previous links are disabled on page 1, and the next and last links on the last page. |
 | Page links | Each link is an anchor with `href` set to the page URL plus `paged=N` and the active filters as `category` and `result` (`ok` or `failed`), so it opens in a new tab with the same view and works from the keyboard. JavaScript intercepts the click, fetches that page and updates the address with `history.replaceState`. Changing a filter updates the address the same way. Loading the page URL with these parameters opens that view. |
 | Row hover | The row `title` shows the correlation ID. |

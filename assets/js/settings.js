@@ -88,9 +88,6 @@
     }
     function render(data) {
         shown = { newest: data.entries[0]?.id ?? 0, matched: data.matched, total: data.total };
-        if ([...categorySelect.options].slice(1).map(option => option.value).join() !== data.categories.map(category => category.key).join()) {
-            categorySelect.replaceChildren(categorySelect.options[0], ...data.categories.map(category => { const option = element('option', '', category.label); option.value = category.key; return option; }));
-        }
         categorySelect.value = state.category;
         resultSelect.value = state.result;
         const empty = element('tr', 'azwp-passkeys-log-empty');
@@ -138,6 +135,7 @@
         catch (error) { client.status(root, error.message, true); }
         go(1);
     });
+    if (![...categorySelect.options].some(option => option.value === state.category)) { state.category = ''; remember(); }
     load();
     // Polling would shift rows under a reader on later pages, so only page 1 refreshes.
     if (root.dataset.logging === '1') window.setInterval(() => { if (state.paged === 1 && !inFlight) load(true); }, client.config.log_poll_interval_ms);

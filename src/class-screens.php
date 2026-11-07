@@ -200,7 +200,7 @@ final class Screens {
         if (!current_user_can('manage_options')) wp_die(esc_html__('You do not have permission to view logs.','azwp-passkeys'));
         $this->environment_notice();
         if (!$this->passkeys->configuration(get_current_blog_id())['ok']) echo '<div class="notice notice-error"><p>'.esc_html__('Check Website name and Passkey domain in settings. The passkey domain must match this site.','azwp-passkeys').'</p></div>';
-        echo $this->view('logs',['values'=>$this->settings->get_effective(get_current_blog_id()),'nonce'=>wp_create_nonce('azwp_passkeys_logs_'.get_current_blog_id()),'ready'=>$this->server_ready()]);
+        echo $this->view('logs',['values'=>$this->settings->get_effective(get_current_blog_id()),'categories'=>Events::categories(),'nonce'=>wp_create_nonce('azwp_passkeys_logs_'.get_current_blog_id()),'ready'=>$this->server_ready()]);
     }
     private function save_form(string $scope): void {
         $network=$scope==='network'; $id=$network?get_current_network_id():get_current_blog_id();

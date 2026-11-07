@@ -54,6 +54,7 @@ try {
     $logs_page=$render(fn()=> $screens->render_logs());
     $assert(str_contains($logs_page,'name="logging"')&&str_contains($logs_page,'Clear logs'),'The log page owns the logging control and clear action');
     $assert(str_contains($logs_page,'<h1>Passkey Logs</h1>')&&str_contains($logs_page,'scope="col"')&&str_contains($logs_page,'data-log-filter="category"')&&!str_contains($logs_page,'<pre'),'The log page shows a filtered table, not raw entries');
+    $assert(preg_match_all('/<option value="(signin|passkey|admin|settings)">/',$logs_page,$options)===4&&$options[1]===['signin','passkey','admin','settings'],'The category filter lists every category before any log request');
     if (!WP_Block_Type_Registry::get_instance()->is_registered('azwp-passkeys/login')) $screens->register_blocks();
     foreach (['login','register','test','list'] as $kind) $assert(\WP_Block_Type_Registry::get_instance()->is_registered('azwp-passkeys/'.$kind),'Registered block '.$kind);
     $assert(!preg_match('/\b(authenticator|Terminology)\b/',$site.$profile.$logs_page),'No removed jargon in visible generated screens');

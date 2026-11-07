@@ -62,9 +62,8 @@ if (process.env.AZWP_PASSKEYS_TESTS !== '1' || !process.env.TEST_URL || new URL(
         const tested = all.entries.find(entry => entry.event === 'passkey.tested');
         assert.deepEqual([tested.category, tested.action, tested.user, tested.details], ['Passkey', 'Tested', 'admin', 'Work phone: tested']);
         assert.equal(typeof tested.time, 'string');
-        assert.equal(tested.ip, '-', 'An entry with no IP address shows -');
+        assert.equal(tested.ip, '—', 'An entry with no IP address shows —');
         for (const hidden of ['data', 'passkey_aaguid', 'actor_login', 'target_login', 'passkey_name']) assert.ok(!(hidden in tested), 'No raw ' + hidden + ' in the response');
-        assert.deepEqual(all.categories.map(category => category.key), ['signin', 'passkey', 'admin', 'settings']);
         const second = (await read({ paged: 2 })).body.data;
         assert.equal(second.paged, 2);
         assert.equal(second.entries.length, 1, 'Page 2 holds the oldest entry');

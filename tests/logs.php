@@ -101,8 +101,8 @@ try {
     $entry = null;
     foreach ($read['data']['entries'] ?? [] as $candidate) { if ($candidate['correlation_id'] === $retired) { $entry = $candidate; } }
     $assert($entry !== null && $entry['category'] === '' && $entry['action'] === 'legacy.gone' && $entry['details'] === 'storage_failed' && $entry['user'] === 'kept', 'A retired key reads with its raw key, stored code and stored login');
-    $assert($entry['ip'] === '-', 'An entry with no IP address reads as -');
-    $assert(!array_key_exists('data', $entry) && !array_key_exists('passkey_aaguid', $entry) && is_string($entry['time']) && $read['data']['per_page'] === 20, 'Read returns presentation fields only');
+    $assert($entry['ip'] === '—', 'An entry with no IP address reads as —');
+    $assert(!array_key_exists('data', $entry) && !array_key_exists('passkey_aaguid', $entry) && is_string($entry['time']) && $read['data']['per_page'] === 20 && !array_key_exists('categories', $read['data']), 'Read returns presentation fields only');
     foreach ([['category' => 'nope'], ['ok' => 'yes'], ['paged' => 0], ['paged' => 'x']] as $bad) {
         $assert($logs->read($site, $bad)['code'] === 'invalid_request', 'Invalid read request rejected: ' . json_encode($bad));
     }

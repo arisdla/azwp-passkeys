@@ -111,13 +111,12 @@ final class Logs {
                 'ok' => $row['ok'], 'code' => $row['code'],
                 'details' => $definition ? ($definition['details'])($row) : $row['code'],
                 'correlation_id' => $row['correlation_id'],
-                'ip' => $row['ip'] ?? '-',
+                'ip' => $row['ip'] ?? '—',
             ];
         }, $page['rows']);
-        $categories = array_map(static fn(string $key): array => ['key' => $key, 'label' => $labels[$key] ?? $key], array_values($categories));
         return ['ok' => true, 'code' => 'ok', 'message' => '', 'data' => [
             'total' => $page['total'], 'matched' => $page['matched'], 'paged' => $page['paged'], 'per_page' => self::PER_PAGE,
-            'total_pages' => $page['total_pages'], 'categories' => $categories, 'entries' => $entries,
+            'total_pages' => $page['total_pages'], 'entries' => $entries,
         ]];
     }
 
