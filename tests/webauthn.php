@@ -1,7 +1,6 @@
 <?php
 /** Synthetic protocol fixtures. No WordPress, real accounts or real passkeys. */
-require_once dirname(__DIR__) . '/vendor/lbuchs/webauthn/src/WebAuthn.php';
-require_once dirname(__DIR__) . '/src/class-webauthn.php';
+require_once dirname(__DIR__) . '/autoload.php';
 use AZWP\Passkeys\WebAuthn;
 
 require_once __DIR__ . '/fixtures.php';

@@ -55,6 +55,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: openssl
+          tools: composer:2.11.1
+          coverage: none
+
+      - name: Install locked PHP dependencies
+        run: |
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --no-plugins --no-scripts --classmap-authoritative
+          composer check-platform-reqs
+          composer audit --locked
+          php tests/dependencies.php
+
       - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v7
@@ -64,10 +79,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Configure multisite tests
-        if: matrix.name == 'multisite'
+      - name: Test the packaged plugin
+        env:
+          MULTISITE: ${{ matrix.name == 'multisite' }}
         run: |
-          printf '%s\n' '{"env":{"tests":{"multisite":true}}}' > .wp-env.override.json
+          sh bin/dist.sh
+          mkdir "$RUNNER_TEMP/plugin"
+          unzip -q dist/azwp-passkeys.zip -d "$RUNNER_TEMP/plugin"
+          cp -r tests "$RUNNER_TEMP/plugin/azwp-passkeys/tests"
+          printf '{"plugins":["%s"],"env":{"tests":{"multisite":%s}}}\n' "$RUNNER_TEMP/plugin/azwp-passkeys" "$MULTISITE" > .wp-env.override.json
 
       - run: npx wp-env start
 
@@ -108,7 +128,7 @@ jobs:
 
       - name: Fail on PHP deprecations, notices and warnings
         run: |
-          log=$(npx wp-env run tests-cli sh -c 'grep -E "PHP (Deprecated|Notice|Warning)" wp-content/debug.log || true' 2>/dev/null | grep "PHP " || true)
+          log=$(npx wp-env run tests-cli sh -c 'grep -E "PHP (Deprecated|Notice|Warning)" wp-content/debug.log || true' 2>/dev/null | grep -E "PHP (Deprecated|Notice|Warning):" || true)
           if [ -n "$log" ]; then
             echo "$log"
             echo "::error::The tests logged PHP deprecations, notices or warnings."
@@ -127,3 +147,30 @@ jobs:
           if [ "$(printf '%s\n%s\n' "$tested" "$latest" | sort -V | tail -1)" != "$tested" ]; then
             echo "::warning::WordPress $latest is out and the tests pass on it. Tested up to is still $tested."
           fi
+
+  release-build:
+    name: Reproducible release ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: openssl
+          tools: composer:2.11.1
+          coverage: none
+      - name: Test packaging boundaries
+        run: python3 -I tests/release-builder.py
+      - name: Build twice from clean committed source
+        run: |
+          sh bin/dist.sh "$RUNNER_TEMP/first.zip"
+          COMPOSER_VENDOR_DIR=ignored COMPOSER_ROOT_VERSION=9.9.9 sh bin/dist.sh "$RUNNER_TEMP/second.zip"
+          cmp "$RUNNER_TEMP/first.zip" "$RUNNER_TEMP/second.zip"
+          sha256sum "$RUNNER_TEMP/first.zip"
+      - name: Test the extracted runtime without source-checkout autoloading
+        run: |
+          mkdir "$RUNNER_TEMP/extracted"
+          unzip -q "$RUNNER_TEMP/first.zip" -d "$RUNNER_TEMP/extracted"
+          cp -r tests "$RUNNER_TEMP/extracted/azwp-passkeys/tests"
+          php "$RUNNER_TEMP/extracted/azwp-passkeys/tests/dependencies.php"
+          php "$RUNNER_TEMP/extracted/azwp-passkeys/tests/webauthn.php"

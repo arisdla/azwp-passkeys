@@ -1,0 +1,26 @@
+{
+    "name": "arisdla/azwp-passkeys",
+    "description": "Passkey sign-in and management for WordPress.",
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": ">=8.3",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "lbuchs/webauthn": "^2.2",
+        "yahnis-elsts/plugin-update-checker": "^6.0"
+    },
+    "autoload": {
+        "classmap": [
+            "src/"
+        ]
+    },
+    "config": {
+        "allow-plugins": false,
+        "platform": {
+            "php": "8.3.0"
+        },
+        "sort-packages": true,
+        "platform-check": true
+    }
+}

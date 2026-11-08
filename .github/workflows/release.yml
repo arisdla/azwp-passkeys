@@ -54,6 +54,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: openssl
+          tools: composer:2.11.1
+          coverage: none
+
       - name: Fetch all tags
         run: git fetch --tags --force
 
@@ -104,12 +111,15 @@ jobs:
       - name: Zip plugin
         run: |
           sh bin/dist.sh
+          sh bin/dist.sh "$RUNNER_TEMP/rebuilt.zip"
+          cmp dist/azwp-passkeys.zip "$RUNNER_TEMP/rebuilt.zip"
           mkdir -p build
           mv dist/azwp-passkeys.zip build/azwp-passkeys-${VERSION}.zip
+          (cd build && sha256sum "azwp-passkeys-${VERSION}.zip" > "azwp-passkeys-${VERSION}.zip.sha256")
 
       - name: Generate final JSON from template
         run: |
-          export LAST_UPDATED=$(date -u +"%Y-%m-%d %H:%M:%S")
+          export LAST_UPDATED=$(date -u -d "@$(git show -s --format=%ct HEAD)" +"%Y-%m-%d %H:%M:%S")
           export DOWNLOAD_URL="https://github.com/arisdla/azwp-passkeys/releases/download/v${VERSION}/azwp-passkeys-${VERSION}.zip"
 
           envsubst < .github/templates/azwp-passkeys.json.tpl > build/azwp-passkeys-${VERSION}.json
@@ -119,6 +129,7 @@ jobs:
         run: |
           cp build/azwp-passkeys-${VERSION}.zip build/azwp-passkeys.zip
           cp build/azwp-passkeys-${VERSION}.json build/azwp-passkeys.json
+          (cd build && sha256sum azwp-passkeys.zip > azwp-passkeys.zip.sha256)
 
       - name: Upload versioned release
         uses: softprops/action-gh-release@v3
@@ -128,6 +139,7 @@ jobs:
           body_path: ${{ runner.temp }}/release-notes.md
           files: |
             build/azwp-passkeys-${{ env.VERSION }}.zip
+            build/azwp-passkeys-${{ env.VERSION }}.zip.sha256
             build/azwp-passkeys-${{ env.VERSION }}.json
 
       - name: Upload to 'latest' release
@@ -137,6 +149,7 @@ jobs:
           name: Latest
           files: |
             build/azwp-passkeys.zip
+            build/azwp-passkeys.zip.sha256
             build/azwp-passkeys.json
 
       # Sites read the 'latest' release's files, not this tag; it is moved last only to keep the tag in step with them.

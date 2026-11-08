@@ -8,10 +8,10 @@ cli() { npx wp-env run tests-cli "$@"; }
 # Output is buffered so tests that set cookies still see writable headers.
 wp_test() { cli wp --url=http://localhost:8090 $3 eval "ob_start(); define('AZWP_PASSKEYS_TESTS', true); $2 require '$dir/$1.php';"; }
 
-for test in webauthn authentication; do
+for test in dependencies webauthn authentication; do
 	cli php "$dir/$test.php"
 done
-for test in storage logs passkeys passkey-only screens upgrade lifecycle watchdog watchdog-networks; do
+for test in updater storage logs passkeys passkey-only screens upgrade lifecycle watchdog watchdog-networks; do
 	wp_test "$test"
 done
 if cli php -r "exit(extension_loaded('pcntl') && extension_loaded('posix') ? 0 : 1);" >/dev/null 2>&1; then

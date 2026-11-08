@@ -4,3 +4,6 @@ dist/
 .claude/
 build/
 /bin/dev-mail/azwp-passkeys-watchdog.php
+
+/vendor/
+/.wp-env.override.json

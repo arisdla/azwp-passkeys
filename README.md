@@ -62,9 +62,10 @@ The [specification](docs/specification.md) describes every attribute and the ful
 <details>
 <summary>Local setup, commands and releases</summary>
 
-Requires Docker, Node.js 22.13 or newer, and pnpm.
+Requires Docker, Node.js 22.13 or newer, pnpm, PHP 8.3 or newer with OpenSSL, and Composer 2.11.1. Release builds also use Python 3 and Git.
 
 ```sh
+composer install --no-plugins --no-scripts
 pnpm install
 pnpm start
 ```
@@ -82,9 +83,13 @@ The dev site sends all its email to [Mailpit](https://mailpit.axllent.org/), whi
 | `pnpm test:js`, `test:php`, `test:http`, `test:browser` | Run one suite |
 | `pnpm i18n` | Regenerate translation files |
 | `pnpm bump <version>` | Set a new plugin version and regenerate translation files |
-| `pnpm dist` | Build the release zip in `dist/` |
+| `pnpm dist` | Build the release ZIP from committed source and locked production dependencies in `dist/` |
 
 `test:browser` uses Google Chrome; set `BROWSER_PATH` for another browser. The tests skip `concurrency.php` and `two-factor.php` unless the environment supports them.
+
+PHP dependencies are declared in `composer.json` and pinned by `composer.lock`. Run `composer install` after pulling dependency updates. Do not edit `vendor/` or commit it. The plugin's own classes stay in `src/class-*.php`; Composer generates their classmap. Run `composer dump-autoload` after adding or renaming a class file. The release ZIP includes all runtime dependencies, so site owners do not need PHP CLI or Composer.
+
+Dependabot checks Composer, pnpm and GitHub Actions weekly. To update a PHP package locally, run `composer update <package> --with-dependencies`, review and commit both Composer files, then run the tests. `composer audit --locked` checks declared packages; `tests/dependencies.php` also checks PUC's bundled Parsedown, which is not a separate Composer requirement.
 
 To release, follow [docs/release.md](docs/release.md).
 

@@ -76,10 +76,23 @@ git push github v0.4.0
 
 1. It checks that the tag, the header's `Version` and `AZWP_PASSKEYS_VERSION` name the same version, that the header has all three WordPress and PHP version lines, and that the tag is annotated. This takes seconds.
 2. It runs the tests on the minimum, latest and trunk versions of WordPress, plus a multisite PHP lane on the minimum version. The upgrade regression runs in every PHP lane. If the minimum, latest or multisite job fails, it publishes nothing. A trunk failure does not block the release.
-3. It builds the zip and the update metadata. The metadata takes `requires`, `requires_php` and `tested` from the plugin header and the changelog from the tag message.
+3. It builds the ZIP twice from the same committed source and `composer.lock`, then compares their bytes. Each build installs production dependencies in a fresh temporary directory, disables Composer plugins and scripts, audits the lockfile and checks the bundled Parsedown. The ZIP uses sorted entries, fixed permissions, the source commit's timestamp and uncompressed entries so compression-library versions cannot change its bytes. The builder requires Composer 2.11.1 and runs on PHP 8.3 in CI. It publishes a SHA-256 checksum alongside each ZIP. It also builds the update metadata. The metadata takes `requires`, `requires_php` and `tested` from the plugin header and the changelog from the tag message.
 4. It publishes the `v0.4.0` release with the zip, the metadata and the changelog as its notes. Then it uploads the same files to the release tagged `latest` and moves that tag to the new commit.
 
 Sites check `releases/download/latest/azwp-passkeys.json`, so they see the update once that file is uploaded to the `latest` release. Its download link points to the zip in the `v0.4.0` release, which is uploaded first.
+
+## Build a release locally
+
+Commit your source changes first. `pnpm dist` deliberately rejects tracked changes and uses `git archive HEAD`, so untracked files and the local `vendor/` never enter a release. Git, Python 3, PHP 8.3 or later with OpenSSL, and Composer 2.11.1 must be available on your PATH.
+
+```bash
+pnpm dist
+sh bin/dist.sh /tmp/azwp-passkeys-rebuilt.zip
+cmp dist/azwp-passkeys.zip /tmp/azwp-passkeys-rebuilt.zip
+sha256sum dist/azwp-passkeys.zip
+```
+
+The ZIP's top-level directory remains `azwp-passkeys/`. It contains the plugin, assets, translations, watchdog and production `vendor/`, with `composer.json` and `composer.lock` for provenance. It excludes source tests, build tools, docs, Node dependencies and local configuration. Site owners upload the ZIP normally and never run Composer. GitHub's automatically generated source archives do not include `vendor/` and are not installable release ZIPs.
 
 ## 8. Confirm the release
 

@@ -23,8 +23,7 @@ $azwp_passkeys_plugin = new AZWP\Passkeys\Plugin($GLOBALS['wpdb']);
 $azwp_passkeys_plugin->register_hooks();
 unset($azwp_passkeys_plugin);
 // Updates come from GitHub releases, not WordPress.org.
-require_once __DIR__ . '/vendor/yahnis-elsts/plugin-update-checker/plugin-update-checker.php';
-YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+YahnisElsts\PluginUpdateChecker\v6\PucFactory::buildUpdateChecker(
     'https://github.com/arisdla/azwp-passkeys/releases/download/latest/azwp-passkeys.json',
     AZWP_PASSKEYS_FILE,
     'azwp-passkeys'
