@@ -3,7 +3,17 @@ name: Tests
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'wireframes/**'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'wireframes/**'
+      - 'LICENSE'
   workflow_dispatch:
   workflow_call:
 
