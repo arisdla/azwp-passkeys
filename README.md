@@ -62,7 +62,7 @@ The [specification](docs/specification.md) describes every attribute and the ful
 <details>
 <summary>Local setup, commands and releases</summary>
 
-Requires Docker, Node.js and pnpm.
+Requires Docker, Node.js 22.13 or newer, and pnpm.
 
 ```sh
 pnpm install

@@ -18,7 +18,16 @@
 		"test:browser": "sh bin/test-browser.sh"
 	},
 	"devDependencies": {
-		"@wordpress/env": "^10.0.0"
+		"@wordpress/env": "^12.1.0"
 	},
-	"packageManager": "pnpm@10.0.0"
+	"packageManager": "pnpm@10.0.0",
+	"engines": {
+		"node": ">=22.13.0"
+	},
+	"pnpm": {
+		"overrides": {
+			"@wordpress/env>rimraf": "6.1.4",
+			"@wp-playground/cli@3.1.62>express": "4.22.3"
+		}
+	}
 }
