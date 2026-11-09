@@ -6,6 +6,9 @@
 	],
 	"port": 8080,
 	"testsPort": 8090,
+	"lifecycleScripts": {
+		"afterCleanup": "sh bin/mailpit.sh remove"
+	},
 	"config": {
 		"WP_DEBUG": true,
 		"WP_DEBUG_LOG": true,

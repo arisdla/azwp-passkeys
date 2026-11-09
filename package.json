@@ -4,8 +4,8 @@
 	"scripts": {
 		"start": "sh bin/mailpit.sh start && wp-env start",
 		"stop": "wp-env stop && sh bin/mailpit.sh stop",
-		"reset": "wp-env clean all",
-		"reset:tests": "wp-env clean tests",
+		"reset": "wp-env cleanup && pnpm start",
+		"reset:tests": "wp-env reset tests",
 		"logs": "wp-env logs",
 		"wp": "wp-env run cli wp",
 		"i18n": "sh bin/i18n.sh",

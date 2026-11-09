@@ -78,12 +78,14 @@ The dev site sends all its email to [Mailpit](https://mailpit.axllent.org/), whi
 | --- | --- |
 | `pnpm start` / `pnpm stop` | Start or stop both sites |
 | `pnpm wp <command>` | Run WP-CLI on the dev site |
-| `pnpm reset` | Wipe both sites |
+| `pnpm reset` | Delete both sites (databases, WordPress files, Docker containers and volumes) and Mailpit, then start fresh |
 | `pnpm test` | Reset the tests site and run every suite |
 | `pnpm test:js`, `test:php`, `test:http`, `test:browser` | Run one suite |
 | `pnpm i18n` | Regenerate translation files |
 | `pnpm bump <version>` | Set a new plugin version and regenerate translation files |
 | `pnpm dist` | Build the release ZIP from committed source and locked production dependencies in `dist/` |
+
+`pnpm reset` cannot remove passkeys your devices saved for `localhost`. After a reset, delete them from your password manager or security key, or the passkey picker offers accounts the new site does not know.
 
 `test:browser` uses Google Chrome; set `BROWSER_PATH` for another browser. The tests skip `concurrency.php` and `two-factor.php` unless the environment supports them.
 

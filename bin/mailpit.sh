@@ -10,8 +10,11 @@ case "${1:-start}" in
 	stop)
 		docker stop "$name" >/dev/null 2>&1 || true
 		;;
+	remove)
+		docker rm -f "$name" >/dev/null 2>&1 || true
+		;;
 	*)
-		echo "Usage: sh bin/mailpit.sh [start|stop]" >&2
+		echo "Usage: sh bin/mailpit.sh [start|stop|remove]" >&2
 		exit 1
 		;;
 esac
