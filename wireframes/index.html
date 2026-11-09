@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AZ's WP Passkeys wireframes</title>
 <style>
+.qe-legend{font-weight:600;font-size:.85em;margin:.2rem 0}
 .row-actions{font-size:.85em;margin-top:.2rem}.row-actions .del{color:var(--err)}
 :root{--ink:#222;--mute:#777;--line:#999;--soft:#f2f2f2;--mid:#ddd;--bg:#fafafa;--ok:#2e7d32;--warn:#b26a00;--err:#b3261e;--accent:#333}
 @media (prefers-color-scheme:dark){:root{--ink:#e8e8e8;--mute:#999;--line:#666;--soft:#2a2a2a;--mid:#3a3a3a;--bg:#181818;--ok:#6fbf73;--warn:#e0a040;--err:#ef7b73;--accent:#ddd}}
@@ -214,19 +215,19 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="List loaded" class="on">
 <div class="pk pk-root"><h4>Passkeys</h4>
-<label><input type="checkbox"> Passkey only mode</label><p class="desc">Turn off password sign-in for this account.</p>
 <table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody>
-<tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del" data-modal="Remove">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td></tr>
-<tr><td>YubiKey 5<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del" data-modal="Remove">Remove</a></div><p class="desc">This passkey is unavailable under the current site settings.</p></td><td>YubiKey 5 NFC</td><td>2026-07-11 16:02:13</td><td>—</td></tr>
+<tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del" data-modal="Remove">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>September 2, 2026 10:14 am</td><td>2 days ago</td></tr>
+<tr><td>YubiKey 5<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del" data-modal="Remove">Remove</a></div><p class="desc">This passkey is unavailable under the current site settings.</p></td><td>YubiKey 5 NFC</td><td>July 11, 2026 4:02 pm</td><td>—</td></tr>
 </tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table>
 <p><button class="btn" data-sim="register">Add passkey</button> <button class="btn" data-sim="test">Test passkey</button></p>
-<div class="status"></div></div>
-<p class="note">Add passkey and Test passkey both go straight to the browser prompt and share one status line; click either to play the states. The "After adding" and "After testing" chips show the results. Remove and Rename open the browser's own prompt and confirm dialogs, see the Dialogs chip.</p>
+<div class="status"></div>
+<label><input type="checkbox"> Passkey only mode</label><p class="desc">Turn off password sign-in for this account.</p></div>
+<p class="note">Add passkey and Test passkey both go straight to the browser prompt and share one status line; click either to play the states. The "After adding" and "After testing" chips show the results. Rename and Remove are row actions under the name. Rename opens a Quick Edit row in place of the passkey's row; Remove opens the browser's confirm dialog. See the Dialogs chip. Times from the last week show as relative time, older ones in the site's date format, with the exact time on hover.</p>
 </div>
 
 <div data-v="After adding">
 <div class="pk"><h4>Passkeys</h4>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td></tr><tr style="background:var(--soft)"><td>Firefox on Windows<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>YubiKey 5 NFC</td><td>2026-11-04 15:42:57</td><td>—</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>September 2, 2026 10:14 am</td><td>2 days ago</td></tr><tr><td>Firefox on Windows<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>YubiKey 5 NFC</td><td>now</td><td>—</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table>
 <p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
 <div class="status okk">Passkey added.</div></div>
 <p class="note">The new passkey appears in the list named after the device and browser that created it, here Firefox on Windows. A second passkey from the same device and browser on this site would be "Firefox on Windows (2)". Use Rename to give it a clearer name. The owner is emailed about the new passkey.</p>
@@ -234,15 +235,16 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="After testing">
 <div class="pk"><h4>Passkeys</h4>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td style="background:var(--soft)">2026-11-04 16:05:24</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr style="background:var(--soft)"><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>September 2, 2026 10:14 am</td><td>now</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table>
 <p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p>
 <div class="status okk">Passkey test passed for “MacBook (iCloud)”.</div></div>
-<p class="note">Test checks a stored passkey end to end and refreshes "Last used" (highlighted). It does not sign anyone in.</p>
+<p class="note">Test checks a stored passkey end to end, highlights the row of the passkey that answered until the list next refreshes, and updates "Last used". It does not sign anyone in.</p>
 </div>
 
 <div data-v="Empty / loading / error">
 <div class="grid2">
 <div class="pk"><h4>Empty</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4">No passkeys yet. Add one to sign in with your fingerprint, face, or device PIN.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
+<div class="pk"><h4>Empty, another account</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4">This account has no passkeys yet.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
 <div class="pk"><h4>Loading</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4">Loading…</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
 <div class="pk"><h4>Load failed</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4">Could not load passkeys. Refresh the page.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
 <div class="pk"><h4>No permission</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4">You do not have permission to manage these passkeys.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
@@ -250,7 +252,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="Dialogs">
 <div class="grid2">
-<div class="modal"><div class="t">Quick Edit row: Rename passkey</div><label>Name <input type="text" value="MacBook (iCloud)"></label><div class="acts"><button class="btn primary">Update</button><button class="btn">Cancel</button></div><p class="desc">Replaces the row in place. Enter saves, Escape cancels. Empty name shows "Enter a name for this passkey." Cancel or unchanged does nothing.</p></div>
+<div class="pk"><h4>Rename (Quick Edit row)</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4"><p class="qe-legend">RENAME PASSKEY</p><p><label>Name <input type="text" value="MacBook (iCloud)" style="width:60%"></label></p><p><button class="btn primary">Update</button> <button class="btn">Cancel</button></p></td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table><p class="desc">Replaces the passkey's row in place, as WordPress Quick Edit does. Enter saves; Escape cancels from anywhere in the row. Empty name shows "Enter a name for this passkey." Cancel or unchanged does nothing. Focus returns to Rename.</p></div>
 <div class="modal"><div class="t">Browser confirm</div>Remove “YubiKey 5”? This removes the passkey from this website. It does not delete it from your device or password manager.<div class="acts"><button class="btn">Cancel</button><button class="btn primary">OK</button></div></div>
 </div>
 <h3>Result messages</h3>
@@ -271,29 +273,26 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 
 <div data-v="Passkey only mode">
 <div class="pk"><h4>Passkeys</h4>
-<label><input type="checkbox" checked disabled> Passkey only mode</label><p class="desc">Turn off password sign-in for this account.</p>
-<p class="desc">Passkey only mode is required by the site or network settings.</p>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>September 2, 2026 10:14 am</td><td>2 days ago</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table><p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p><label><input type="checkbox" checked disabled> Passkey only mode</label><p class="desc">Turn off password sign-in for this account.</p><p class="desc">Passkey only mode is required by the site or network settings.</p></div>
 <p class="note">Checkbox is forced on and disabled when the site or network requires it.</p>
 </div>
 
-<div data-v="Checkbox guard error">
-<div class="notice err"><p>Add a working passkey before turning on Passkey only mode for this account.</p></div>
-<div class="pk"><h4>Passkeys</h4><label><input type="checkbox" checked> Passkey only mode</label><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4">No passkeys yet. Add one to sign in with your fingerprint, face, or device PIN.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
-<p class="note">Shown as a profile error after Update Profile when the account has no working passkey. Nothing is saved.</p>
+<div data-v="Waiting for a passkey">
+<div class="pk"><h4>Passkeys</h4><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td colspan="4">No passkeys yet. Add one to sign in with your fingerprint, face, or device PIN.</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table><p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button></p><label><input type="checkbox" disabled> Passkey only mode</label><p class="desc">Turn off password sign-in for this account.</p><p class="desc">Add a passkey that works on this site before turning this on.</p></div>
+<p class="note">While the account has no passkey that works on this site, the unchecked checkbox is disabled with this hint. Adding a passkey enables it without a reload. A checkbox that is already checked is never disabled. The server still refuses the save with "Add a working passkey before turning on Passkey only mode for this account." if it gets one.</p>
 </div>
 
 <div data-v="Editing another user">
 <p class="url">/wp-admin/user-edit.php?user_id=7</p>
-<div class="pk"><h4>Passkeys</h4><p>Passkeys for Bob Jones</p><label><input type="checkbox"> Passkey only mode</label>
-<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>Bob's phone<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Google Password Manager</td><td>2026-10-01 09:00:32</td><td>—</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table>
-<p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button> <button class="btn">Send passkey setup link</button></p><div class="status">Setup link sent to the account email address. It expires in one hour.</div></div>
+<div class="pk"><h4>Passkeys</h4><p>Passkeys for Bob Jones</p>
+<table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>Bob's phone<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Google Password Manager</td><td>October 1, 2026 9:00 am</td><td>—</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table>
+<p><button class="btn">Add passkey</button> <button class="btn">Test passkey</button> <button class="btn">Send passkey setup link</button></p><div class="status">Setup link sent to the account email address. It expires in one hour.</div><label><input type="checkbox"> Passkey only mode</label><p class="desc">Turn off password sign-in for this account.</p></div>
 <p class="note">Shown to users with edit_users. Adding a passkey for someone else emails that owner and names the actor. "Send passkey setup link" emails the owner a one-time link; the admin never sees it.</p>
 </div>
 
 <div data-v="Environment unavailable">
 <div class="notice err"><p>Passkeys are unavailable. Check that this site uses HTTPS and that the server supports OpenSSL, P-256 and SHA-256. HTTP is supported only on localhost.</p></div>
-<div class="pk"><h4>Passkeys</h4><label><input type="checkbox" disabled> Passkey only mode</label><p><button class="btn" disabled>Add passkey</button> <button class="btn">Test passkey</button></p></div>
+<div class="pk"><h4>Passkeys</h4><p><button class="btn" disabled>Add passkey</button> <button class="btn">Test passkey</button></p><label><input type="checkbox" disabled> Passkey only mode</label></div>
 <p class="note">Add is disabled. Test stays enabled so clicking it shows the capability message.</p>
 </div>
 
@@ -327,7 +326,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 </div></div>
 
 <div data-v="[azwp_pk_list]">
-<div class="pk"><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>2026-09-02 10:14:22</td><td>2026-11-03 08:50:01</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
+<div class="pk"><table><thead><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></thead><tbody><tr><td>MacBook (iCloud)<div class="row-actions"><a href="#" data-modal="Rename">Rename</a> | <a href="#" class="del">Remove</a></div></td><td>Apple Passwords<div><span class="badge">Synced</span></div></td><td>September 2, 2026 10:14 am</td><td>2 days ago</td></tr></tbody><tfoot><tr><th>Name</th><th>Authenticator</th><th>Added</th><th>Last used</th></tr></tfoot></table></div>
 <p class="note">Same table and dialogs as the profile section. Signed-out visitors see "Sign in to manage your passkeys."</p>
 </div>
 
@@ -363,8 +362,8 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <tr><th>Passkey domain</th><td><input type="text" value="example.com"><p class="desc">Use the site's domain or a valid parent domain, without https://, a path or a port.</p></td></tr></table>
 <h3>Sign-in</h3>
 <table class="form">
-<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="po"> Enable</label><label><input type="radio" name="po" checked> Disable</label><p class="desc">Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.</p><div class="notice warn"><p>3 members have no working passkey for this site and cannot sign in while Passkey only mode is on.</p><p><a href="#">View these members</a></p></div></td></tr>
-<tr><th>Remember me</th><td class="radio"><label><input type="radio" name="r1"> Enable</label><label><input type="radio" name="r1" checked> Disable</label><p class="desc">Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked.</p></td></tr>
+<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="po"> Enable</label><br><label><input type="radio" name="po" checked> Disable</label><p class="desc">Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.</p><div class="notice warn"><p>3 members have no working passkey for this site and cannot sign in while Passkey only mode is on.</p><p><a href="#">View these members</a></p></div></td></tr>
+<tr><th>Remember me</th><td class="radio"><label><input type="radio" name="r1"> Enable</label><br><label><input type="radio" name="r1" checked> Disable</label><p class="desc">Lets passkey sign-in keep people signed in when they tick Remember me. The box starts unchecked.</p></td></tr>
 <tr><th>Block password resets</th><td><select><option>No</option><option>Except for administrators</option><option>For everyone</option></select><p class="desc">Both blocking options close public password-reset pages, including for administrators. The administrator exception allows authorized reset operations. Passwords can still be changed in WordPress profiles.</p></td></tr>
 <tr><th>After registration</th><td><select><option>WordPress default</option><option>Sign in and add a passkey</option></select><p class="desc">New accounts are signed in right after registering and asked to add a passkey. WordPress still sends its welcome email, but the email address is not verified before sign-in.</p><p class="desc">This has no effect until Anyone can register is turned on in General settings.</p></td></tr>
 </table>
@@ -376,7 +375,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="notice ok"><p>Settings saved</p></div>
 <div class="notice err"><p>Settings could not be saved.</p></div>
 <table class="form"><tr><th>Passkey domain</th><td><input type="text" value="127.0.0.1"><p class="desc azwp-err" style="color:var(--err)">Check this field and save again.</p></td></tr>
-<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" checked> Enable</label><label><input type="radio"> Disable</label><p class="desc" style="color:var(--err)">Add a working passkey to your own account before turning on Passkey only mode.</p><p class="desc" style="color:var(--err)">Confirm that the accounts listed above will not be able to sign in, then save again.</p></td></tr>
+<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" checked> Enable</label><br><label><input type="radio"> Disable</label><p class="desc" style="color:var(--err)">Add a working passkey to your own account before turning on Passkey only mode.</p><p class="desc" style="color:var(--err)">Confirm that the accounts listed above will not be able to sign in, then save again.</p></td></tr>
 <tr><th>Passkey domain</th><td><input type="text" value="example.org"><p class="desc" style="color:var(--err)">Passkey only mode is on, and changing this would stop every passkey from working. Turn Passkey only mode off first.</p></td></tr></table>
 <div class="email">Browser confirm: 3 accounts have no working passkey and will not be able to sign in. Turn on Passkey only mode anyway?   Cancel   OK</div>
 <p><label><input type="checkbox"> I understand these accounts cannot sign in.</label></p>
@@ -385,7 +384,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 </div>
 
 <div data-v="Passkey only on">
-<table class="form"><tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="po2" checked> Enable</label><label><input type="radio" name="po2"> Disable</label></td></tr>
+<table class="form"><tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="po2" checked> Enable</label><br><label><input type="radio" name="po2"> Disable</label></td></tr>
 <tr><th>Block password resets</th><td><select><option>No</option><option>Except for administrators</option><option>For everyone</option></select><p class="desc">Passkey only mode is on, so password resets are blocked for everyone.</p></td></tr></table>
 <p class="note">The select keeps its saved value, but Passkey only mode closes resets for everyone while it is on.</p>
 </div>
@@ -393,7 +392,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div data-v="Not configured">
 <div class="notice err"><p>Passkeys are unavailable. Check that this site uses HTTPS and that the server supports OpenSSL, P-256 and SHA-256. HTTP is supported only on localhost.</p></div>
 <table class="form"><tr><th>Website name</th><td><input type="text"><p>Enter the website name and passkey domain before adding passkeys.</p></td></tr>
-<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" disabled> Enable</label><label><input type="radio" checked> Disable</label></td></tr></table>
+<tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" disabled> Enable</label><br><label><input type="radio" checked> Disable</label></td></tr></table>
 </div>
 
 <div data-v="Multisite site screen">
@@ -410,7 +409,7 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <p class="lead">/wp-admin/network/settings.php?page=azwp-passkeys</p>
 <div class="stage" style="border-style:solid">
 <h3 style="margin-top:0">Sign-in</h3>
-<table class="form"><tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="npo"> Enable</label><label><input type="radio" name="npo" checked> Disable</label><p class="desc">Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.</p><div class="notice warn"><p>5 accounts have no working passkey on at least one site and cannot sign in there while Passkey only mode is on.</p><p><a href="#">Main site: 3</a><br><a href="#">Shop: 2</a></p></div></td></tr></table>
+<table class="form"><tr><th>Passkey only mode</th><td class="radio"><label><input type="radio" name="npo"> Enable</label><br><label><input type="radio" name="npo" checked> Disable</label><p class="desc">Turns off password sign-in for every account. Sign-in pages show only the passkey button. Make sure each account has a working passkey first. On a network, users need a passkey for each site domain.</p><div class="notice warn"><p>5 accounts have no working passkey on at least one site and cannot sign in there while Passkey only mode is on.</p><p><a href="#">Main site: 3</a><br><a href="#">Shop: 2</a></p></div></td></tr></table>
 <p><button class="btn primary">Save changes</button></p>
 <p class="note">Only one network-owned control is visible. Turning it on requires the saving super admin to hold a working passkey, and a confirmation while any account lacks one.</p>
 </div>
@@ -423,10 +422,10 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <div class="demo"><div class="chips"></div><div class="stage">
 <div data-v="Log table" class="on">
 <h3 style="margin-top:0">Passkey Logs</h3>
-<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l1" checked> Enable</label><label><input type="radio" name="l1"> Disable</label><p class="desc">Save log entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
+<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l1" checked> Enable</label><br><label><input type="radio" name="l1"> Disable</label><p class="desc">Save log entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
 <p><button class="btn primary">Save changes</button></p>
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0"><div style="display:flex;gap:8px;align-items:center;font-size:13px">Category <select style="width:auto"><option>All</option></select> Result <select style="width:auto"><option>Any</option></select></div><div style="font-size:13px">45 items <button class="btn" disabled>«</button> <button class="btn" disabled>‹</button> <input type="text" value="1" style="width:3em"> of 3 <button class="btn">›</button> <button class="btn">»</button></div></div>
-<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>45</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Work phone (iCloud Keychain): signed in</td><td>November 6, 2026 2:32 pm</td><td>203.0.113.24</td></tr><tr><td>44</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>—</td><td style="color:var(--err)">✗</td><td>Sign-in failed: passkey not recognized</td><td>November 6, 2026 2:31 pm</td><td>198.51.100.7</td></tr><tr><td>43</td><td><span style="color:var(--mute)">Passkey: </span>Tested</td><td>admin</td><td style="color:var(--ok)">✓</td><td>YubiKey 5 (YubiKey 5 NFC): tested for marie</td><td>November 6, 2026 2:20 pm</td><td>192.0.2.10</td></tr><tr><td>42</td><td><span style="color:var(--mute)">Passkey: </span>Renamed</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Old phone (iCloud Keychain): renamed to Work phone</td><td>November 6, 2026 2:14 pm</td><td>203.0.113.24</td></tr><tr><td>41</td><td><span style="color:var(--mute)">Passkey: </span>Deleted</td><td>admin</td><td style="color:var(--err)">✗</td><td>YubiKey 5 (YubiKey 5 NFC) deletion failed for marie: would leave the account without a way to sign in</td><td>November 6, 2026 2:10 pm</td><td>192.0.2.10</td></tr><tr><td>40</td><td><span style="color:var(--mute)">Admin: </span>Setup link</td><td>admin</td><td style="color:var(--ok)">✓</td><td>Setup link sent to paul</td><td>November 6, 2026 1:58 pm</td><td>192.0.2.10</td></tr><tr><td>39</td><td>Settings</td><td>admin</td><td style="color:var(--ok)">✓</td><td>Passkey only mode turned on</td><td>November 6, 2026 1:40 pm</td><td>192.0.2.10</td></tr><tr><td>38</td><td><span style="color:var(--mute)">Passkey: </span>Account deleted</td><td>system</td><td style="color:var(--ok)">✓</td><td>User #7 (paul) deleted with 2 passkeys</td><td>November 6, 2026 1:02 pm</td><td>—</td></tr></tbody></table>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>45</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Work phone (iCloud Keychain): signed in</td><td>November 6, 2026 2:32 pm</td><td>203.0.113.24</td></tr><tr><td>44</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>—</td><td style="color:var(--err)">✗</td><td>Sign-in failed: passkey not recognized</td><td>November 6, 2026 2:31 pm</td><td>198.51.100.7</td></tr><tr><td>43</td><td><span style="color:var(--mute)">Passkey: </span>Tested</td><td>admin</td><td style="color:var(--ok)">✓</td><td>YubiKey 5 (YubiKey 5 NFC): tested for marie</td><td>November 6, 2026 2:20 pm</td><td>192.0.2.10</td></tr><tr><td>42</td><td><span style="color:var(--mute)">Passkey: </span>Renamed</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Old phone (iCloud Keychain): renamed to Work phone</td><td>November 6, 2026 2:14 pm</td><td>203.0.113.24</td></tr><tr><td>41</td><td><span style="color:var(--mute)">Passkey: </span>Deleted</td><td>admin</td><td style="color:var(--err)">✗</td><td>YubiKey 5 (YubiKey 5 NFC) deletion failed for marie: would leave the account without a way to sign in</td><td>November 6, 2026 2:10 pm</td><td>192.0.2.10</td></tr><tr><td>40</td><td><span style="color:var(--mute)">Admin: </span>Setup link</td><td>admin</td><td style="color:var(--ok)">✓</td><td>Setup link sent to paul</td><td>November 6, 2026 1:58 pm</td><td>192.0.2.10</td></tr><tr><td>39</td><td>Settings</td><td>admin</td><td style="color:var(--ok)">✓</td><td>Passkey only mode turned on</td><td>November 6, 2026 1:40 pm</td><td>192.0.2.10</td></tr><tr><td>38</td><td><span style="color:var(--mute)">Passkey: </span>Account deleted</td><td>system</td><td style="color:var(--ok)">✓</td><td>User #7 (paul) deleted with 2 passkeys</td><td>November 6, 2026 1:02 pm</td><td>—</td></tr></tbody><tfoot><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></tfoot></table>
 <div style="display:flex;justify-content:flex-end;margin:10px 0;font-size:13px">45 items <button class="btn" disabled>«</button> <button class="btn" disabled>‹</button> 1 of 3 <button class="btn">›</button> <button class="btn">»</button></div>
 <p><button class="btn">Clear logs</button></p>
 <p class="desc">Logs remain until cleared. Usernames, passkey names and IP addresses are stored. Passwords and passkey responses are not logged.</p><p><a href="#">Back to settings</a></p>
@@ -434,26 +433,26 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 </div>
 <div data-v="Filters / empty">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0"><div style="display:flex;gap:8px;align-items:center;font-size:13px">Category <select style="width:auto"><option>Passkey</option></select> Result <select style="width:auto"><option>Failed</option></select></div><div style="font-size:13px">1 item</div></div>
-<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>41</td><td><span style="color:var(--mute)">Passkey: </span>Deleted</td><td>admin</td><td style="color:var(--err)">✗</td><td>YubiKey 5 (YubiKey 5 NFC) deletion failed for marie: would leave the account without a way to sign in</td><td>November 6, 2026 2:10 pm</td><td>192.0.2.10</td></tr></tbody></table>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>41</td><td><span style="color:var(--mute)">Passkey: </span>Deleted</td><td>admin</td><td style="color:var(--err)">✗</td><td>YubiKey 5 (YubiKey 5 NFC) deletion failed for marie: would leave the account without a way to sign in</td><td>November 6, 2026 2:10 pm</td><td>192.0.2.10</td></tr></tbody><tfoot><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></tfoot></table>
 <h3>No match</h3>
-<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td colspan="7">No log entries match these filters.</td></tr></tbody></table>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td colspan="7">No log entries match these filters.</td></tr></tbody><tfoot><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></tfoot></table>
 <h3>Logging off, no entries</h3>
-<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l2"> Enable</label><label><input type="radio" name="l2" checked> Disable</label><p class="desc">Save log entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
+<table class="form"><tr><th>Logging</th><td class="radio"><label><input type="radio" name="l2"> Enable</label><br><label><input type="radio" name="l2" checked> Disable</label><p class="desc">Save log entries for troubleshooting. Entries remain until you clear them.</p></td></tr></table>
 <p><button class="btn primary">Save changes</button></p>
-<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td colspan="7">No log entries.</td></tr></tbody></table>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td colspan="7">No log entries.</td></tr></tbody><tfoot><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></tfoot></table>
 <p><button class="btn" disabled>Clear logs</button></p>
 </div>
 <div data-v="Clear">
 <div class="modal"><div class="t">Browser confirm</div>Delete all 45 log entries for this site? This cannot be undone.<div class="acts"><button class="btn">Cancel</button><button class="btn primary">OK</button></div></div>
 <h3>After OK</h3>
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0"><div style="display:flex;gap:8px;align-items:center;font-size:13px">Category <select style="width:auto"><option>All</option></select> Result <select style="width:auto"><option>Any</option></select></div><div style="font-size:13px">1 item</div></div>
-<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>46</td><td><span style="color:var(--mute)">Admin: </span>Logs cleared</td><td>admin</td><td style="color:var(--ok)">✓</td><td>45 entries deleted</td><td>November 6, 2026 2:40 pm</td><td>192.0.2.10</td></tr></tbody></table>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>46</td><td><span style="color:var(--mute)">Admin: </span>Logs cleared</td><td>admin</td><td style="color:var(--ok)">✓</td><td>45 entries deleted</td><td>November 6, 2026 2:40 pm</td><td>192.0.2.10</td></tr></tbody><tfoot><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></tfoot></table>
 <p><button class="btn">Clear logs</button></p><div class="status okk">Logs cleared.</div>
 <p class="note">Cancel changes nothing. The Logs cleared entry is written even while logging is off.</p>
 </div>
 <div data-v="Errors">
 <div class="notice err"><p>Check Website name and Passkey domain in settings. The passkey domain must match this site.</p></div>
-<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>45</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Work phone (iCloud Keychain): signed in</td><td>November 6, 2026 2:32 pm</td><td>203.0.113.24</td></tr></tbody></table>
+<table><thead><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></thead><tbody><tr><td>45</td><td><span style="color:var(--mute)">Sign-in: </span>Passkey</td><td>marie</td><td style="color:var(--ok)">✓</td><td>Work phone (iCloud Keychain): signed in</td><td>November 6, 2026 2:32 pm</td><td>203.0.113.24</td></tr></tbody><tfoot><tr><th>#ID</th><th>Event</th><th>User</th><th>Result</th><th>Details</th><th>Time</th><th>IP address</th></tr></tfoot></table>
 <div class="status err">Could not load logs.</div>
 <p class="note">A failed load keeps the rows already shown.</p>
 </div>
