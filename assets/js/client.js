@@ -56,39 +56,61 @@
     const createCredential = async options => serialize(await navigator.credentials.create({ publicKey: publicOptions(options) }));
     const getAssertion = async options => serialize(await navigator.credentials.get({ publicKey: publicOptions(options) }));
     const rootFor = node => node.closest('[data-azwp-passkeys="register"],[data-azwp-passkeys="test"],[data-azwp-passkeys="login"],[data-azwp-passkeys="list"],[data-azwp-passkeys="setup"]');
-    async function refreshCredentialList(root) {
+    // Themes can print an invalid lang attribute, such as en_US, which Intl rejects.
+    function relativeTimeFormat() {
+        try { return new Intl.RelativeTimeFormat(document.documentElement.lang || undefined, { numeric: 'auto' }); }
+        catch { return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }); }
+    }
+    function appendTime(cell, timestamp, label) {
+        if (!label) { cell.textContent = '—'; return; }
+        const time = document.createElement('time'); time.textContent = label; time.title = label; time.dateTime = new Date(timestamp * 1000).toISOString();
+        const age = Math.max(0, Date.now() / 1000 - timestamp);
+        if (age < 7 * 86400) {
+            const [value, unit] = age < 60 ? [0, 'second'] : age < 3600 ? [Math.floor(age / 60), 'minute'] : age < 86400 ? [Math.floor(age / 3600), 'hour'] : [Math.floor(age / 86400), 'day'];
+            time.textContent = relativeTimeFormat().format(-value, unit);
+        }
+        cell.append(time);
+    }
+    function element(tag, className = '', text = '') {
+        const node = document.createElement(tag); if (className) node.className = className; if (text) node.textContent = text; return node;
+    }
+    function messageRow(body, text) {
+        const tr = body.insertRow(); tr.className = 'no-items'; const td = tr.insertCell(); td.className = 'colspanchange'; td.colSpan = 4; td.textContent = text;
+    }
+    function rowAction(row, action, label, className, allowed) {
+        const button = element('button', className, label); button.type = 'button'; button.dataset.action = action; button.dataset.record = String(row.record_id); button.dataset.name = row.name;
+        button.disabled = pending || !allowed;
+        if (pending) originalDisabled.set(button, !allowed);
+        return button;
+    }
+    async function refreshCredentialList(root, tested = null) {
         if (root.dataset.canManage !== '1') return;
-        const table = root.querySelector('table');
+        const body = root.querySelector('table').tBodies[0];
         try {
             const data = await requestAction('list', { target_id: root.dataset.target }, root.dataset.nonce);
-            const rows = data.credentials;
-            const headings = [__('Name', 'azwp-passkeys'), __('Authenticator', 'azwp-passkeys'), __('Added', 'azwp-passkeys'), __('Last used', 'azwp-passkeys'), __('Actions', 'azwp-passkeys')];
-            for (const section of [table.tHead, table.tFoot]) {
-                section.replaceChildren(); const tr = document.createElement('tr');
-                headings.forEach(text => { const th = document.createElement('th'); th.scope = 'col'; th.textContent = text; tr.append(th); }); section.append(tr);
-            }
-            const body = table.tBodies[0]; body.replaceChildren();
-            if (!rows.length) { const cell = body.insertRow().insertCell(); cell.colSpan = headings.length; cell.textContent = __('No passkeys added.', 'azwp-passkeys'); }
-            rows.forEach(row => {
-                const tr = body.insertRow(); const name = tr.insertCell(); name.append(document.createTextNode(row.name));
-                const rename = document.createElement('button'); rename.type = 'button'; rename.className = 'button-link'; rename.dataset.action = 'rename'; rename.dataset.record = String(row.record_id); rename.dataset.name = row.name; rename.textContent = __('Rename', 'azwp-passkeys');
-                rename.disabled = pending || !row.can_rename;
-                if (pending) originalDisabled.set(rename, !row.can_rename);
-                const renameLine = document.createElement('div'); renameLine.append(rename); name.append(renameLine);
-                if (!row.available && row.unavailable_reason) { const help = document.createElement('p'); help.className = 'description'; help.textContent = row.unavailable_reason; name.append(help); }
-                const model = tr.insertCell(); model.append(document.createTextNode(row.authenticator || '—'));
-                if (row.synced) { const badge = document.createElement('span'); badge.className = 'azwp-passkeys-badge'; badge.textContent = __('Synced', 'azwp-passkeys'); const badgeLine = document.createElement('div'); badgeLine.append(badge); model.append(badgeLine); }
-                tr.insertCell().textContent = row.created_local; tr.insertCell().textContent = row.last_used_local || '—';
-                const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button'; remove.dataset.action = 'remove'; remove.dataset.record = String(row.record_id); remove.dataset.name = row.name; remove.textContent = __('Remove', 'azwp-passkeys');
-                remove.disabled = pending || !row.can_remove;
-                if (pending) originalDisabled.set(remove, !row.can_remove);
-                tr.insertCell().append(remove);
+            const [nameLabel, authenticatorLabel, addedLabel, lastUsedLabel] = [__('Name', 'azwp-passkeys'), __('Authenticator', 'azwp-passkeys'), __('Added', 'azwp-passkeys'), __('Last used', 'azwp-passkeys')];
+            body.replaceChildren();
+            if (!data.credentials.length) messageRow(body, __('No passkeys yet. Add one to sign in with your fingerprint, face, or device PIN.', 'azwp-passkeys'));
+            data.credentials.forEach(row => {
+                const tr = body.insertRow(); if (tested === String(row.record_id)) tr.className = 'azwp-passkeys-tested';
+                const name = tr.insertCell(); name.className = 'column-name has-row-actions column-primary'; name.dataset.colname = nameLabel;
+                name.append(element('strong', '', row.name));
+                if (!row.available && row.unavailable_reason) name.append(element('p', 'description', row.unavailable_reason));
+                const rename = element('span', 'rename'); rename.append(rowAction(row, 'rename', __('Rename', 'azwp-passkeys'), 'button-link', row.can_rename), ' | ');
+                const remove = element('span', 'delete'); remove.append(rowAction(row, 'remove', __('Remove', 'azwp-passkeys'), 'button-link button-link-delete', row.can_remove));
+                const actions = element('div', 'row-actions'); actions.append(rename, remove);
+                const toggle = element('button', 'toggle-row'); toggle.type = 'button'; toggle.append(element('span', 'screen-reader-text', __('Show more details', 'azwp-passkeys')));
+                name.append(actions, toggle);
+                const model = tr.insertCell(); model.className = 'column-model'; model.dataset.colname = authenticatorLabel; model.append(document.createTextNode(row.authenticator || '—'));
+                if (row.synced) { const badgeLine = element('div'); badgeLine.append(element('span', 'azwp-passkeys-badge', __('Synced', 'azwp-passkeys'))); model.append(badgeLine); }
+                const added = tr.insertCell(); added.className = 'column-added'; added.dataset.colname = addedLabel; appendTime(added, row.created_ts, row.created_local);
+                const lastUsed = tr.insertCell(); lastUsed.className = 'column-last-used'; lastUsed.dataset.colname = lastUsedLabel; appendTime(lastUsed, row.last_used_ts, row.last_used_local);
             });
         } catch (error) {
-            const body = table.tBodies[0]; body.replaceChildren(); const td = body.insertRow().insertCell(); td.colSpan = table.tHead.rows[0].cells.length; td.textContent = __('Could not load passkeys. Refresh the page.', 'azwp-passkeys');
+            body.replaceChildren(); messageRow(body, __('Could not load passkeys. Refresh the page.', 'azwp-passkeys'));
         }
     }
-    const refreshLists = target => Promise.all([...document.querySelectorAll('[data-azwp-passkeys="list"]')].filter(root => root.dataset.target === String(target)).map(refreshCredentialList));
+    const refreshLists = (target, tested = null) => Promise.all([...document.querySelectorAll('[data-azwp-passkeys="list"]')].filter(root => root.dataset.target === String(target)).map(root => refreshCredentialList(root, tested)));
     // With a password form on the page, its own Remember Me box applies to passkey sign-in too.
     function rememberLogin(root) {
         const own = root.querySelector('[data-field="remember"]');
@@ -116,7 +138,7 @@
             stage = 'completion';
             const result = await requestAction(prefix + '_complete', { attempt_id: issued.attempt_id, credential, ...(setup ? { token: root.dataset.token } : {}) }, nonce, true);
             status(root, register ? __('Passkey added.', 'azwp-passkeys') : isLogin ? __('Passkey verified.', 'azwp-passkeys') : sprintf(__('Passkey test passed for “%s”.', 'azwp-passkeys'), result.name));
-            if (!isLogin && !setup) await refreshLists(root.dataset.target);
+            if (!isLogin && !setup) await refreshLists(root.dataset.target, prefix === 'test' ? result.record_id : null);
             if ((isLogin || setup) && typeof result.redirect_to === 'string') window.setTimeout(() => window.location.assign(result.redirect_to), 200);
         } catch (error) {
             const cancelled = error.name === 'NotAllowedError' || error.name === 'AbortError';
@@ -136,20 +158,53 @@
         catch (error) { status(root, error.message, true); }
         finally { setPagePending(false); }
     }
-    async function manage(root, button) {
-        if (pending) return;
-        const action = button.dataset.action;
-        let name;
-        if (action === 'rename') { name = window.prompt(__('Rename passkey', 'azwp-passkeys'), button.dataset.name); if (name === null || name === button.dataset.name) return; if (name === '') { status(root, __('Enter a name for this passkey.', 'azwp-passkeys'), true); return; } }
-        else if (!window.confirm(sprintf(__('Remove “%s”? This removes the passkey from this website. It does not delete it from your device or password manager.', 'azwp-passkeys'), button.dataset.name))) return;
-        setPagePending(true);
-        try { const result = await requestAction(action, { target_id: root.dataset.target, record_id: button.dataset.record, ...(action === 'rename' ? { name } : {}) }, root.dataset.nonce, true); status(root, action === 'rename' ? __('Passkey renamed.', 'azwp-passkeys') : result.already_absent ? __('Passkey already removed. List refreshed.', 'azwp-passkeys') : __('Passkey removed.', 'azwp-passkeys')); }
-        catch (error) { status(root, error.message, true); }
-        finally { setPagePending(false); await refreshCredentialList(root); }
+    // Mirrors WordPress Quick Edit: the row is hidden and an edit row follows it, after a hidden spacer that keeps the stripes aligned.
+    function startRename(root, button) {
+        const row = button.closest('tr'); const spacer = element('tr'); spacer.hidden = true;
+        const editor = element('tr', 'inline-edit-row quick-edit-row quick-edit-row-post'); const cell = editor.insertCell(); cell.className = 'colspanchange'; cell.colSpan = row.cells.length;
+        const legend = element('legend', 'inline-edit-legend', __('Rename passkey', 'azwp-passkeys')); legend.id = root.id + '-rename-' + button.dataset.record;
+        const input = element('input'); input.type = 'text'; input.dataset.field = 'name'; input.value = button.dataset.name;
+        const label = element('label'); const field = element('span', 'input-text-wrap'); field.append(input); label.append(element('span', 'title', __('Name', 'azwp-passkeys')), field);
+        const column = element('div', 'inline-edit-col'); column.append(label);
+        const fieldset = element('fieldset', 'inline-edit-col-left'); fieldset.append(legend, column);
+        const save = element('button', 'button button-primary save', __('Update', 'azwp-passkeys')); save.type = 'button';
+        const cancel = element('button', 'button cancel', __('Cancel', 'azwp-passkeys')); cancel.type = 'button';
+        const spinner = element('span', 'spinner');
+        const submitRow = element('div', 'submit inline-edit-save'); submitRow.append(save, cancel, spinner);
+        const wrapper = element('div', 'inline-edit-wrapper'); wrapper.setAttribute('role', 'region'); wrapper.setAttribute('aria-labelledby', legend.id); wrapper.append(fieldset, submitRow);
+        cell.append(wrapper);
+        const restore = () => { spacer.remove(); editor.remove(); row.hidden = false; button.focus(); };
+        async function submit() {
+            if (pending) return;
+            const name = input.value;
+            if (name === button.dataset.name) { restore(); return; }
+            if (name === '') { status(root, __('Enter a name for this passkey.', 'azwp-passkeys'), true); input.focus(); return; }
+            setPagePending(true); spinner.classList.add('is-active');
+            try { await requestAction('rename', { target_id: root.dataset.target, record_id: button.dataset.record, name }, root.dataset.nonce, true); status(root, __('Passkey renamed.', 'azwp-passkeys')); }
+            catch (error) { status(root, error.message, true); }
+            finally { setPagePending(false); await refreshCredentialList(root); root.querySelector(`[data-action="rename"][data-record="${button.dataset.record}"]`)?.focus(); }
+        }
+        // The list sits inside the profile form, so Enter must not submit it.
+        editor.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); restore(); } else if (event.key === 'Enter' && event.target === input) { event.preventDefault(); submit(); } });
+        save.addEventListener('click', submit); cancel.addEventListener('click', restore);
+        row.hidden = true; row.after(spacer, editor); input.focus(); input.select();
     }
-    document.addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button || button.disabled) return; const root = rootFor(button); if (!root) return; const action = button.dataset.action; if (['register','login','test','setup'].includes(action)) { event.preventDefault(); ceremony(root, action); } if (action === 'send-setup') { event.preventDefault(); sendSetup(root); } if (['rename','remove'].includes(action)) { event.preventDefault(); manage(root, button); } });
+    async function remove(root, button) {
+        if (pending) return;
+        const position = [...root.querySelectorAll('[data-action="remove"]')].indexOf(button);
+        if (!window.confirm(sprintf(__('Remove “%s”? This removes the passkey from this website. It does not delete it from your device or password manager.', 'azwp-passkeys'), button.dataset.name))) return;
+        setPagePending(true);
+        try { const result = await requestAction('remove', { target_id: root.dataset.target, record_id: button.dataset.record }, root.dataset.nonce, true); status(root, result.already_absent ? __('Passkey already removed. List refreshed.', 'azwp-passkeys') : __('Passkey removed.', 'azwp-passkeys')); }
+        catch (error) { status(root, error.message, true); }
+        finally {
+            setPagePending(false); await refreshCredentialList(root);
+            const remaining = root.querySelectorAll('[data-action="rename"]');
+            remaining[Math.min(position, remaining.length - 1)]?.focus();
+        }
+    }
+    document.addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button || button.disabled) return; const root = rootFor(button); if (!root) return; const action = button.dataset.action; if (['register','login','test','setup'].includes(action)) { event.preventDefault(); ceremony(root, action); } if (action === 'send-setup') { event.preventDefault(); sendSetup(root); } if (action === 'rename') { event.preventDefault(); startRename(root, button); } if (action === 'remove') { event.preventDefault(); remove(root, button); } });
     function initialize() {
-        document.querySelectorAll('[data-azwp-passkeys="list"]').forEach(refreshCredentialList);
+        document.querySelectorAll('[data-azwp-passkeys="list"]').forEach(root => refreshCredentialList(root));
         if (!supported()) document.querySelectorAll('[data-azwp-passkeys="register"],[data-azwp-passkeys="test"],[data-azwp-passkeys="login"],[data-azwp-passkeys="setup"]').forEach(root => {
             root.querySelectorAll('[data-action="register"],[data-action="setup"],[data-action="login"],[data-action^="test"]').forEach(button => { button.disabled = true; });
             if (root.querySelector('[data-action]')) status(root, __('Passkeys are unavailable. Use a supported browser and a secure connection.', 'azwp-passkeys'), true);

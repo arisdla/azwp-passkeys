@@ -460,6 +460,7 @@ final class Passkeys
         $result = $this->accept_assertion($proof) + ['log'=>self::log_passkey(['id'=>$proof['record_id'],'name'=>$proof['name'],'aaguid'=>$proof['aaguid'],'user_id'=>$proof['owner_id']])];
         if ($result['ok']) {
             $result['subject_id'] = (int) $proof['owner_id'];
+            $result['data']['record_id'] = (string) $proof['record_id'];
             $result['data']['name'] = $proof['name'];
         }
         return $result;
@@ -467,7 +468,10 @@ final class Passkeys
     private function summary(array $row,array $configuration,bool $can_remove): array
     {
         $available=$this->eligible($row,$configuration);
-        return ['record_id'=>(string)$row['id'],'name'=>$row['name'],'authenticator'=>Authenticators::name((string)$row['aaguid']),'synced'=>(bool)$row['backed_up'],'created_local'=>$row['created_local'],'last_used_local'=>$row['last_used_local'],'available'=>$available,'unavailable_reason'=>$available?'':__('This passkey is unavailable under the current site settings.','azwp-passkeys'),'can_rename'=>true,'can_remove'=>$can_remove];
+        $format=get_option('date_format').' '.get_option('time_format');
+        $display=static fn(?string $local): ?string => $local===null ? null : mysql2date($format,$local);
+        $timestamp=static fn(?string $local): ?int => $local===null ? null : (new \DateTimeImmutable($local, wp_timezone()))->getTimestamp();
+        return ['record_id'=>(string)$row['id'],'name'=>$row['name'],'authenticator'=>Authenticators::name((string)$row['aaguid']),'synced'=>(bool)$row['backed_up'],'created_local'=>$display($row['created_local']),'last_used_local'=>$display($row['last_used_local']),'created_ts'=>$timestamp($row['created_local']),'last_used_ts'=>$timestamp($row['last_used_local']),'available'=>$available,'unavailable_reason'=>$available?'':__('This passkey is unavailable under the current site settings.','azwp-passkeys'),'can_rename'=>true,'can_remove'=>$can_remove];
     }
     private function usable_after_removal(int $target,int $record_id,array $rows,array $configuration): bool
     {
