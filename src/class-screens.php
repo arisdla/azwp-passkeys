@@ -227,7 +227,7 @@ final class Screens {
             echo '<p>'.esc_html__('Set in network settings:','azwp-passkeys').' '.esc_html($value?__('Enabled','azwp-passkeys'):__('Disabled','azwp-passkeys')).'</p><a href="'.esc_url(network_admin_url('settings.php?page=azwp-passkeys')).'">'.esc_html__('Network settings','azwp-passkeys').'</a>';
         } elseif ($choices===null) {
             echo '<fieldset><legend class="screen-reader-text">'.esc_html($label).'</legend>';
-            foreach (['1'=>__('Enable','azwp-passkeys'),'0'=>__('Disable','azwp-passkeys')] as $option=>$text) echo '<label class="azwp-passkeys-choice"><input type="radio" name="'.esc_attr($key).'" value="'.esc_attr($option).'" '.checked((string)(int)(bool)$value,(string)$option,false).' '.disabled($key==='passkey_only'&&$option==='1'&&!$ready&&!$value,true,false).'> '.esc_html($text).'</label>';
+            foreach (['1'=>__('Enable','azwp-passkeys'),'0'=>__('Disable','azwp-passkeys')] as $option=>$text) echo ($option===0?'<br>':'').'<label><input type="radio" name="'.esc_attr($key).'" value="'.esc_attr($option).'" '.checked((string)(int)(bool)$value,(string)$option,false).' '.disabled($key==='passkey_only'&&$option===1&&!$ready&&!$value,true,false).'> '.esc_html($text).'</label>';
             echo '</fieldset>';
         } else {
             echo '<select id="azwp-passkeys-'.esc_attr($key).'" name="'.esc_attr($key).'">';

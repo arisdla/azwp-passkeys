@@ -50,6 +50,14 @@ try {
     foreach (['require_user_verification','authenticator_attachment','name="logging"','name="terminology"','name="login_identifier"','name="username_free"'] as $removed) $assert(!str_contains($site,$removed),'Site settings excludes '.$removed);
     $assert(str_contains($site,'Passkey Logs'),'Site settings links the Passkey Logs page');
     $assert(str_contains($site,'name="passkey_only"')===!is_multisite()&&!str_contains($site,'Prefer password'),'Passkey only mode is an on/off switch with no sign-in preference');
+    $assert(str_contains($site,'</label><br><label><input type="radio" name="remember_login" value="0"'),'Enable and Disable stack on separate lines like core radio groups');
+    if (!is_multisite() && empty($settings->get_effective(get_current_blog_id())['passkey_only'])) {
+        $insecure=static fn(): string => 'http://example.test';
+        add_filter('site_url',$insecure);
+        $unready=$render(fn()=> $screens->render_site_settings());
+        remove_filter('site_url',$insecure);
+        $assert(preg_match('/name="passkey_only" value="1"[^>]*disabled/',$unready)===1&&preg_match('/name="passkey_only" value="0"[^>]*disabled/',$unready)===0,'An unready server disables only the Enable choice of Passkey only mode');
+    }
     $assert(str_contains($site,'name="after_registration"')===!is_multisite(),'After registration is offered only on single-site');
     $logs_page=$render(fn()=> $screens->render_logs());
     $assert(str_contains($logs_page,'name="logging"')&&str_contains($logs_page,'Clear logs'),'The log page owns the logging control and clear action');
