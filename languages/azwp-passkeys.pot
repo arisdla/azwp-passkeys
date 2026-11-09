@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-09T06:37:17+00:00\n"
+"POT-Creation-Date: 2026-11-09T14:26:16+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: azwp-passkeys\n"
@@ -88,7 +88,7 @@ msgid "The change could not be saved. Try again."
 msgstr ""
 
 #: src/class-ajax.php:136
-#: assets/js/client.js:141
+#: assets/js/client.js:153
 msgid "The passkey could not be verified. Try again."
 msgstr ""
 
@@ -102,7 +102,7 @@ msgid "Accounts on this site sign in with passkeys only, so there is no password
 msgstr ""
 
 #: src/class-authentication.php:447
-#: assets/js/client.js:135
+#: assets/js/client.js:147
 msgid "Passkey verified."
 msgstr ""
 
@@ -180,7 +180,7 @@ msgstr ""
 
 #: src/class-events.php:57
 #: views/credential-list.php:1
-#: assets/js/client.js:86
+#: assets/js/client.js:91
 msgid "Added"
 msgstr ""
 
@@ -746,18 +746,18 @@ msgid "Sign in and add a passkey"
 msgstr ""
 
 #: views/credential-list.php:1
-#: assets/js/client.js:86
-#: assets/js/client.js:162
+#: assets/js/client.js:91
+#: assets/js/client.js:174
 msgid "Name"
 msgstr ""
 
 #: views/credential-list.php:1
-#: assets/js/client.js:86
+#: assets/js/client.js:91
 msgid "Authenticator"
 msgstr ""
 
 #: views/credential-list.php:1
-#: assets/js/client.js:86
+#: assets/js/client.js:91
 msgid "Last used"
 msgstr ""
 
@@ -904,6 +904,10 @@ msgstr ""
 msgid "Turn off password sign-in for this account."
 msgstr ""
 
+#: views/profile.php:7
+msgid "Add a passkey that works on this site before turning this on."
+msgstr ""
+
 #: views/profile.php:8
 msgid "Passkey only mode is required by the site or network settings."
 msgstr ""
@@ -985,108 +989,112 @@ msgstr ""
 msgid "Could not connect. Check your connection and try again."
 msgstr ""
 
-#: assets/js/client.js:88
+#: assets/js/client.js:93
 msgid "No passkeys yet. Add one to sign in with your fingerprint, face, or device PIN."
 msgstr ""
 
-#: assets/js/client.js:94
+#: assets/js/client.js:93
+msgid "This account has no passkeys yet."
+msgstr ""
+
+#: assets/js/client.js:99
 msgid "Rename"
 msgstr ""
 
-#: assets/js/client.js:95
+#: assets/js/client.js:100
 msgid "Remove"
 msgstr ""
 
-#: assets/js/client.js:97
+#: assets/js/client.js:102
 msgid "Show more details"
 msgstr ""
 
-#: assets/js/client.js:100
+#: assets/js/client.js:105
 msgid "Synced"
 msgstr ""
 
-#: assets/js/client.js:105
+#: assets/js/client.js:117
 msgid "Could not load passkeys. Refresh the page."
 msgstr ""
 
-#: assets/js/client.js:119
-#: assets/js/client.js:200
+#: assets/js/client.js:131
+#: assets/js/client.js:217
 #: assets/js/frontend.js:7
 #: assets/js/login.js:12
 msgid "Passkeys are unavailable. Use a supported browser and a secure connection."
 msgstr ""
 
-#: assets/js/client.js:124
+#: assets/js/client.js:136
 msgid "Preparing…"
 msgstr ""
 
-#: assets/js/client.js:130
+#: assets/js/client.js:142
 msgid "Follow your browser's instructions"
 msgstr ""
 
-#: assets/js/client.js:132
+#: assets/js/client.js:144
 msgid "Saving…"
 msgstr ""
 
-#: assets/js/client.js:132
+#: assets/js/client.js:144
 msgid "Verifying…"
 msgstr ""
 
-#: assets/js/client.js:135
+#: assets/js/client.js:147
 msgid "Passkey added."
 msgstr ""
 
-#: assets/js/client.js:135
+#: assets/js/client.js:147
 #, js-format
 msgid "Passkey test passed for “%s”."
 msgstr ""
 
-#: assets/js/client.js:141
+#: assets/js/client.js:153
 msgid "Passkey prompt cancelled. Try again or use a password."
 msgstr ""
 
-#: assets/js/client.js:141
+#: assets/js/client.js:153
 msgid "Passkey prompt cancelled. Try again."
 msgstr ""
 
-#: assets/js/client.js:142
+#: assets/js/client.js:154
 msgid "The passkey request could not be started. Try again."
 msgstr ""
 
-#: assets/js/client.js:152
+#: assets/js/client.js:164
 msgid "Setup link sent to the account email address. It expires in one hour."
 msgstr ""
 
-#: assets/js/client.js:160
+#: assets/js/client.js:172
 msgid "Rename passkey"
 msgstr ""
 
-#: assets/js/client.js:165
+#: assets/js/client.js:177
 msgid "Update"
 msgstr ""
 
-#: assets/js/client.js:166
+#: assets/js/client.js:178
 msgid "Cancel"
 msgstr ""
 
-#: assets/js/client.js:176
+#: assets/js/client.js:188
 msgid "Enter a name for this passkey."
 msgstr ""
 
-#: assets/js/client.js:178
+#: assets/js/client.js:190
 msgid "Passkey renamed."
 msgstr ""
 
-#: assets/js/client.js:189
+#: assets/js/client.js:202
 #, js-format
 msgid "Remove “%s”? This removes the passkey from this website. It does not delete it from your device or password manager."
 msgstr ""
 
-#: assets/js/client.js:191
+#: assets/js/client.js:204
 msgid "Passkey already removed. List refreshed."
 msgstr ""
 
-#: assets/js/client.js:191
+#: assets/js/client.js:204
 msgid "Passkey removed."
 msgstr ""
 

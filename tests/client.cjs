@@ -38,7 +38,7 @@ vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../asset
  await api.ceremony(loginRoot,'login');
  assert.equal(loginPayload.redirect_to,'https://front.example/second','frontend login uses the clicked component destination');
  const table=new Node('table');table.tBodies=[new Node('tbody')];
- const listRoot={dataset:{canManage:'1',target:'1',nonce:''},querySelector(){return table;}};roots.push(listRoot);
+ const listRoot={dataset:{canManage:'1',target:'1',nonce:'',own:'1'},querySelector(){return table;}};roots.push(listRoot);
  domContext.fetch=async()=>({json:async()=>({success:true,data:{credentials:[{record_id:1,name:'policy-locked',can_rename:true,can_remove:false,authenticator:'Key',created_local:'today',created_ts:0}]}})});
  await api.refreshCredentialList(listRoot);
  const find=(node,action)=>node?.dataset?.action===action?node:(node?.children||[]).map(child=>find(child,action)).find(Boolean);
@@ -55,6 +55,10 @@ vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../asset
  domContext.fetch=async()=>({json:async()=>({success:true,data:{credentials:[]}})});
  await api.refreshCredentialList(listRoot);
  assert.match(table.tBodies[0].rows[0].cells[0].textContent,/^No passkeys yet\. Add one/,'empty list invites adding a passkey');
+ listRoot.dataset.own='0';
+ await api.refreshCredentialList(listRoot);
+ assert.equal(table.tBodies[0].rows[0].cells[0].textContent,'This account has no passkeys yet.','another account\'s empty list describes that account');
+ listRoot.dataset.own='1';
  const now=Math.floor(Date.now()/1000);
  domContext.fetch=async()=>({json:async()=>({success:true,data:{credentials:[{record_id:7,name:'recent',can_rename:true,can_remove:true,created_local:'Nov 1',created_ts:now-3*86400-60,last_used_local:null,last_used_ts:null},{record_id:8,name:'old',can_rename:true,can_remove:true,created_local:'Jan 1',created_ts:now-30*86400,last_used_local:'Jan 2',last_used_ts:now-29*86400}]}})});
  await api.refreshCredentialList(listRoot,'7');

@@ -90,7 +90,7 @@
             const data = await requestAction('list', { target_id: root.dataset.target }, root.dataset.nonce);
             const [nameLabel, authenticatorLabel, addedLabel, lastUsedLabel] = [__('Name', 'azwp-passkeys'), __('Authenticator', 'azwp-passkeys'), __('Added', 'azwp-passkeys'), __('Last used', 'azwp-passkeys')];
             body.replaceChildren();
-            if (!data.credentials.length) messageRow(body, __('No passkeys yet. Add one to sign in with your fingerprint, face, or device PIN.', 'azwp-passkeys'));
+            if (!data.credentials.length) messageRow(body, root.dataset.own === '1' ? __('No passkeys yet. Add one to sign in with your fingerprint, face, or device PIN.', 'azwp-passkeys') : __('This account has no passkeys yet.', 'azwp-passkeys'));
             data.credentials.forEach(row => {
                 const tr = body.insertRow(); if (tested === String(row.record_id)) tr.className = 'azwp-passkeys-tested';
                 const name = tr.insertCell(); name.className = 'column-name has-row-actions column-primary'; name.dataset.colname = nameLabel;
@@ -106,6 +106,13 @@
                 const added = tr.insertCell(); added.className = 'column-added'; added.dataset.colname = addedLabel; appendTime(added, row.created_ts, row.created_local);
                 const lastUsed = tr.insertCell(); lastUsed.className = 'column-last-used'; lastUsed.dataset.colname = lastUsedLabel; appendTime(lastUsed, row.last_used_ts, row.last_used_local);
             });
+            // The server refuses Passkey only mode without a usable passkey, so the profile says so before saving.
+            const section = document.querySelector('[data-requires-passkey]')?.closest('#azwp-passkeys');
+            if (section?.contains(root)) {
+                const policy = section.querySelector('[data-requires-passkey]');
+                policy.disabled = !policy.checked && !data.credentials.some(row => row.available);
+                section.querySelector('[data-passkey-required]').hidden = !policy.disabled;
+            }
         } catch (error) {
             body.replaceChildren(); messageRow(body, __('Could not load passkeys. Refresh the page.', 'azwp-passkeys'));
         }
