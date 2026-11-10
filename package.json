@@ -27,7 +27,8 @@
 	"pnpm": {
 		"overrides": {
 			"@wordpress/env>rimraf": "6.1.4",
-			"@wp-playground/cli@3.1.62>express": "4.22.3"
+			"@wp-playground/cli@3.1.62>express": "4.22.3",
+			"@wp-playground/storage>isomorphic-git": "1.44.12"
 		}
 	}
 }
