@@ -304,7 +304,7 @@ final class Passkeys
         $context['purpose'] = 'setup';
         return $this->issue_registration($context, $target);
     }
-    /** Consuming the link and saving the passkey share one owner transaction, so a link is used up only when a passkey is saved. */
+    /** Consuming the link and saving the passkey share one owner transaction, so when the tables use InnoDB a link is used up only when a passkey is saved. */
     public function complete_setup(array $context, array $input): array
     {
         $context['purpose'] = 'setup';
@@ -326,10 +326,11 @@ final class Passkeys
             $link = null;
             $result = $this->storage->with_owner_lock($target, function(Storage $storage) use ($attempt,$record,$inputs,$context,$target,$hash,&$config,&$link): array {
                 if (!$storage->account_exists($target)) { return $this->error('forbidden'); }
-                $link = $storage->consume_setup_link($target, $hash, $context['site_id']);
-                if (!$link) { return $this->error('attempt_unavailable'); }
                 $config = $this->check_issued_configuration($this->locked_configuration($storage, $inputs), $attempt['issued']);
                 if (!$config['ok']) { return $config; }
+                // The link is consumed last before the insert, so on a MyISAM usermeta table only a failed insert can use it up.
+                $link = $storage->consume_setup_link($target, $hash, $context['site_id']);
+                if (!$link) { return $this->error('attempt_unavailable'); }
                 return $this->insert_named($storage, $record, $context);
             });
             if (!$result['ok']) { return $result; }

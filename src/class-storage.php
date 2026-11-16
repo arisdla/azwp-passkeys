@@ -8,6 +8,8 @@ final class Storage {
     public const SCHEMA_VERSION = 2;
     private const SETUP_LINK_KEY = 'azwp_passkeys_setup_link';
     private const ENGINE_FAILURE = 1;
+    /** InnoDB rolls a failed operation back. MyISAM keeps the writes already made. */
+    private const ENGINES = ['innodb', 'myisam'];
     private \wpdb $db;
     private array $tables;
     private ?int $locked_owner = null;
@@ -74,14 +76,27 @@ final class Storage {
             throw new \RuntimeException('Database operation failed');
         }
     }
+    private function check_engine(string $table): void {
+        $row = $this->row($this->db->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', $table));
+        if (!$row) { throw new \RuntimeException('Table unavailable'); }
+        if (!in_array(strtolower((string) $row['ENGINE']), self::ENGINES, true)) { throw new \RuntimeException('Storage engine unsupported', self::ENGINE_FAILURE); }
+    }
     /** The events table is left out, so a missing events table never blocks a passkey operation. */
-    private function transactional_tables(array $extra = []): void {
+    private function check_tables(array $extra = []): void {
         $names = array_merge(array_values(array_diff_key($this->tables, ['events' => true])), [$this->db->users, $this->db->usermeta, $this->db->options], $extra);
         if (is_multisite()) { $names[] = $this->db->sitemeta; }
-        foreach (array_unique($names) as $name) {
-            $row = $this->row($this->db->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', $name));
-            if (!$row) { throw new \RuntimeException('Table unavailable'); }
-            if (strcasecmp((string) $row['ENGINE'], 'InnoDB') !== 0) { throw new \RuntimeException('Transactional storage unavailable', self::ENGINE_FAILURE); }
+        foreach (array_unique($names) as $name) { $this->check_engine($name); }
+    }
+    /**
+     * Sets every row of a meta key in one statement and inserts only when none exists.
+     * A delete followed by an insert would leave the value missing on MyISAM, for other requests and after a failure.
+     */
+    private function write_meta(string $table, string $owner_column, int $owner_id, string $key, string $value): void {
+        $where = $this->db->prepare("`$owner_column`=%d AND meta_key=%s", $owner_id, $key);
+        if ($this->row("SELECT meta_key FROM `$table` WHERE $where LIMIT 1")) {
+            $this->query("UPDATE `$table` SET " . $this->assignments(['meta_value' => $value]) . " WHERE $where");
+        } else {
+            $this->insert($table, [$owner_column => $owner_id, 'meta_key' => $key, 'meta_value' => $value]);
         }
     }
     /** Activation writes settings into every site's options table on the network. */
@@ -118,7 +133,7 @@ final class Storage {
                 if ($this->db->last_error !== '') { throw new \RuntimeException('Schema installation failed'); }
             }
             $this->verify_schema();
-            $this->transactional_tables([$this->tables['events'], ...$this->network_options_tables()]);
+            $this->check_tables([$this->tables['events'], ...$this->network_options_tables()]);
             return self::ok();
         } catch (\Throwable $e) { return self::error($e->getCode() === self::ENGINE_FAILURE ? 'storage_engine' : 'storage_failed'); }
     }
@@ -150,7 +165,7 @@ final class Storage {
         $acquired = false;
         $committed = false;
         try {
-            $this->transactional_tables();
+            $this->check_tables();
             $connection = $this->db->dbh;
             if (!$connection instanceof \mysqli) { return self::error(); }
             // wpdb can reconnect and replay SQL on a session that has neither the lock nor the transaction.
@@ -287,12 +302,16 @@ final class Storage {
             $data['trust_path'] = json_encode($data['trust_path'], JSON_THROW_ON_ERROR);
             foreach (['backup_eligible','backed_up'] as $key) { $data[$key] = (int) $data[$key]; }
             $this->insert($this->tables['credentials'], $data);
-            $result = $this->get_credential((int) $this->transaction_connection->insert_id);
-            if (!$result['ok'] || !$result['data']['credential']) { return self::error(); }
+            $id = (int) $this->transaction_connection->insert_id;
+            $result = $this->get_credential($id);
+            $confirmed = $result['ok'] && $result['data']['credential'];
             foreach ($fields as $key) {
-                if (array_key_exists($key, $credential) && $result['data']['credential'][$key] !== $credential[$key] && !in_array($key, ['user_id','site_id','created_at','sign_count','algorithm'], true)) { return self::error(); }
+                if ($confirmed && array_key_exists($key, $credential) && $result['data']['credential'][$key] !== $credential[$key] && !in_array($key, ['user_id','site_id','created_at','sign_count','algorithm'], true)) { $confirmed = false; }
             }
-            return $result;
+            if ($confirmed) { return $result; }
+            // MyISAM keeps the insert, and a row that cannot be read back fails every later read of the account's passkeys.
+            $this->query($this->db->prepare("DELETE FROM `{$this->tables['credentials']}` WHERE id=%d", $id));
+            return self::error();
         } catch (\Throwable $e) { return self::error(); }
     }
     public function update_credential(int $record_id, array $values): array {
@@ -488,21 +507,20 @@ final class Storage {
             $this->invalidate[] = [$scope, $scope_id];
             if ($scope === 'site') {
                 $table = $this->options_table($scope_id);
-                $engine = $this->row($this->db->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s', $table));
-                if (!$engine || strcasecmp($engine['ENGINE'], 'InnoDB') !== 0) { return self::error(); }
-                $before = $this->read_site_settings($scope_id);
-                $merged = array_replace($before, $values);
-                $serialized = maybe_serialize($merged);
-                $this->query($this->db->prepare("INSERT INTO `$table` (option_name,option_value,autoload) VALUES (%s,%s,'off') ON DUPLICATE KEY UPDATE option_value=VALUES(option_value),autoload='off'", 'azwp_passkeys_settings', $serialized));
-                $after = $this->read_site_settings($scope_id);
+                $this->check_engine($table);
+                $read = fn(): array => $this->read_site_settings($scope_id);
+                $write = fn(array $record): int => $this->query($this->db->prepare("INSERT INTO `$table` (option_name,option_value,autoload) VALUES (%s,%s,'off') ON DUPLICATE KEY UPDATE option_value=VALUES(option_value),autoload='off'", 'azwp_passkeys_settings', maybe_serialize($record)));
             } else {
-                $before = $this->read_network_settings($scope_id);
-                $merged = array_replace($before, $values);
-                $this->query($this->db->prepare("DELETE FROM `{$this->db->sitemeta}` WHERE site_id=%d AND meta_key=%s", $scope_id, 'azwp_passkeys_network_settings'));
-                $this->insert($this->db->sitemeta, ['site_id' => $scope_id, 'meta_key' => 'azwp_passkeys_network_settings', 'meta_value' => maybe_serialize($merged)]);
-                $after = $this->read_network_settings($scope_id);
+                $read = fn(): array => $this->read_network_settings($scope_id);
+                $write = fn(array $record) => $this->write_meta($this->db->sitemeta, 'site_id', $scope_id, 'azwp_passkeys_network_settings', maybe_serialize($record));
             }
-            return $after === $merged ? self::ok(['settings' => $after, 'previous' => $before]) : self::error();
+            $before = $read();
+            $merged = array_replace($before, $values);
+            $write($merged);
+            if ($read() === $merged) { return self::ok(['settings' => $merged, 'previous' => $before]); }
+            // MyISAM keeps the write, and a record that cannot be read back would put every setting on its default.
+            $write($before);
+            return self::error();
         });
     }
     /** A guard runs under the owner lock, only on the change from enabled to disabled, and may veto it. */
@@ -510,8 +528,7 @@ final class Storage {
         return $this->with_owner_lock($user_id, function () use ($user_id, $disabled, $guard): array {
             if ($disabled && $guard !== null && !$this->password_disabled($user_id) && !$guard($this)) { return self::error('access_required'); }
             $this->invalidate[] = ['user', $user_id];
-            $this->query($this->db->prepare("DELETE FROM `{$this->db->usermeta}` WHERE user_id=%d AND meta_key=%s", $user_id, 'azwp_passkeys_password_disabled'));
-            $this->insert($this->db->usermeta, ['user_id' => $user_id, 'meta_key' => 'azwp_passkeys_password_disabled', 'meta_value' => $disabled ? '1' : '0']);
+            $this->write_meta($this->db->usermeta, 'user_id', $user_id, 'azwp_passkeys_password_disabled', $disabled ? '1' : '0');
             return $this->password_disabled($user_id) === $disabled ? self::ok(['disabled' => $disabled]) : self::error();
         });
     }

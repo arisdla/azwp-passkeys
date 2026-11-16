@@ -437,7 +437,7 @@ msgid "Activate AZ's WP Passkeys for the network."
 msgstr ""
 
 #: src/class-lifecycle.php:103
-msgid "Passkey storage could not be initialized. The database tables must use the InnoDB storage engine."
+msgid "Passkey storage could not be initialized. The database tables must use the InnoDB or MyISAM storage engine."
 msgstr ""
 
 #: src/class-lifecycle.php:104

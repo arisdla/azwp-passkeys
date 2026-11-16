@@ -100,7 +100,7 @@ final class Lifecycle {
             wp_die(esc_html__('Activate AZ\'s WP Passkeys for the network.', 'azwp-passkeys'));
         }
         $schema = $this->install_tables();
-        if ($schema['code'] === 'storage_engine') { wp_die(esc_html__('Passkey storage could not be initialized. The database tables must use the InnoDB storage engine.', 'azwp-passkeys')); }
+        if ($schema['code'] === 'storage_engine') { wp_die(esc_html__('Passkey storage could not be initialized. The database tables must use the InnoDB or MyISAM storage engine.', 'azwp-passkeys')); }
         if (!$schema['ok']) { wp_die(esc_html__('Passkey storage could not be initialized.', 'azwp-passkeys')); }
         if (is_multisite()) {
             $network_id = get_current_network_id();

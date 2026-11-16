@@ -30,10 +30,10 @@ The [UX demo](https://raw.githack.com/arisdla/azwp-passkeys/main/wireframes/inde
 | WordPress | 6.9 or later |
 | PHP | 8.3 or later, with OpenSSL |
 | HTTPS | Required. Plain HTTP works only on `localhost` |
-| Database | InnoDB tables |
+| Database | InnoDB or MyISAM tables |
 
 > [!NOTE]
-> The plugin saves data in transactions, so activation fails on MyISAM tables. To convert one, back up the database and run `ALTER TABLE <table> ENGINE=InnoDB`.
+> The plugin creates its own tables as InnoDB. Existing MyISAM tables also work. MyISAM has no rollback, so if the database fails partway through an operation, the changes already saved stay. InnoDB is the safer choice. To convert a table, back up the database and run `ALTER TABLE <table> ENGINE=InnoDB`.
 
 ## Install
 

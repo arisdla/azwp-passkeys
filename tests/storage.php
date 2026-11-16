@@ -22,14 +22,19 @@ $passkeys = new Passkeys($settings, $storage, new WebAuthn());
 $assert($storage->install_schema()['ok'], 'Transactional schema installs');
 $assert($storage->install_schema()['ok'], 'Schema installation is idempotent');
 $logs_table = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_events';
-$GLOBALS['wpdb']->query("ALTER TABLE `$logs_table` ENGINE=MyISAM");
-try {
-    $assert($storage->install_schema()['code'] === 'storage_engine', 'A MyISAM table reports the storage engine');
-} finally {
-    $GLOBALS['wpdb']->query("ALTER TABLE `$logs_table` ENGINE=InnoDB");
-}
-$assert($storage->install_schema()['ok'], 'Schema installs again after conversion to InnoDB');
+$plugin_tables = array_map(static fn(string $name): string => $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_' . $name, ['identities', 'credentials', 'attempts', 'events']);
+$engines = static fn(): array => $GLOBALS['wpdb']->get_col("SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('" . implode("','", $plugin_tables) . "')");
+$assert(array_unique(array_map('strtolower', $engines())) === ['innodb'], 'New tables use InnoDB');
+$memory_table = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_memory';
+$GLOBALS['wpdb']->query("CREATE TABLE `$memory_table` (id INT NOT NULL) ENGINE=MEMORY");
 $usermeta_table = $GLOBALS['wpdb']->usermeta;
+$GLOBALS['wpdb']->usermeta = $memory_table;
+try {
+    $assert($storage->install_schema()['code'] === 'storage_engine', 'A MEMORY table reports the storage engine');
+} finally {
+    $GLOBALS['wpdb']->usermeta = $usermeta_table;
+    $GLOBALS['wpdb']->query("DROP TABLE `$memory_table`");
+}
 $GLOBALS['wpdb']->usermeta = $GLOBALS['wpdb']->base_prefix . 'azwp_passkeys_missing';
 try {
     $assert($storage->install_schema()['code'] === 'storage_failed', 'A missing table is not reported as the storage engine');
@@ -133,6 +138,37 @@ try {
     $GLOBALS['wpdb']->query($GLOBALS['wpdb']->prepare("DELETE FROM `$logs_table` WHERE correlation_id=%s", $event['correlation_id']));
     $removed = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->delete_credential($record_id));
     $assert($removed['ok'] && $storage->get_credential($record_id)['data']['credential'] === null, 'Deletion confirms absence');
+    $myisam_tables = [...$plugin_tables, $usermeta_table, $GLOBALS['wpdb']->options];
+    foreach ($myisam_tables as $table) { $GLOBALS['wpdb']->query("ALTER TABLE `$table` ENGINE=MyISAM"); }
+    try {
+        $assert($storage->install_schema()['ok'] && array_unique(array_map('strtolower', $engines())) === ['myisam'], 'MyISAM tables are accepted and not converted');
+        $saved = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->insert_credential($row));
+        $assert($saved['ok'], 'Credential insert works on MyISAM');
+        $record_id = $saved['data']['credential']['id'];
+        $renamed = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->update_credential($record_id, ['name'=>'MyISAM name']));
+        $assert($renamed['ok'] && $storage->save_password_policy($user_id, false)['ok'] && !$storage->password_disabled($user_id), 'Rename and password flag work on MyISAM');
+        // A flag write never deletes rows, so no request and no failure can find the flag missing.
+        add_user_meta($user_id, 'azwp_passkeys_password_disabled', '0');
+        $flags = static fn(): array => $GLOBALS['wpdb']->get_col($GLOBALS['wpdb']->prepare("SELECT meta_value FROM `$usermeta_table` WHERE user_id=%d AND meta_key=%s", $user_id, 'azwp_passkeys_password_disabled'));
+        $assert($storage->save_password_policy($user_id, true)['ok'] && $flags() === ['1', '1'], 'Password flag updates every row in place on MyISAM');
+        $assert($storage->save_password_policy($user_id, false)['ok'] && $flags() === ['0', '0'], 'Password flag clears every row in place on MyISAM');
+        $kept = $storage->with_owner_lock($user_id, static function (Storage $store) use ($record_id): array {
+            $store->update_credential($record_id, ['name'=>'Kept']);
+            return ['ok'=>false,'code'=>'state_changed','data'=>[],'message'=>''];
+        });
+        $assert(!$kept['ok'] && $storage->get_credential($record_id)['data']['credential']['name'] === 'Kept', 'Failed operation keeps its writes on MyISAM');
+        $oversized = ['credential_id'=>random_bytes(64), 'transports'=>array_map(static fn(int $i): string => "transport-$i-" . str_repeat('x', 20), range(1, 3000))] + $row;
+        $rejected = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->insert_credential($oversized));
+        $listed = $storage->get_credentials($user_id);
+        $assert(!$rejected['ok'] && $listed['ok'] && array_column($listed['data']['credentials'], 'id') === [$record_id], 'A credential that fails its read-back is removed on MyISAM');
+        $settings_before = $storage->read_site_settings($site_id);
+        $invalid = $storage->save_settings('site', $site_id, ['rp_name'=>"Shop \xff"]);
+        $assert(!$invalid['ok'] && $settings_before !== [] && $storage->read_site_settings($site_id) === $settings_before, 'A settings save that fails its read-back keeps the saved settings on MyISAM');
+        $removed = $storage->with_owner_lock($user_id, static fn(Storage $store): array => $store->delete_credential($record_id));
+        $assert($removed['ok'] && $storage->get_credential($record_id)['data']['credential'] === null, 'Deletion works on MyISAM');
+    } finally {
+        foreach ($myisam_tables as $table) { $GLOBALS['wpdb']->query("ALTER TABLE `$table` ENGINE=InnoDB"); }
+    }
     echo "Storage integration: $checks checks passed.\n";
 } finally {
     $storage->cleanup_user($user_id);

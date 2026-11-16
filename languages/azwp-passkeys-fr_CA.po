@@ -271,8 +271,8 @@ msgid "Passkey sign-in"
 msgstr "Connexion avec une clé d’accès"
 
 #: src/class-lifecycle.php:103
-msgid "Passkey storage could not be initialized. The database tables must use the InnoDB storage engine."
-msgstr "Le stockage des clés d’accès n’a pas pu être initialisé. Les tables de la base de données doivent utiliser le moteur de stockage InnoDB."
+msgid "Passkey storage could not be initialized. The database tables must use the InnoDB or MyISAM storage engine."
+msgstr "Le stockage des clés d’accès n’a pas pu être initialisé. Les tables de la base de données doivent utiliser le moteur de stockage InnoDB ou MyISAM."
 
 #: src/class-authentication.php:447
 #: assets/js/client.js:147
