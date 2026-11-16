@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: AZ's WP Passkeys 0.4.1\n"
+"Project-Id-Version: AZ's WP Passkeys 0.5.0\n"
 "Report-Msgid-Bugs-To: https://github.com/arisdla/azwp-passkeys/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-09T14:34:01+00:00\n"
+"POT-Creation-Date: 2026-11-16T03:09:09+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: azwp-passkeys\n"
@@ -501,44 +501,44 @@ msgstr ""
 msgid "[%s] Add a passkey to your account"
 msgstr ""
 
-#: src/class-passkeys.php:363
+#: src/class-passkeys.php:364
 #, php-format
 msgid "A passkey from an unknown authenticator (named “%1$s”) was added to your account on %2$s."
 msgstr ""
 
-#: src/class-passkeys.php:364
+#: src/class-passkeys.php:365
 #, php-format
 msgid "A passkey from %1$s (named “%2$s”) was added to your account on %3$s."
 msgstr ""
 
-#: src/class-passkeys.php:365
+#: src/class-passkeys.php:366
 #, php-format
 msgid "It was added with a setup link sent by %s."
 msgstr ""
 
-#: src/class-passkeys.php:365
+#: src/class-passkeys.php:366
 #, php-format
 msgid "It was added by %s."
 msgstr ""
 
-#: src/class-passkeys.php:365
+#: src/class-passkeys.php:366
 msgid "It was added while you were signed in."
 msgstr ""
 
-#: src/class-passkeys.php:367
+#: src/class-passkeys.php:368
 msgid "If you did not expect this, remove the passkey and tell a site administrator:"
 msgstr ""
 
-#: src/class-passkeys.php:368
+#: src/class-passkeys.php:369
 msgid "If you did not expect this, remove the passkey and change your password:"
 msgstr ""
 
-#: src/class-passkeys.php:371
+#: src/class-passkeys.php:372
 #, php-format
 msgid "[%s] A passkey was added to your account"
 msgstr ""
 
-#: src/class-passkeys.php:474
+#: src/class-passkeys.php:475
 msgid "This passkey is unavailable under the current site settings."
 msgstr ""
 
