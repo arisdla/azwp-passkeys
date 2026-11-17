@@ -298,8 +298,51 @@ try {
         check('a setup link adds exactly one passkey', $added['ok'] && $added['subject_id']===$bob && count($storage->get_credentials($bob)['data']['credentials'])===1);
         check('a used setup link stops working', !$passkeys->setup_link_valid($bob,$token,$site) && $passkeys->setup_options($setup_context,['user_id'=>(string)$bob,'token'=>$token])['code']==='attempt_unavailable');
         check('the owner is told a setup link added a passkey', str_contains(end($mails)['message'] ?? '','setup link'));
-        $storage->save_setup_link($bob,['hash'=>hash('sha256','expired'),'expires_at'=>time()-1,'issued_by'=>$admin,'site_id'=>$site]);
-        check('an expired setup link does not work', !$passkeys->setup_link_valid($bob,WebAuthn::encode('expired'),$site));
+        $expired_token = random_bytes(32);
+        $expired_link = $storage->save_setup_link($bob, ['hash'=>hash('sha256',$expired_token),'expires_at'=>time()-1,'issued_by'=>$admin,'site_id'=>$site]);
+        check('an expired setup link does not work', $expired_link['ok'] && !$passkeys->setup_link_valid($bob,WebAuthn::encode($expired_token),$site));
+
+        $usermeta = $wpdb->usermeta;
+        $usermeta_engine = static fn(): ?string => $wpdb->get_row($wpdb->prepare('SHOW TABLE STATUS WHERE Name=%s', $usermeta))->Engine ?? null;
+        $original_engine = $usermeta_engine();
+        check('setup link fixture has an InnoDB or MyISAM usermeta table', in_array($original_engine, ['InnoDB', 'MyISAM'], true));
+        $trigger = 'azwp_test_setup_' . bin2hex(random_bytes(6));
+        check('setup link fixture rejects credential inserts for its owner', $wpdb->query("CREATE TRIGGER `$trigger` BEFORE INSERT ON `$table` FOR EACH ROW BEGIN IF NEW.user_id=$bob THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Test setup save failure'; END IF; END") !== false);
+        try {
+            foreach (['InnoDB', 'MyISAM'] as $engine) {
+                if ($usermeta_engine() !== $engine) {
+                    check("setup link fixture switches usermeta to $engine", $wpdb->query("ALTER TABLE `$usermeta` ENGINE=$engine") !== false && $usermeta_engine() === $engine);
+                }
+                $admin_context = $become($admin);
+                check("administrator sends a setup link on $engine usermeta", $passkeys->send_setup_link($admin_context, $bob)['ok']);
+                $token = $setup_token();
+                wp_set_current_user(0); unset($_COOKIE[LOGGED_IN_COOKIE]);
+                $setup_input = ['user_id'=>(string) $bob, 'token'=>$token];
+                $setup = $passkeys->setup_options($setup_context, $setup_input);
+                check("setup options are issued on $engine usermeta", $setup['ok']);
+                $attempt_ids[] = $setup_id = $setup['data']['attempt_id'];
+                $credential_id = random_bytes(32);
+                $credential = registration_fixture($read_issued($setup_id), $credential_id, $setup_cose, random_bytes(16));
+                $failed = $passkeys->complete_setup($setup_context, ['attempt_id'=>$setup_id, 'token'=>$token, 'credential'=>$credential]);
+                $saved = $storage->find_credential($credential_id);
+                check("setup reports a storage failure and saves no passkey on $engine usermeta", !$failed['ok'] && $failed['code'] === 'storage_failed' && $saved['ok'] && $saved['data']['credential'] === null);
+                $retry = $passkeys->setup_options($setup_context, $setup_input);
+                if ($retry['ok']) { $attempt_ids[] = $retry['data']['attempt_id']; }
+                if ($engine === 'InnoDB') {
+                    check('InnoDB usermeta rolls back consumption so the link can start a fresh attempt', $retry['ok']);
+                } else {
+                    check('MyISAM usermeta keeps the link consumed after the failed save', !$retry['ok'] && $retry['code'] === 'attempt_unavailable');
+                }
+            }
+        } finally {
+            try {
+                check('setup link fixture removes the insert trigger', $wpdb->query("DROP TRIGGER `$trigger`") !== false);
+            } finally {
+                if ($usermeta_engine() !== $original_engine) {
+                    check("setup link fixture restores usermeta to $original_engine", $wpdb->query("ALTER TABLE `$usermeta` ENGINE=$original_engine") !== false && $usermeta_engine() === $original_engine);
+                }
+            }
+        }
     } finally {
         remove_filter('pre_wp_mail', $capture_mail, 10);
         $storage->cleanup_user($bob,$site);
