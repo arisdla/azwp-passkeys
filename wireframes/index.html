@@ -464,10 +464,10 @@ pre{background:var(--soft);border:1px solid var(--line);padding:10px;font-size:1
 <h2>Activation and uninstall errors</h2>
 <p class="lead">WordPress error pages shown when the plugin cannot set itself up or clean up. Each one stops the action.</p>
 <div class="demo"><div class="chips"></div><div class="stage">
-<div data-v="InnoDB required" class="on">
+<div data-v="Unsupported storage engine" class="on">
 <p class="url">/wp-admin/plugins.php?action=activate</p>
-<div class="card" style="max-width:520px">Passkey storage could not be initialized. The database tables must use the InnoDB storage engine.</div>
-<p class="note">Shown when a WordPress table uses MyISAM. The plugin saves data in transactions, so it needs InnoDB.</p>
+<div class="card" style="max-width:520px">Passkey storage could not be initialized. The database tables must use the InnoDB or MyISAM storage engine.</div>
+<p class="note">Shown when a table checked during activation uses an unsupported engine. Existing InnoDB and MyISAM tables are accepted.</p>
 </div>
 <div data-v="Other storage failure">
 <p class="url">/wp-admin/plugins.php?action=activate</p>
